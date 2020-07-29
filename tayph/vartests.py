@@ -142,6 +142,7 @@ def dimtest(var,sizes,varname=''):
     >>>b=np.array(a)
     >>>dimtest(a,2,[2,3])
     >>>dimtest(a,2,[3,10])
+    >>>dimtest(a,np.shape(a))
     """
     import numpy as np
     typetest(sizes,[list,tuple,np.ndarray])

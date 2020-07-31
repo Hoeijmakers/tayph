@@ -161,7 +161,11 @@ def read_binary_model_daniel(inpath,double=True):
     check_path(inpath,exists=True)
 
     r = []
-
+    try:
+        f = open(inpath,'rb')
+    except FileNotFoundError:
+        print('ERROR in read_binary_model_daniel: file %s not found.' % inpath)
+        sys.exit()
     while True:
         seq = f.read(nbytes)
         if not seq:

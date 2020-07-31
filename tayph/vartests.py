@@ -137,12 +137,11 @@ def dimtest(var,sizes,varname=''):
 
     Example
     -------
-    >>>import numpy as np
-    >>>a=[[1,2,3],[4,3,9]]
-    >>>b=np.array(a)
-    >>>dimtest(a,2,[2,3])
-    >>>dimtest(a,2,[3,10])
-    >>>dimtest(a,np.shape(a))
+    >>> import numpy as np
+    >>> a=[[1,2,3],[4,3,9]]
+    >>> b=np.array(a)
+    >>> dimtest(a,[2,3])
+    >>> dimtest(a,np.shape(a))
     """
     import numpy as np
     typetest(sizes,[list,tuple,np.ndarray])

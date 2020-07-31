@@ -58,6 +58,27 @@ def end(start,id=''):
     return end-start
 
 
+def check_path(filepath,varname='filepath in check_path()',exists=False):
+    """This is a short function that handles file paths when input to other functions.
+    It checks that the proposed file path is either a string or a pathlib Path object, and
+    converts to the latter if its a string. If the exists keyword is set to true, it will
+    check that the path (either a file or a folder) exists, and raise an exception if it doesn't.
+    All your filepath needs wrapped up in one :)
+
+
+    """
+
+
+    import pathlib
+    from tayph.vartests import typetest
+    typetest(filepath,[str,pathlib.PosixPath],varname)#Test that we are dealing with a path.
+    if isinstance(filepath,str) == True:
+        filepath=pathlib.Path(filepath)
+    if exists == True and ((filepath.is_dir()+filepath.is_file()) == False):
+        raise FileNotFoundError(str(filepath)+' does not exist.')
+    else:
+        return(filepath)
+
 def save_stack(filename,list_of_2D_frames):
     """This code saves a stack of fits-files to a 3D cube, that you can play
     through in DS9. For diagnostic purposes.
@@ -83,12 +104,12 @@ def save_stack(filename,list_of_2D_frames):
     from tayph.vartests import dimtest
     import warnings
 
-    typetest(filename,[str,pathlib.PosixPath],'filename in save_stack()')#Test that we are dealing with a path.
+    filename=check_path(filename,'filename in save_stack()')
     typetest(list_of_2D_frames,list,'list_of_2D_frames in save_stack()')#Test that its a list
     typetest(list_of_2D_frames[0],[list,np.ndarray],)
     for i,f in enumerate(list_of_2D_frames):
         typetest(f,[list,np.ndarray],'frame %s of list_of_2D_frames in save_stack()'%i)
-        
+
     base = np.shape(list_of_2D_frames[0])
     N = len(list_of_2D_frames)
 
@@ -115,7 +136,37 @@ def writefits(filename,array):
     import astropy.io.fits as fits
     from tayph.vartests import typetest
     from tayph.vartests import dimtest
-    typetest(filename,[str,pathlib.PosixPath],'filename in writefits()')#Test that we are dealing with a path.
+    import pathlib
+    import numpy as np
+    filename=check_path(filename,'filename in writefits()')
     base = np.shape(array)
     dimtest(base,[2],'shape of array in writefits()')#Test that its 2-dimensional
     fits.writeto(filename,array,overwrite=True)
+
+
+
+def read_binary_model_daniel(inpath,double=True):
+    """This reads a binary model spectrum (those created by Daniel Kitzmann)
+    located at path inpath."""
+
+    import struct
+    from tayph.vartests import typetest
+    if double == True:
+        nbytes = 8
+        tag = 'd'
+    else:
+        nbytes = 4
+        tag = 'f'
+
+    check_path(inpath,exists=True)
+
+    r = []
+
+    while True:
+        seq = f.read(nbytes)
+        if not seq:
+            break
+        else:
+            r.append(struct.unpack(tag,seq))
+    f.close()
+    return(r)

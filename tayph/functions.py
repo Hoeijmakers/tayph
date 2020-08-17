@@ -1,3 +1,9 @@
+__all__ = [
+    'findgen',
+    'gaussian',
+    'sigma_clip'
+]
+
 def findgen(n,integer=False):
     """This is basically IDL's findgen function.
     a = findgen(5) will return an array with 5 elements from 0 to 4:

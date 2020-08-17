@@ -1,3 +1,9 @@
+__all__ = [
+    "write_telluric_transmission_to_file",
+    "read_telluric_transmission_from_file",
+    "apply_telluric_correction"
+]
+
 #The following are not strictly molecfit-specific
 def write_telluric_transmission_to_file(wls,T,outpath):
     """This saves a list of wl arrays and a corresponding list of transmission-spectra

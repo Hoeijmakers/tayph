@@ -1,3 +1,14 @@
+__all__ = [
+    "bin",
+    "bin_avg",
+    "convolve",
+    "derivative",
+    "constant_velocity_wl_grid",
+    "blur_rotate",
+    "airtovac",
+    "vactoair"
+]
+
 def bin(x,y,n,err=[]):
     """
     A simple function to quickly bin a spectrum by a certain number of points.

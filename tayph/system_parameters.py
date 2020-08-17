@@ -1,6 +1,7 @@
-def paramget(keyword,dp):
+def paramget(keyword,dp,full_path=False):
     """This code queries a planet system parameter from a config file located in the folder
-    specified by the path dp.
+    specified by the path dp; or run configuration parameters from a file speciefied by the full
+    path dp, if full_path is set to True.
 
     Parameters
     ----------
@@ -10,6 +11,9 @@ def paramget(keyword,dp):
     dp : str, Path
         Output filename/path.
 
+    full_path: bool
+        If set, dp refers to the actual file, not the location of a folder with a config.dat;
+        but the actual file itself.
 
     Returns
     -------
@@ -20,6 +24,8 @@ def paramget(keyword,dp):
     from tayph.vartests import typetest
     from tayph.util import check_path
     import pathlib
+    import distutils.util
+    import pdb
 
     dp=check_path(dp)
     typetest(keyword,str,'keyword in paramget()')
@@ -27,24 +33,32 @@ def paramget(keyword,dp):
     if isinstance(dp,str) == True:
         dp=pathlib.Path(dp)
     try:
-        f = open(dp/'config.dat', 'r')
+        if full_path:
+            f = open(dp, 'r')
+        else:
+            f = open(dp/'config.dat', 'r')
     except FileNotFoundError:
-        raise FileNotFoundError('config.dat does not exist at %s' % str(dp)) from None
+        raise FileNotFoundError('parameter file does not exist at %s' % str(dp)) from None
     x = f.read().splitlines()
     f.close()
     n_lines=len(x)
     keywords={}
     for i in range(0,n_lines):
         line=x[i].split()
-        try:
-            value=float(line[1])
-        except ValueError:
-            value=(line[1])
-        keywords[line[0]] = value
+        if len(line) > 1:
+            try:
+                value=float(line[1])
+            except ValueError:
+                try:
+                    value=bool(distutils.util.strtobool(line[1]))
+                except ValueError:
+                    value=(line[1])
+            keywords[line[0]] = value
     try:
         return(keywords[keyword])
     except KeyError:
-        raise Exception('Keyword %s is not present in configfile at %s' % (keyword,dp)) from None
+        # print(keywords)
+        raise Exception('Keyword %s is not present in parameter file at %s' % (keyword,dp)) from None
 
 def t_eff(M,R):
     """This function computes the mass and radius of a star given its mass and radius relative to solar."""

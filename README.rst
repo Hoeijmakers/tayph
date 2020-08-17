@@ -1,5 +1,7 @@
-High Resolution Spectroscopy of Exoplanets
-------------------------------------------
+High Resolution Spectroscopy of Exoplanet Atmospheres
+-----------------------------------------------------
+THIS IS A WORK IN PROGRESS AND ONLY SEGMENTS OF THE PROJECT ARE CURRENTLY FUNCTIONAL
+------------------------------------------------------------------------------------
 
 .. image:: http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat
     :target: http://www.astropy.org
@@ -13,6 +15,18 @@ High Resolution Spectroscopy of Exoplanets
     :target: https://travis-ci.org/Hoeijmakers/tayph
 
 
+Tayph is envisioned as a package to help you analyze high-resolution spectral time-series of exoplanets using the Cross-correlation technique introduced by [Snellen et al. 2010](https://www.nature.com/articles/nature09111) in a *robust*, *transparent*, *flexible* and *user-friendly* way.
+
+- **Robust**: The analysis of high-resolution spectral time series can be challenging, and normally involves a number of analysis steps that may depend strongly on the type of data, planet, and circumstances. The steps applied in the analysis cascade have been developed and tested over the course of a number of published analyses. The code itself is thoroughly tested at the build and execution levels.
+- **Transparent**: Tayph aims to be transparent in its capabilities, assumptions and limitations. To this end, the entire package is open-source, and the analysis steps have been well described in published literature. The code is documented following the Astropy style, and thoroughly commented in-line. Ongoing issues, bugs and improvements are maintained and documented in public on [Tayphs GitHub page](https://github.com/Hoeijmakers/tayph).
+- **Flexible**: Tayph is designed to work on spectral time series observed with commonly used High-resolution Echelle spectrographs that observe optical wavelengths. When applied to pipeline-reduced data of HARPS and ESPRESSO, Tayph will run out of the box with minimal effort required. For other instruments, Tayph requires the user to format their spectral time-series into an accessible, human-readable and easy-to-understand format. The routines and analysis steps employed by Tayph can be adjusted easily to allow for the analysis of other wavelength ranges (e.g. the NIR/MIR). The modular nature provided by the python package ecosystem and the transparency of the data structure will allow the user to insert their own modules whenever needed. 
+- **User-friendly**: Tayph provides meaningful status reports and errors. In addition, because high-resolution spectrographs can produce large, unwieldly spectra; considerable effort has been directed to providing meaningful plots and GUIs for the user to inspect, understand and interact with their data.
+
+Despite the aims set out above, both the methods used by the community to analyze high-resolution observations of exoplanet atmospheres as well as Tayph are likely never perfect, and subject to approximations, mistakes or bugs. Secondly, the code being focused on transparency and flexibility, Tayph is not designed to make *optimal* use of computer resources. The entire package is written in Python, and there are many instances where factors can be gained in terms of computation and memory efficiency. Making Tayph more nimble is hence an ongoing effort. I hope that you, *the user* will benefit from this package, and share your questions, feedback, ideas or pull requests. I will strive to use your input to better Tayph.
+
+
+
+
 License
 -------
 
@@ -22,35 +36,3 @@ the `Astropy package template <https://github.com/astropy/package-template>`_
 which is licensed under the BSD 3-clause license. See the licenses folder for
 more information.
 
-
-Contributing
-------------
-
-We love contributions! tayph is open source,
-built on open source, and we'd love to have you hang out in our community.
-
-**Imposter syndrome disclaimer**: We want your help. No, really.
-
-There may be a little voice inside your head that is telling you that you're not
-ready to be an open source contributor; that your skills aren't nearly good
-enough to contribute. What could you possibly offer a project like this one?
-
-We assure you - the little voice in your head is wrong. If you can write code at
-all, you can contribute code to open source. Contributing to open source
-projects is a fantastic way to advance one's coding skills. Writing perfect code
-isn't the measure of a good developer (that would disqualify all of us!); it's
-trying to create something, making mistakes, and learning from those
-mistakes. That's how we all improve, and we are happy to help others learn.
-
-Being an open source contributor doesn't just mean writing code, either. You can
-help out by writing documentation, tests, or even giving feedback about the
-project (and yes - that includes giving feedback about the contribution
-process). Some of these contributions may be the most valuable to the project as
-a whole, because you're coming to the project with fresh eyes, so you can see
-the errors and assumptions that seasoned contributors have glossed over.
-
-Note: This disclaimer was originally written by
-`Adrienne Lowe <https://github.com/adriennefriend>`_ for a
-`PyCon talk <https://www.youtube.com/watch?v=6Uj746j9Heo>`_, and was adapted by
-tayph based on its use in the README file for the
-`MetPy project <https://github.com/Unidata/MetPy>`_.

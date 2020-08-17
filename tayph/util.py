@@ -65,13 +65,29 @@ def check_path(filepath,varname='filepath in check_path()',exists=False):
     check that the path (either a file or a folder) exists, and raise an exception if it doesn't.
     All your filepath needs wrapped up in one :)
 
+    This function tests the dimensions and shape of the input array var.
+    Sizes is the number of elements on each axis.
 
+    Parameters
+    ----------
+    filepath : str, Path object
+        The path that needs to be vetted. This can be a folder or a filepath.
+
+    varname : str
+        Name or description of the variable to assist in debugging.
+
+    exists : bool
+        If set to True, the file/folder needs to exist in order to pass the test.
+        If False, the routine only checks whether the variable provided is in fact
+        a string or a path object.
     """
 
 
     import pathlib
     from tayph.vartests import typetest
     typetest(filepath,[str,pathlib.PosixPath],varname)#Test that we are dealing with a path.
+    typetest(exists,bool)
+    typetest(varname,str)
     if isinstance(filepath,str) == True:
         filepath=pathlib.Path(filepath)
     if exists == True and ((filepath.is_dir()+filepath.is_file()) == False):
@@ -106,7 +122,7 @@ def save_stack(filename,list_of_2D_frames):
 
     filename=check_path(filename,'filename in save_stack()')
     typetest(list_of_2D_frames,list,'list_of_2D_frames in save_stack()')#Test that its a list
-    typetest(list_of_2D_frames[0],[list,np.ndarray],)
+    typetest(list_of_2D_frames[0],[list,np.ndarray],'list_of_2D_frames in save_stack()')
     for i,f in enumerate(list_of_2D_frames):
         typetest(f,[list,np.ndarray],'frame %s of list_of_2D_frames in save_stack()'%i)
 
@@ -139,8 +155,8 @@ def writefits(filename,array):
     import pathlib
     import numpy as np
     filename=check_path(filename,'filename in writefits()')
-    base = np.shape(array)
-    dimtest(base,[2],'shape of array in writefits()')#Test that its 2-dimensional
+    # base = np.shape(array)
+    # dimtest(base,[2],'shape of array in writefits()')#Test that its 2-dimensional
     fits.writeto(filename,array,overwrite=True)
 
 
@@ -171,6 +187,7 @@ def read_binary_model_daniel(inpath,double=True):
         if not seq:
             break
         else:
-            r.append(struct.unpack(tag,seq))
+            r.append(struct.unpack(tag,seq)[0])#I put an index here because it was making a list of tuples.
+            #I hope that this still works when double=True!
     f.close()
     return(r)

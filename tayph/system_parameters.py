@@ -45,3 +45,35 @@ def paramget(keyword,dp):
         return(keywords[keyword])
     except KeyError:
         raise Exception('Keyword %s is not present in configfile at %s' % (keyword,dp)) from None
+
+def t_eff(M,R):
+    """This function computes the mass and radius of a star given its mass and radius relative to solar."""
+    from tayph.vartests import typetest
+    import numpy as np
+    import astropy.constants as const
+
+    typetest(M,[int,float],'M in t_eff()')
+    typetest(R,[int,float],'R in t_eff()')
+    M=float(M)
+    R=float(R)
+
+    Ms = const.M_sun
+    Rs = const.R_sun
+    Ls = const.L_sun
+    sb = const.sigma_sb
+
+    if M < 0.43:
+        a = 0.23
+        b = 2.3
+    elif M < 2:
+        a = 1.0
+        b = 4.0
+    elif M < 55:
+        a = 1.4
+        b = 3.5
+    else:
+        a = 32000.0
+        b = 1.0
+
+    T4 = a*M**b * Ls / (4*np.pi*R**2*Rs**2*sb)
+    return(T4**0.25)

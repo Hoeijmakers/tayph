@@ -7,7 +7,7 @@ THIS IS A WORK IN PROGRESS AND ONLY SEGMENTS OF THE PROJECT ARE CURRENTLY FUNCTI
 [![ReadTheDocs](https://readthedocs.org/projects/tayph/badge/?version=latest)](https://tayph.readthedocs.io/en/latest/?badge=latest)
 [![Travis](https://travis-ci.org/Hoeijmakers/tayph.svg?branch=master)](https://travis-ci.org/Hoeijmakers/tayph)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/dwyl/esta/issues)
-[![HitCount](http://hits.dwyl.com/Hoeijmakers/tayph.svg)](http://hits.dwyl.com/Hoeijmakers/tayph)
+![ViewCount](https://views.whatilearened.today/views/github/Hoeijmakers/tayph.svg)
 
 
 Tayph is envisioned as a package to help you analyze high-resolution spectral time-series of exoplanets using the Cross-correlation technique introduced by [Snellen et al. 2010](https://www.nature.com/articles/nature09111) in a *robust*, *transparent*, *flexible* and *user-friendly* way.

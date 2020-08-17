@@ -62,7 +62,7 @@ def run_instance(p):
     import tayph.operations as ops
     import tayph.functions as fun
     import tayph.system_parameters as sp
-    from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array
+    from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest
     # from lib import models
     # from lib import analysis
     # from lib import cleaning
@@ -75,7 +75,7 @@ def run_instance(p):
 #First parse the parameter dictionary into required variables and test them.
     typetest(p,dict,'params in run_instance()')
 
-    dp = p['dp']
+    dp = Path(p['dp'])
     ut.check_path(dp,exists=True)
 
 
@@ -162,58 +162,98 @@ def run_instance(p):
 
 
 
-    list_of_wls=[]
-    list_of_orders=[]
+    list_of_wls=[]#This will store all the data.
+    list_of_orders=[]#All of it needs to be loaded into your memory.
     list_of_sigmas=[]
 
-    sys.exit()
-
-
-    trigger1 = 0#These triggers are used to generate warning messages in the forloop.
-    trigger2 = 0
-
-    air = bool(distutils.util.strtobool(sp.paramget('air',dp)))#Read bool from str in config file.
+    trigger2 = 0#These triggers are used to limit the generation of output in the forloop.
+    trigger3 = 0
+    n_negative_total = 0#This will hold the total number of pixels that were set to NaN because they were zero when reading in the data.
+    air = sp.paramget('air',dp)#Read bool from str in config file.
+    typetest(air,bool,'air in run_instance()')
 
     filelist_orders= [str(i) for i in Path(dp).glob('order_*.fits')]
-    order_numbers = [int(i.split('order_')[1].split('.')[0]) for i in filelist_orders]
+    if len(filelist_orders) == 0:
+        raise Exception(f'Runtime error: No orders_*.fits files were found in {dp}.')
+    try:
+        order_numbers = [int(i.split('order_')[1].split('.')[0]) for i in filelist_orders]
+    except:
+        raise Exception('Runtime error: Failed casting fits filename numerals to ints. Are the filenames of the spectral orders correctly formatted?')
     order_numbers.sort()#This is the ordered list of numerical order IDs.
+    n_orders = len(order_numbers)
+    if n_orders == 0:
+        raise Exception(f'Runtime error: n_orders may not have ended up as zero. ({n_orders})')
+
+
 
 
 #Loading the data from the datafolder.
     if do_xcor == True or plot_xcor == True or make_mask == True:
-        print('---Reading orders from '+dp)
+        print(f'---Loading orders from {dp}.')
 
         # for i in range(startorder,endorder+1):
         for i in order_numbers:
+            wavepath = dp/f'wave_{i}.fits'
+            orderpath= dp/f'order_{i}.fits'
+            sigmapath= dp/f'sigma_{i}.fits'
+            ut.check_path(wavepath,exists=True)
+            ut.check_path(orderpath,exists=True)
+            ut.check_path(sigmapath,exists=False)
+            wave_axis = fits.getdata(wavepath)
+            dimtest(wave_axis,[0],'wavelength grid in run_instance()')
+            n_px = len(wave_axis)#Pixel width of the spectral order.
             if air == False:
                 if i == np.min(order_numbers):
-                    trigger1=-1
                     print("------Assuming wavelengths are in vaccuum.")
-                list_of_wls.append(1.0*fits.getdata(dp+'wave_%s.fits' % i))
+                list_of_wls.append(1.0*wave_axis)
             else:
                 if i == np.min(order_numbers):
                     print("------Applying airtovac correction.")
-                    trigger1 =-1
-                list_of_wls.append(ops.airtovac(fits.getdata(dp+'wave_%s.fits' % i)))
-            order_i = fits.getdata(dp+'order_%s.fits' % i)
+                list_of_wls.append(ops.airtovac(wave_axis))
+
+            order_i = fits.getdata(orderpath)
+            if i == np.min(order_numbers):
+                dimtest(order_i,[0,n_px],f'order {i} in run_instance()')#For the first order, check that it is 2D and that is has a width equal to n_px.
+                n_exp = np.shape(order_i)[0]#then fix n_exp. All other orders should have the same n_exp.
+                print(f'------{n_exp} exposures recognised.')
+            else:
+                dimtest(order_i,[n_exp,n_px],f'order {i} in run_instance()')
+
+            #Now test for negatives, set them to NaN and track them.
+            n_negative = len(order_i[order_i <= 0])
+            if trigger3 == 0 and n_negative > 0:
+                print("------Setting negative values to NaN.")
+                trigger3 = -1
+            n_negative_total+=n_negative
             order_i[order_i <= 0] = np.nan
-            ut.postest(order_i,varname='order %s in main' %i)
+            postest(order_i,f'order {i} in run_instance().')#make sure whatever comes out here is strictly positive.
             list_of_orders.append(order_i)
-            try:
-                list_of_sigmas.append(fits.getdata(dp+'sigma_%s.fits' % i))
+
+            try:#Try to get a sigma file. If it doesn't exist, we raise a warning. If it does, we test its dimensions and append it.
+                sigma_i = fits.getdata(sigmapath)
+                dimtest(sigma_i,[n_exp,n_px],f'order {i} in run_instance().')
+                list_of_sigmas.append(sigma_i)
             except FileNotFoundError:
                 if trigger2 == 0:
                     print('------WARNING: Sigma (flux error) files not provided. Assuming sigma = sqrt(flux). This is standard practise for HARPS data, but e.g. ESPRESSO has a pipeline that computes standard errors on each pixel for you.')
                     trigger2=-1
                 list_of_sigmas.append(np.sqrt(order_i))
+        print(f"------{n_negative_total} negative values set to NaN ({np.round(100.0*n_negative_total/n_exp/n_px/len(order_numbers),2)}% of total spectral pixels in dataset.)")
 
-#Apply telluric correction file or not.
+    if len(list_of_orders) != n_orders:
+        raise Exception('Runtime error: n_orders is not equal to the length of list_of_orders. Something went wrong when reading them in?')
+
+    print('---Finished loading dataset to memory.')
+    sys.exit()
+
+
+    #Apply telluric correction file or not.
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='red')
     # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='red',alpha=0.5)#plot corrected spectra
     # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='red',alpha=0.5)#plot SNR
-    if do_telluric_correction == True and len(list_of_orders) > 0:
+    if do_telluric_correction == True and n_orders > 0:
         print('---Applying telluric correction')
-        telpath = dp+'telluric_transmission_spectra.pkl'
+        telpath = dp/'telluric_transmission_spectra.pkl'
         list_of_orders,list_of_sigmas = telcor.apply_telluric_correction(telpath,list_of_wls,list_of_orders,list_of_sigmas)
 
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='blue')

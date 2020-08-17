@@ -33,10 +33,9 @@ def paramget(keyword,dp,full_path=False):
     if isinstance(dp,str) == True:
         dp=pathlib.Path(dp)
     try:
-        if full_path:
-            f = open(dp, 'r')
-        else:
-            f = open(dp/'config.dat', 'r')
+        if full_path == False:
+            dp = dp/'config'
+        f = open(dp, 'r')
     except FileNotFoundError:
         raise FileNotFoundError('parameter file does not exist at %s' % str(dp)) from None
     x = f.read().splitlines()

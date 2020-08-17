@@ -517,3 +517,25 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
         if status == True:
             ut.statusbar(i,len(wl))
     return(order_blurred)
+
+
+
+def airtovac(wlnm):
+    """This converts air wavelengths to vaccuum wavelengths."""
+    import numpy as np
+    from tayph.vartests import typetest
+    typetest(wlnm,[float,list,np.ndarray],'wlmn in airtovac()')
+    wlA=wlnm*10.0
+    s = 1e4 / wlA
+    n = 1 + 0.00008336624212083 + 0.02408926869968 / (130.1065924522 - s**2) + 0.0001599740894897 / (38.92568793293 - s**2)
+    return(wlA*n/10.0)
+
+def vactoair(wlnm):
+    """This converts vaccuum wavelengths to air wavelengths."""
+    import numpy as np
+    from tayph.vartests import typetest
+    typetest(wlnm,[float,list,np.ndarray],'wlmn in vactoair()')
+    wlA = wlnm*10.0
+    s = 1e4/wlA
+    f = 1.0 + 5.792105e-2/(238.0185e0 - s**2) + 1.67917e-3/( 57.362e0 - s**2)
+    return(wlA/f/10.0)

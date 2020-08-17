@@ -7,7 +7,7 @@ THIS IS A WORK IN PROGRESS AND ONLY SEGMENTS OF THE PROJECT ARE CURRENTLY FUNCTI
 [![ReadTheDocs](https://readthedocs.org/projects/tayph/badge/?version=latest)](https://tayph.readthedocs.io/en/latest/?badge=latest)
 [![Travis](https://travis-ci.org/Hoeijmakers/tayph.svg?branch=master)](https://travis-ci.org/Hoeijmakers/tayph)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/dwyl/esta/issues)
-[![HitCount](http://hits.dwyl.com/hoeijmakers/tayph.svg)](http://hits.dwyl.com/hoeijmakers/tayph)
+[![HitCount](http://hits.dwyl.com/Hoeijmakers/tayph.svg)](http://hits.dwyl.com/Hoeijmakers/tayph)
 
 
 

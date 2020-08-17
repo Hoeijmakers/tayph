@@ -521,20 +521,56 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
 
 
 def airtovac(wlnm):
-    """This converts air wavelengths to vaccuum wavelengths."""
+    """
+    This converts air wavelengths to vaccuum wavelengths.
+
+    Parameters
+    ----------
+    wlnm : float, np.ndarray
+        The wavelength that is to be converted.
+
+    Returns
+    -------
+    wlnm : float, np.array
+        wavelengths in vaccuum.
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> wlA=np.array([500.0,510.0,600.0,700.0])
+    >>> wlV=airtovac(wlA)
+    """
     import numpy as np
     from tayph.vartests import typetest
-    typetest(wlnm,[float,list,np.ndarray],'wlmn in airtovac()')
+    typetest(wlnm,[float,np.ndarray],'wlmn in airtovac()')
     wlA=wlnm*10.0
     s = 1e4 / wlA
     n = 1 + 0.00008336624212083 + 0.02408926869968 / (130.1065924522 - s**2) + 0.0001599740894897 / (38.92568793293 - s**2)
     return(wlA*n/10.0)
 
 def vactoair(wlnm):
-    """This converts vaccuum wavelengths to air wavelengths."""
+    """
+    This converts vaccuum wavelengths to air wavelengths.
+
+    Parameters
+    ----------
+    wlnm : float, np.ndarray
+        The wavelength that is to be converted.
+
+    Returns
+    -------
+    wlnm : float, np.array
+        wavelengths in air.
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> wlV=np.array([500.0,510.0,600.0,700.0])
+    >>> wlA=vactoair(wlV)
+    """
     import numpy as np
     from tayph.vartests import typetest
-    typetest(wlnm,[float,list,np.ndarray],'wlmn in vactoair()')
+    typetest(wlnm,[float,np.ndarray],'wlmn in vactoair()')
     wlA = wlnm*10.0
     s = 1e4/wlA
     f = 1.0 + 5.792105e-2/(238.0185e0 - s**2) + 1.67917e-3/( 57.362e0 - s**2)

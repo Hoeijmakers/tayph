@@ -23,6 +23,7 @@ def run(configfile):
             'drv':sp.paramget('drv',cf,full_path=True),
             'f_w':sp.paramget('f_w',cf,full_path=True),
             'do_colour_correction':sp.paramget('do_colour_correction',cf,full_path=True),
+            'do_telluric_correction':sp.paramget('do_telluric_correction',cf,full_path=True),
             'do_xcor':sp.paramget('do_xcor',cf,full_path=True),
             'plot_xcor':sp.paramget('plot_xcor',cf,full_path=True),
             'make_mask':sp.paramget('make_mask',cf,full_path=True),
@@ -62,6 +63,7 @@ def run_instance(p):
     import tayph.operations as ops
     import tayph.functions as fun
     import tayph.system_parameters as sp
+    import tayph.tellurics as telcor
     from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest
     # from lib import models
     # from lib import analysis
@@ -90,9 +92,9 @@ def run_instance(p):
     ut.check_path(model_library,exists=True)
     ut.check_path(template_library,exists=True)
     if type(modellist) == str:
-        modellist = [modellist]#Always make sure that this is a list
+        modellist = [modellist]#Force this to be a list
     if type(templatelist) == str:
-        templatelist = [templatelist]#Always make sure that this is a list
+        templatelist = [templatelist]#Force this to be a list
     typetest_array(modellist,str,'modellist in run_instance()')
     typetest_array(templatelist,str,'modellist in run_instance()')
 
@@ -118,6 +120,7 @@ def run_instance(p):
 
 
     do_colour_correction=p['do_colour_correction']
+    do_telluric_correction=p['do_telluric_correction']
     do_xcor=p['do_xcor']
     plot_xcor=p['plot_xcor']
     make_mask=p['make_mask']
@@ -127,6 +130,7 @@ def run_instance(p):
     make_doppler_model=p['make_doppler_model']
     skip_doppler_model=p['skip_doppler_model']
     typetest(do_colour_correction,bool, 'do_colour_correction in run_instance()')
+    typetest(do_telluric_correction,bool,'do_telluric_correction in run_instance()')
     typetest(do_xcor,bool,              'do_xcor in run_instance()')
     typetest(plot_xcor,bool,            'plot_xcor in run_instance()')
     typetest(make_mask,bool,            'make_mask in run_instance()')
@@ -244,7 +248,7 @@ def run_instance(p):
         raise Exception('Runtime error: n_orders is not equal to the length of list_of_orders. Something went wrong when reading them in?')
 
     print('---Finished loading dataset to memory.')
-    sys.exit()
+
 
 
     #Apply telluric correction file or not.
@@ -256,6 +260,7 @@ def run_instance(p):
         telpath = dp/'telluric_transmission_spectra.pkl'
         list_of_orders,list_of_sigmas = telcor.apply_telluric_correction(telpath,list_of_wls,list_of_orders,list_of_sigmas)
 
+    sys.exit()
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='blue')
     # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='blue',alpha=0.5)#plot corrected spectra
 

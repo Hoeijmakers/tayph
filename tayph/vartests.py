@@ -1,3 +1,13 @@
+__all__ = [
+    "nantest",
+    "postest",
+    "notnegativetest",
+    "minlength",
+    "typetest",
+    "typetest_array",
+    "dimtest",
+]
+
 def nantest(var,varname=''):
     """This function tests for the presence of NaNs and infinites.
 

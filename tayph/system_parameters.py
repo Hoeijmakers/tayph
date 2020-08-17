@@ -1,3 +1,9 @@
+__all__ = [
+    "t_eff",
+    "paramget"
+]
+
+
 def paramget(keyword,dp,full_path=False):
     """This code queries a planet system parameter from a config file located in the folder
     specified by the path dp; or run configuration parameters from a file speciefied by the full

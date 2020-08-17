@@ -1,5 +1,10 @@
 #This package contains high-level wrappers for running the entire sequence.
 
+__all__ = [
+    'run',
+    'run_instance',
+]
+
 def run(configfile):
     """
     This is the main command-line initializer of the cross-correlation routine provided by Tayph.

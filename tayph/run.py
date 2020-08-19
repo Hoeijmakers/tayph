@@ -1,11 +1,11 @@
 #This package contains high-level wrappers for running the entire sequence.
 
 __all__ = [
-    'run',
+    'start_run',
     'run_instance',
 ]
 
-def run(configfile):
+def start_run(configfile):
     """
     This is the main command-line initializer of the cross-correlation routine provided by Tayph.
     It parses a configuration file located at configfile which should contain predefined keywords.
@@ -269,7 +269,6 @@ def run_instance(p):
         telpath = dp/'telluric_transmission_spectra.pkl'
         list_of_orders,list_of_sigmas = telcor.apply_telluric_correction(telpath,list_of_wls,list_of_orders,list_of_sigmas)
 
-    sys.exit()
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='blue')
     # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='blue',alpha=0.5)#plot corrected spectra
 
@@ -287,6 +286,7 @@ def run_instance(p):
     if do_keplerian_correction == True:
         rv_cor-=sp.RV_star(dp)*(1.0)
 
+    sys.exit()
 
     if type(rv_cor) != int and len(list_of_orders) > 0:
         print('---Reinterpolating data to correct velocities')

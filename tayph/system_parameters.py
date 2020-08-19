@@ -1,7 +1,30 @@
 __all__ = [
+    "check_dp",
     "t_eff",
-    "paramget"
+    "paramget",
+    "berv",
+    "v_orb",
+    "astropyberv",
+    "phase",
+    "RV_star"
 ]
+
+def check_dp(dp):
+    """
+    This is a helper function that checks for the presence of a config file
+    and an obs_times file at path dp. It also checks that dp is a Path object and returns
+    it as such.
+    """
+    from tayph.util import check_path
+    from pathlib import Path
+    check_path(dp)
+    if isinstance(dp,str):
+        dp = Path(dp)
+    p1=dp/'obs_times'
+    p2=dp/'config'
+    check_path(p1,exists=True)
+    check_path(p2,exists=True)
+    return(dp)
 
 
 def paramget(keyword,dp,full_path=False):
@@ -33,6 +56,8 @@ def paramget(keyword,dp,full_path=False):
     import distutils.util
     import pdb
 
+
+    #This is probably the only case where I don't need obs_times and config to exist together...
     dp=check_path(dp)
     typetest(keyword,str,'keyword in paramget()')
 
@@ -96,3 +121,184 @@ def t_eff(M,R):
 
     T4 = a*M**b * Ls / (4*np.pi*R**2*Rs**2*sb)
     return(T4**0.25)
+
+
+def berv(dp):
+    """This retrieves the BERV corrcetion tabulated in the obs_times table.
+    Example: brv=berv('data/Kelt-9/night1/')
+    The output is an array with length N, corresponding to N exposures. These values
+    are / should be taken from the FITS header.
+    """
+    from astropy.io import ascii
+    from pathlib import Path
+    dp=check_dp(dp)#Path object
+
+    d=ascii.read(dp/'obs_times',comment="#")
+    try:
+        berv = d['col5']#Needs to be in col 5.
+    except:
+        raise Exception(f'Runtime error in sp.berv(): col5 could not be indexed. Check the integrity of your obst_times file located at {dp}.')
+    return berv.data
+
+
+def v_orb(dp):
+    """
+    This program calculates the orbital velocity in km/s for the planet in the
+    data sequence provided in dp, the data-path. dp starts in the root folder,
+    i.e. it starts with data/projectname/. This assumes a circular orbit.
+
+    The output is a number in km/s.
+
+    Parameters
+    ----------
+    dp : str, path like
+        The path to the dataset containing the config file.
+
+    Returns
+    -------
+    v_orb : float
+        The planet's orbital velocity.
+
+    list_of_sigmas_corrected : list
+        List of 2D error matrices, telluric corrected.
+
+    """
+    import numpy as np
+    import pdb
+    import astropy.units as u
+    from tayph.vartests import typetest,postest
+
+    dp=check_dp(dp)#Path object
+    P=paramget('P',dp)
+    r=paramget('a',dp)
+    typetest(P,float,'P in sp.v_orb()')
+    typetest(r,float,'r in sp.v_orb()')
+    postest(P,'P in sp.v_orb()')
+    postest(r,'r in sp.v_orb()')
+
+    return (2.0*np.pi*r*u.AU/(P*u.d)).to('km/s').value
+
+
+
+
+
+def astropyberv(dp):
+    """
+    This does the same as berv(dp), but uses astropy to compute the BERV from the dates.
+    Useful if the BERV keyword was somehow wrong or missing. Requires latitude, longitude
+    and elevation to be provided in the config file as lat, long and elev.
+    """
+    from tayph.vartests import typetest
+    from pathlib import Path
+    import numpy as np
+    from astropy.io import ascii
+    from astropy.time import Time
+    from astropy import units as u
+    from astropy.coordinates import SkyCoord, EarthLocation
+    dp=check_dp(dp)#Path object
+    d=ascii.read(dp/'obs_times',comment="#")#,names=['mjd','time','exptime','airmass'])
+    #Not using named columns because I may not know for sure how many columns
+    #there are, and read-ascii breaks if only some columns are named.
+    #The second column has to be an MJD date array though.
+    dates = d['col1']
+    RA=paramget('RA',dp)
+    DEC=paramget('DEC',dp)
+    typetest(RA,str,'RA in sp.astropyberv()')
+    typetest(DEC,str,'DEC in sp.astropyberv()')
+    berv = []
+    observatory = EarthLocation.from_geodetic(lat=paramget('lat',dp)*u.deg, lon=paramget('long',dp)*u.deg, height=paramget('elev',dp)*u.m)
+    sc = SkyCoord(RA+' '+DEC, unit=(u.hourangle, u.deg))
+    for date in dates:
+        barycorr = sc.radial_velocity_correction(obstime=Time(date,format='mjd'), location=observatory).to(u.km/u.s)
+        berv.append(barycorr.value)
+    return berv
+
+
+# def calculateberv(date,lat,long,elev,ra,dec):
+#     """This is a copy of the astropyberv above, but as a function."""
+#     from astropy.time import Time
+#     from astropy import units as u
+#     from astropy.coordinates import SkyCoord, EarthLocation
+#     import pdb
+#     observatory = EarthLocation.from_geodetic(lat=lat*u.deg, lon=long*u.deg, height=elev*u.m)
+#     sc = SkyCoord(ra+' '+dec, unit=(u.hourangle, u.deg))
+#     barycorr = sc.radial_velocity_correction(obstime=Time(date,format='mjd'), location=observatory).to(u.km/u.s)
+#     return(barycorr.value)
+
+
+
+def phase(dp):
+    """
+    Calculates the orbital phase of the planet in the data
+    sequence provided using the parameters in dp/config and the timings in
+    dp/obstimes.
+
+    The output is an array with length N, corresponding to N exposures.
+
+    Be CAREFUL: This program provides a time difference of ~1 minute compared
+    to IDL/calctimes. This likely has to do with the difference between HJD
+    and BJD, and the TDB timescale. In the future you should have a thorough
+    look at the time-issue, because you should be able to get this right to the
+    second. At the very least, make sure that the time conventions are ok.
+
+    More importantly: The transit center time needs to be provided in config
+    in BJD.
+    """
+    from tayph.vartests import typetest
+    import numpy as np
+    from astropy.io import ascii
+    from astropy.time import Time
+    from astropy import units as u, coordinates as coord
+    import tayph.util as ut
+    dp=check_dp(dp)#Path object
+    d=ascii.read(dp/'obs_times',comment="#")#,names=['mjd','time','exptime','airmass'])
+    #Not using the named columns because I may not know for sure how many columns
+    #there are, and read-ascii breaks if only some columns are named.
+    #The second column has to be a date array though.
+
+    # t = Time(d['col2'],scale='utc', location=coord.EarthLocation.of_site('paranal'))# I determined that the difference between this and geodetic 0,0,0 is zero.
+    t = Time(d['col2'],scale='utc', location=coord.EarthLocation.from_geodetic(0,0,0))
+
+    jd = t.jd
+    P=paramget('P',dp)
+    RA=paramget('RA',dp)
+    DEC=paramget('DEC',dp)
+    Tc=paramget('Tc',dp)#Needs to be given in BJD!
+
+    typetest(P,float,'P in sp.phase()')
+    typetest(Tc,float,'Tc in sp.phase()')
+    typetest(RA,str,'RA in sp.phase()')
+    typetest(DEC,str,'DEC in sp.phase()')
+
+    ip_peg = coord.SkyCoord(RA,DEC,unit=(u.hourangle, u.deg), frame='icrs')
+    ltt_bary = t.light_travel_time(ip_peg)
+
+    n=0.0
+    Tc_n=Time(Tc,format='jd',scale='tdb')
+    while Tc_n.jd >= min(jd):
+        Tc_n=Time(Tc-100.0*n*P,format='jd',scale='tdb')#This is to make sure that the Transit central time PRECEDES the observations (by tens or hundreds or thousands of years). Otherwise, the phase could pick up a minus sign somewhere and be flipped. I wish to avoid that.
+        n+=1
+    BJD = t.tdb + ltt_bary
+    diff = BJD-Tc_n
+    phase=((diff.jd) % P)/P
+    return phase
+
+
+def RV_star(dp):
+    """
+    This calculates the radial velocity in km/s for the star in the
+    data sequence provided in dp. The output is an array with length N,
+    corresponding to N exposures. The radial velocity is provided in km/s.
+    This is meant to be used to correct (align) the stellar spectra to the same
+    reference frame. It requires K (the RV-semi amplitude to be provided in the
+    config file, in km/s as well. Often this value is given in discovery papers.
+    Like all my routines, this assumes a circular orbit.
+    """
+    from tayph.vartests import typetest
+    import numpy as np
+    dp=check_dp(dp)
+    p=phase(dp)
+    K=paramget('K',dp)
+    typetest(K,float,'K in sp.RV_star()')
+    rv=K*np.sin(2.0*np.pi*p) * (-1.0)
+    return(rv)

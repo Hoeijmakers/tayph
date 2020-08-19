@@ -13,3 +13,12 @@ from .system_parameters import *
 from .tellurics import *
 from .util import *
 from .vartests import *
+
+
+# import .run as run
+# import .functions
+# import .operations
+# import .system_parameters
+# import .tellurics
+# import .util
+# import .vartests

@@ -17,7 +17,7 @@ def write_telluric_transmission_to_file(wls,T,outpath):
 def read_telluric_transmission_from_file(inpath):
     import pickle
     import tayph.util as ut
-    print(f'------Reading teluric transmission from {inpath}')
+    print(f'------Reading telluric transmission from {inpath}')
     ut.check_path(inpath,exists=True)
     pickle_in = open(inpath,"rb")
     return(pickle.load(pickle_in))#This is a tuple that can be unpacked into 2 elements.

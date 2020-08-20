@@ -1,8 +1,52 @@
 __all__ = [
+    'rebinreform',
+    'nan_helper',
     'findgen',
     'gaussian',
     'sigma_clip'
 ]
+
+def rebinreform(a,n):
+    """
+    This works like the rebin(reform()) trick in IDL, where you use fast
+    array manipulation operations to transform a 1D array into a 2D stack of itself,
+    to be able to do operations on another 2D array by multiplication/addition/division
+    without having to loop through the second dimension of said array.
+    """
+    import numpy as np
+    return(np.transpose(np.repeat(np.expand_dims(a,1),n,axis=1)))
+
+
+def nan_helper(y):
+    """
+    Helper function to handle indices and logical indices of NaNs.
+
+    Input:
+        - y, 1D (!!) numpy array with possible NaNs
+    Output:
+        - nans, logical indices of NaNs
+        - index, a function, with signature indices= index(logical_indices),
+          to convert logical indices of NaNs to 'equivalent' indices
+    Example:
+        >>> # linear interpolation of NaNs
+        >>> nans, x= nan_helper(y)
+        >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
+    """
+    #This comes from https://stackoverflow.com/questions/6518811/interpolate-nan-values-in-a-numpy-array
+    # Lets define first a simple helper function in order to make it more straightforward to handle indices and logical indices of NaNs:
+    # Now the nan_helper(.) can now be utilized like:
+    #
+    # >>> y= array([1, 1, 1, NaN, NaN, 2, 2, NaN, 0])
+    # >>>
+    # >>> nans, x= nan_helper(y)
+    # >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
+    # >>>
+    # >>> print y.round(2)
+    # [ 1.    1.    1.    1.33  1.67  2.    2.    1.    0.  ]
+    import numpy as np
+    from tayph.vartests import dimtest
+    dimtest(y,[0],'y in fun.nan_helper()')
+    return np.isnan(y), lambda z: z.nonzero()[0]
 
 def findgen(n,integer=False):
     """This is basically IDL's findgen function.

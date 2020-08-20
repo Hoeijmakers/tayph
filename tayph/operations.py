@@ -1,4 +1,5 @@
 __all__ = [
+    "normalize_orders",
     "bin",
     "bin_avg",
     "convolve",
@@ -8,6 +9,106 @@ __all__ = [
     "airtovac",
     "vactoair"
 ]
+
+
+
+def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
+    """
+    If deg is set to 1, this function will normalise based on the mean flux in each order.
+    If set higher, it will remove the average spectrum in each order and fit a polynomial
+    to the residual. This means that in the presence of spectral lines, the fluxes will be
+    slightly lower than if def=1 is used. nsigma is only used if deg > 1, and is used to
+    throw away outliers from the polynomial fit. The program also computes the total
+    mean flux of each exposure in the time series - totalled over all orders. These
+    are important to correctly weigh the cross-correlation functions later. The
+    inter-order colour correction is assumed to be an insignificant modification to
+    these weights.
+
+    Parameters
+    ----------
+    list_of_orders : list
+        The list of 2D orders that need to be normalised.
+
+    list_of_sigmas : list
+        The list of 2D error matrices corresponding to the 2D orders that need to be normalised.
+
+    deg : int
+        The polynomial degree to remove. If set to 1, only the average flux is removed. If higher,
+        polynomial fits are made to the residuals after removal of the average spectrum.
+
+    nsigma : int, float
+        The number of sigmas beyond which outliers are rejected from the polynomial fit.
+        Only used when deg > 1.
+
+    Returns
+    -------
+    out_list_of_orders : list
+        The normalised 2D orders.
+    out_list_of_sigmas : list
+        The corresponding errors.
+    meanfluxes : np.array
+        The mean flux of each exposure in the time series, averaged over all orders.
+    """
+    import numpy as np
+    import tayph.functions as fun
+    from tayph.vartests import dimtest,postest,typetest
+    typetest(list_of_orders,list,'list_of_orders in ops.normalize_orders()')
+    typetest(list_of_sigmas,list,'list_of_sigmas in ops.normalize_orders()')
+    dimtest(list_of_sigmas,[len(list_of_orders)])
+    typetest(deg,int,'degree in ops.normalize_orders()')
+    typetest(nsigma,[int,float],'nsigma in ops.normalize_orders()')
+    postest(deg,'degree in ops.normalize_orders()')
+    postest(nsigma,'degree in ops.normalize_orders()')
+
+    
+    N = len(list_of_orders)
+    out_list_of_orders=[]
+    out_list_of_sigmas=[]
+    n_px=np.shape(list_of_orders[0])[1]
+    n_exp=np.shape(list_of_orders[0])[0]
+
+    meanfluxes = fun.findgen(n_exp)*0.0
+    N_i = 0
+    for i in range(N):
+        m = np.nanmean(list_of_orders[i],axis=1)
+        if np.sum(np.isnan(m)) > 0:
+            print('---Warning in normalise_orders: Skipping order %s because many nans are present.'%i)
+        else:
+            N_i+=1
+            meanfluxes+=m#These contain the exposure-to-exposure variability of the time-series.
+    meanfluxes/=N_i
+
+    if deg == 1:
+        for i in range(N):
+            meanflux=np.nanmean(list_of_orders[i],axis=1)#Average flux in each order.
+            meanblock=fun.rebinreform(meanflux/np.nanmean(meanflux),n_px).T#This is a slow operation. Row-by-row division is better done using a double-transpose...
+            out_list_of_orders.append(list_of_orders[i]/meanblock)
+            out_list_of_sigmas.append(list_of_sigmas[i]/meanblock)
+    else:
+        for i in range(N):
+            meanspec=np.nanmean(list_of_orders[i],axis=0)#Average spectrum in each order.
+            x=np.array(range(len(meanspec)))
+            poly_block = list_of_orders[i]*0.0#Array that will host the polynomial fits.
+            colour = list_of_orders[i]/meanspec
+            for j,s in enumerate(list_of_orders[i]):
+                idx = np.isfinite(colour[j])
+                if np.sum(idx) > 0:
+                    p = np.poly1d(np.polyfit(x[idx],colour[j][idx],deg))(x)#Polynomial fit to the colour variation.
+                    res = colour[j]/p-1.0 #The residual, which is flat around zero if it's a good fit. This has all sorts of line residuals that we need to throw out.
+                    #We do that using the weight keyword of polyfit, and just set all those weights to zero.
+                    sigma = np.nanstd(res)
+                    w = x*0.0+1.0#Start with a weight function that is 1.0 everywhere.
+                    w[np.abs(res)>nsigma*sigma] = 0.0
+                    w = x*0.0+1.0#Start with a weight function that is 1.0 everywhere.
+                    p2 = np.poly1d(np.polyfit(x[idx],colour[j][idx],deg,w=w[idx]))(x)#Second, weighted polynomial fit to the colour variation.
+                    poly_block[j] = p2
+
+            out_list_of_orders.append(list_of_orders[i]/poly_block)
+            out_list_of_sigmas.append(list_of_sigmas[i]/poly_block)
+    return(out_list_of_orders,out_list_of_sigmas,meanfluxes)
+
+
+
 
 def bin(x,y,n,err=[]):
     """
@@ -94,7 +195,6 @@ def bin_avg(wl,fx,wlm):
     from tayph.vartests import typetest,dimtest,minlength
     import matplotlib.pyplot as plt
     import tayph.util as ut
-    t1=ut.start()
     typetest(wl,[list,np.ndarray],'wl in ops.bin_avg()')
     typetest(fx,[list,np.ndarray],'fx in ops.bin_avg()')
     typetest(wlm,[list,np.ndarray],'wlm in ops.bin_avg()')
@@ -121,8 +221,7 @@ def bin_avg(wl,fx,wlm):
 
 
     fxm = []
-    ut.end(t1)
-    t2=ut.start()
+
     for i in range(len(wlm_borders)-1):
         #This indexing is slow. But I always only need to compute it once!
         fx_sel = fx[(wl > wlm_borders[i])&(wl <= wlm_borders[i+1])]
@@ -131,12 +230,6 @@ def bin_avg(wl,fx,wlm):
         else:
             fxbin=np.mean(fx[(wl > wlm_borders[i])&(wl <= wlm_borders[i+1])])
             fxm.append(fxbin)
-    ut.end(t2)
-
-    # plt.plot(wl,fx)
-    # plt.plot(wlm,fxm)
-    # plt.show()
-    # pdb.set_trace()
     return(fxm)
 
 

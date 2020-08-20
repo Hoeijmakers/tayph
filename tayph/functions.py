@@ -1,10 +1,65 @@
 __all__ = [
+    'selmax',
+    'running_MAD_2D',
     'rebinreform',
     'nan_helper',
     'findgen',
     'gaussian',
     'sigma_clip'
 ]
+
+
+def selmax(y_in,p,s=0.0):
+    """This program returns the p (fraction btw 0 and 1) highest points in y,
+    ignoring the very top s % (default zero, i.e. no points ignored), for the
+    purpose of outlier rejection."""
+    import lib.utils as ut
+    import numpy as np
+    import copy
+    ut.postest(p)
+    y=copy.deepcopy(y_in)#Copy itself, or there are pointer-related troubles...
+    if s < 0.0:
+        raise Exception("ERROR in selmax: s should be zero or positive.")
+    if p >= 1.0:
+        raise Exception("ERROR in selmax: p should be strictly between 0.0 and 1.0.")
+    if s >= 1.0:
+        raise Exception("ERROR in selmax: s should be strictly less than 1.0.")
+    ut.postest(-1.0*p+1.0)
+    #ut.nantest('y in selmax',y)
+    ut.dimtest(y,[0])#Test that it is one-dimensional.
+    y[np.isnan(y)]=np.nanmin(y)#set all nans to the minimum value such that they will not be selected.
+    y_sorting = np.flipud(np.argsort(y))#These are the indices in descending order (thats why it gets a flip)
+    N=len(y)
+    if s == 0.0:
+        max_index = np.max([int(round(N*p)),1])#Max because if the fraction is 0 elements, then at least it should contain 1.0
+        return y_sorting[0:max_index]
+
+    if s > 0.0:
+        min_index = np.max([int(round(N*s)),1])#If 0, then at least it should be 1.0
+        max_index = np.max([int(round(N*(p+s))),2]) #If 0, then at least it should be 1+1.
+        return y_sorting[min_index:max_index]
+
+
+def running_MAD_2D(z,w):
+    """Computers a running standard deviation of a 2-dimensional array z.
+    The stddev is evaluated over the vertical block with width w pixels.
+    The output is a 1D array with length equal to the width of z."""
+    import astropy.stats as stats
+    import numpy as np
+    from tayph.vartests import typetest,dimtest,postest
+    typetest(z,np.ndarray,'z in fun.running_MAD_2D()')
+    dimtest(z,[0,0],'z in fun.running_MAD_2D()')
+    typetest(w,[int,float],'w in fun.running_MAD_2D()')
+    postest(w,'w in fun.running_MAD_2D()')
+    size = np.shape(z)
+    ny = size[0]
+    nx = size[1]
+    s = findgen(nx)*0.0
+    for i in range(nx):
+        minx = max([0,i-int(0.5*w)])
+        maxx = min([nx-1,i+int(0.5*w)])
+        s[i] = stats.mad_std(z[:,minx:maxx],ignore_nan=True)
+    return(s)
 
 def rebinreform(a,n):
     """
@@ -94,7 +149,7 @@ def sigma_clip(array,nsigma=3.0,MAD=False):
     """
     from tayph.vartests import typetest
     import numpy as np
-    typtest(array,[list,np.ndarray],'array in fun.sigma_clip()')
+    typetest(array,[list,np.ndarray],'array in fun.sigma_clip()')
     typetest(nsigma,[int,float],'nsigma in fun.sigma_clip()')
     typetest(MAD,bool,'MAD in fun.sigma_clip()')
     m = np.nanmedian(array)

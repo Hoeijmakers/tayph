@@ -18,6 +18,27 @@ def start_run(configfile):
     cf = configfile
 
 
+
+    print('')
+    print('')
+    print('')
+    print('')
+    print('')
+    print('')
+    print('')
+    print('')
+    print('')
+    print('')
+    print('')
+    print(' = = = = WELCOME TO TAYPH = = = =')
+    print('')
+    print(f'    Running {cf}')
+    print('')
+    print('')
+    print('')
+
+    print('---Start')
+    print('---Load parameters from config file')
     modellist = sp.paramget('model',cf,full_path=True).split(',')
     templatelist = sp.paramget('model',cf,full_path=True).split(',')
 
@@ -50,6 +71,7 @@ def run_instance(p):
     import numpy as np
     from astropy.io import fits
     import astropy.constants as const
+    import astropy.units as u
     from matplotlib import pyplot as plt
     import os.path
     import scipy.interpolate as interp
@@ -69,6 +91,7 @@ def run_instance(p):
     import tayph.functions as fun
     import tayph.system_parameters as sp
     import tayph.tellurics as telcor
+    import tayph.masking as masking
     from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest
     # from lib import models
     # from lib import analysis
@@ -152,7 +175,7 @@ def run_instance(p):
     colourdeg = 3#A fitting degree for the colour correction.
 
 
-    print(f'---Passed input tests. Creating output folder tree in {Path("output")/dp}.')
+    print(f'---Passed parameter input tests. Creating output folder tree in {Path("output")/dp}.')
     libraryname=str(template_library).split('/')[-1]
     if str(dp).split('/')[0] == 'data':
         dataname=str(dp).replace('data/','')
@@ -163,11 +186,11 @@ def run_instance(p):
 
     for templatename in templatelist:
         outpath=Path('output')/Path(dataname)/Path(libraryname)/Path(templatename)
-        print(outpath)
+        print(outpath)#NEED TO CONTINUE HERE TO LOOP OVER TEMPLATES PROBABLY NEED TO MOVE THIS LOOP DOWNWARDS
 
-    if not os.path.exists(outpath):
-        print(f"------The output location ({outpath}) didn't exist, I made it now.")
-        os.makedirs(outpath)
+        if not os.path.exists(outpath):
+            print(f"------The output location ({outpath}) didn't exist, I made it now.")
+            os.makedirs(outpath)
 
 
 
@@ -286,8 +309,6 @@ def run_instance(p):
     if do_keplerian_correction == True:
         rv_cor-=sp.RV_star(dp)*(1.0)
 
-    sys.exit()
-
     if type(rv_cor) != int and len(list_of_orders) > 0:
         print('---Reinterpolating data to correct velocities')
         list_of_orders_cor = []
@@ -300,7 +321,7 @@ def run_instance(p):
             for j in range(len(list_of_orders[0])):
                 wl_i = interp.interp1d(list_of_wls[i],order[j],bounds_error=False)
                 si_i = interp.interp1d(list_of_wls[i],sigma[j],bounds_error=False)
-                wl_cor = list_of_wls[i]*(1.0-rv_cor[j]*1000.0/const.c)#The minus sign was tested on a slow-rotator.
+                wl_cor = list_of_wls[i]*(1.0-(rv_cor[j]*u.km/u.s/const.c))#The minus sign was tested on a slow-rotator.
                 order_cor[j] = wl_i(wl_cor)
                 sigma_cor[j] = si_i(wl_cor)#I checked that this works because it doesn't affect the SNR, apart from wavelength-shifting it.
             list_of_orders_cor.append(order_cor)
@@ -314,6 +335,11 @@ def run_instance(p):
         list_of_sigmas = list_of_sigmas_cor
 
 
+    if len(list_of_orders) != n_orders:
+        raise Exception('Runtime error: n_orders is no longer equal to the length of list_of_orders, though it was before. Something went wrong during telluric correction or velocity correction.')
+
+#Continue populating masking (most is there), add normalise_orders to ops; and write documentation and tests for plotting_scales_2D and the masking routines.
+
 
 #Do masking or not.
     if make_mask == True and len(list_of_orders) > 0:
@@ -326,6 +352,7 @@ def run_instance(p):
             masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,40.0,5.0,manual=True)
         if apply_mask == False:
             print('---Warning in run_instance: Mask was made but is not applied to data (apply_mask = False)')
+
     if apply_mask == True and len(list_of_orders) > 0:
         print('---Applying mask')
         list_of_orders = masking.apply_mask_from_file(dp,maskname,list_of_orders)
@@ -349,7 +376,7 @@ def run_instance(p):
         # plt.show()
         # sys.exit()
 
-
+    sys.exit()
 #Construct the cross-correlation template in case we will be doing or plotting xcor.
     if do_xcor == True or plot_xcor == True:
         print('---Building template')

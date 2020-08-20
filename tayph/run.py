@@ -92,6 +92,7 @@ def run_instance(p):
     import tayph.system_parameters as sp
     import tayph.tellurics as telcor
     import tayph.masking as masking
+    import tayph.models as models
     from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest
     # from lib import models
     # from lib import analysis
@@ -376,18 +377,16 @@ def run_instance(p):
         # plt.show()
         # sys.exit()
 
-    sys.exit()
+
 #Construct the cross-correlation template in case we will be doing or plotting xcor.
     if do_xcor == True or plot_xcor == True:
+        templatename=templatelist[0]
         print('---Building template')
         wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=120000.0,template_library=template_library)
         T*=(-1.0)
-#CAN'T I OUTSOURCE THIS TO DANIEL AND SIMON? I mean for each spectrum they could also
-#generate a binary mask by putting delta's instead of.. well... not precisely
-#because of masking by line wings; that's the whole trick of opacity calculation.
-#And then Daniel can subtract the continuum himself...
-#I can rewrite this to include the name pointing to another model to be
-#used as continuum normalization.
+
+    sys.exit()
+
 
 
 #Perform the cross-correlation on the entire list of orders.

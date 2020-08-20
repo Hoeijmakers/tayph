@@ -1,4 +1,6 @@
 __all__ = [
+    "smooth",
+    "envelope",
     "normalize_orders",
     "bin",
     "bin_avg",
@@ -11,6 +13,125 @@ __all__ = [
 ]
 
 
+
+def smooth(fx,w,mode='box',edge_degree=1):
+    """
+    This function takes a spectrum, and blurs it using either a
+    Gaussian kernel or a box kernel, which have a FWHM width of w px everywhere.
+    Meaning that the width changes dynamically on a constant d-lambda grid.
+
+    Set the mode to gaussian or box. Because in box, care is taken to correctly
+    interpolate the edges, it is about twice slower than the Gaussian.
+    This interpolation is done manually in the fun.box function.
+    """
+
+    import numpy as np
+    import tayph.util as ut
+    from tayph.vartests import typetest,postest
+    import tayph.functions as fun
+    from matplotlib import pyplot as plt
+    typetest(w,[int,float],'w in ops.smooth()')
+    typetest(fx,np.ndarray,'fx in ops.smooth()')
+    typetest(mode,str,'mode in ops.smooth()')
+    typetest(edge_degree,int,'edge_degree in ops.smooth()')
+    postest(w,'w in ops.smooth()')
+
+    if mode not in ['box','gaussian']:
+        raise Exception(f'RuntimeError in ops.smooth(): Mode should be set to "top" or "bottom" ({mode}).')
+    truncsize=4.0#The gaussian is truncated at 8 sigma.
+    shape=np.shape(fx)
+
+    sig_w = w / 2*np.sqrt(2.0*np.log(2)) #Transform FWHM to Gaussian sigma. In km/s.
+    trunc_dist=np.round(sig_w*truncsize).astype(int)
+
+    #First define the kernel.
+    kw=int(np.round(truncsize*sig_w*2.0))
+    if kw % 2.0 != 1.0:#This is to make sure that the kernel has an odd number of
+    #elements, and that it is symmetric around zero.
+        kw+=1
+
+    kx=fun.findgen(kw)
+    kx-=np.mean(kx)#This must be centered around zero. Doing a hardcoded check:
+    if (-1.0)*kx[-1] != kx[0]:
+        print(kx)
+        raise Exception("ERROR in box_smooth: Kernel could not be made symmetric somehow. Attempted kernel grid is printed above. Kernel width is %s pixels." % kw)
+
+
+    if mode == 'gaussian':
+        k=fun.gaussian(kx,1.0,0.0,sig_w)
+
+    if mode == 'box':
+        k=fun.box(kx,1.0,0.0,w)
+        kx=kx[k > 0.0]
+        k=k[k > 0.0]
+        if (-1.0)*kx[-1] != kx[0]:
+            print(kx)
+            raise Exception("ERROR in box_smooth: Kernel could not be made symmetric AFTER CROPPING OUT THE BOX, somehow. Attempted kernel grid is printed above. Kernel width is %s pixels." % kw)
+
+    k/=np.sum(k)
+
+    return(convolve(fx,k,edge_degree))
+
+
+
+def envelope(wlm,fxm,binsize,selfrac=0.05,mode='top',threshold=''):
+    """
+    This program measures the top or bottom envelope of a spectrum (wl,fx), by
+    chopping it up into bins of size binsze (unit of wl), and measuring the mean
+    of the top n % of values in that bin. Setting the mode to 'bottom' will do the
+    oppiste: The mean of the bottom n% of values. The output is the resulting wl
+    and flux points of these bins.
+
+    Example: wle,fxe = envelope(wl,fx,1.0,selfrac=3.0,mode='top')
+    """
+    import numpy as np
+    import tayph.util as ut
+    import tayph.functions as fun
+    from tayph.vartests import typetest,dimtest,nantest,postest
+    from matplotlib import pyplot as plt
+    typetest(wlm,np.ndarray,'wlm in ops.envelope()')
+    typetest(fxm,np.ndarray,'fxm in ops.envelope()')
+    dimtest(wlm,[len(fxm)])
+    typetest(binsize,[int,float],'binsize in ops.envelope()')
+    typetest(selfrac,float,'percentage in ops.envelope()')
+    typetest(mode,str,'mode in envelope')
+    nantest(fxm,'fxm in ops.envelope()')
+    nantest(wlm,'wlm in ops.envelope()')
+    postest(wlm,'wlm in ops.envelope()')
+    postest(binsize,'binsize in ops.envelope()')
+
+    if mode not in ['top','bottom']:
+        raise Exception(f'RuntimeError in ops.envelope(): Mode should be set to "top" or "bottom" ({mode}).')
+
+    binsize=float(binsize)
+    if mode == 'bottom':
+        fxm*=-1.0
+
+    wlcs=np.array([])#Center wavelengths
+    fxcs=np.array([])#Flux at center wavelengths
+    i_start=0
+    wlm_start=wlm[i_start]
+    for i in range(0,len(wlm)-1):
+        if wlm[i]-wlm_start >= binsize:
+            wlsel = wlm[i_start:i]
+            fxsel = fxm[i_start:i]
+            maxsel = fun.selmax(fxsel,selfrac)
+            wlcs=np.append(wlcs,np.mean(wlsel[maxsel]))
+            fxcs=np.append(fxcs,np.mean(fxsel[maxsel]))
+            i_start=i+1
+            wlm_start=wlm[i+1]
+
+    if isinstance(threshold,float) == True:
+        #This means that the threshold value is set, and we set all bins less than
+        #that threshold to the threshold value:
+        if mode == 'bottom':
+            threshold*=-1.0
+        fxcs[(fxcs < threshold)] = threshold
+
+    if mode == 'bottom':
+        fxcs*=-1.0
+        fxm*=-1.0
+    return wlcs,fxcs
 
 def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
     """

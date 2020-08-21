@@ -93,6 +93,7 @@ def run_instance(p):
     import tayph.tellurics as telcor
     import tayph.masking as masking
     import tayph.models as models
+    import tayph.ccf as ccf
     from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest
     # from lib import models
     # from lib import analysis
@@ -137,14 +138,18 @@ def run_instance(p):
     RVrange = p['RVrange']
     drv = p['drv']
     f_w = p['f_w']
+    resolution = sp.paramget('resolution',dp)
     typetest(RVrange,[int,float],'RVrange in run_instance()')
     typetest(drv,[int,float],'drv in run_instance()')
     typetest(f_w,[int,float],'f_w in run_instance()')
+    typetest(resolution,[int,float],'resolution in run_instance()')
     nantest(RVrange,'RVrange in run_instance()')
     nantest(drv,'drv in run_instance()')
     nantest(f_w,'f_w in run_instance()')
+    nantest(resolution,'resolution in run_instance()')
     postest(RVrange,'RVrange in run_instance()')
     postest(drv,'drv in run_instance()')
+    postest(resolution,'resolution in run_instance()')
     notnegativetest(f_w,'f_w in run_instance()')
 
 
@@ -176,7 +181,7 @@ def run_instance(p):
     colourdeg = 3#A fitting degree for the colour correction.
 
 
-    print(f'---Passed parameter input tests. Creating output folder tree in {Path("output")/dp}.')
+    print(f'---Passed parameter input tests. Initiating output folder tree in {Path("output")/dp}.')
     libraryname=str(template_library).split('/')[-1]
     if str(dp).split('/')[0] == 'data':
         dataname=str(dp).replace('data/','')
@@ -184,14 +189,6 @@ def run_instance(p):
     else:
         dataname=dp
         print(f'------Data is NOT located in data/ folder. Assuming output name for this dataset as {dataname}')
-
-    for templatename in templatelist:
-        outpath=Path('output')/Path(dataname)/Path(libraryname)/Path(templatename)
-        print(outpath)#NEED TO CONTINUE HERE TO LOOP OVER TEMPLATES PROBABLY NEED TO MOVE THIS LOOP DOWNWARDS
-
-        if not os.path.exists(outpath):
-            print(f"------The output location ({outpath}) didn't exist, I made it now.")
-            os.makedirs(outpath)
 
 
 
@@ -216,6 +213,9 @@ def run_instance(p):
     n_orders = len(order_numbers)
     if n_orders == 0:
         raise Exception(f'Runtime error: n_orders may not have ended up as zero. ({n_orders})')
+
+
+
 
 
 
@@ -284,7 +284,12 @@ def run_instance(p):
 
 
 
-    #Apply telluric correction file or not.
+
+
+
+
+
+#Apply telluric correction file or not.
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='red')
     # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='red',alpha=0.5)#plot corrected spectra
     # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='red',alpha=0.5)#plot SNR
@@ -300,8 +305,14 @@ def run_instance(p):
     # plt.show()
     # pdb.set_trace()
 
+
+
+
+
+
+
 #Do velocity correction of wl-solution. Explicitly after telluric correction
-#but before masking! Because the cross-correlation relies on columns being masked.
+#but before masking. Because the cross-correlation relies on columns being masked.
 #Then if you start to move the CCFs around before removing the time-average,
 #each masked column becomes slanted. Bad deal.
     rv_cor = 0
@@ -337,12 +348,17 @@ def run_instance(p):
 
 
     if len(list_of_orders) != n_orders:
-        raise Exception('Runtime error: n_orders is no longer equal to the length of list_of_orders, though it was before. Something went wrong during telluric correction or velocity correction.')
-
-#Continue populating masking (most is there), add normalise_orders to ops; and write documentation and tests for plotting_scales_2D and the masking routines.
+        raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it was before. Something went wrong during telluric correction or velocity correction.')
 
 
-#Do masking or not.
+
+
+
+
+
+
+
+#Compute / create a mask and save it to file (or not)
     if make_mask == True and len(list_of_orders) > 0:
         if do_colour_correction == True:
             print('---Constructing mask with intra-order colour correction applied')
@@ -352,19 +368,32 @@ def run_instance(p):
             print('---Switch on colour correction if you see colour variations in the 2D spectra.')
             masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,40.0,5.0,manual=True)
         if apply_mask == False:
-            print('---Warning in run_instance: Mask was made but is not applied to data (apply_mask = False)')
+            print('---WARNING in run_instance: Mask was made but is not applied to data (apply_mask == False)')
 
-    if apply_mask == True and len(list_of_orders) > 0:
+
+
+
+
+
+#Apply the mask that was previously created and saved to file.
+    if apply_mask == True:
         print('---Applying mask')
         list_of_orders = masking.apply_mask_from_file(dp,maskname,list_of_orders)
 
+#Interpolate over all isolated NaNs and set bad columns to NaN (so that they are ignored in the CCF)
     if do_xcor == True:
         print('---Healing NaNs')
         list_of_orders = masking.interpolate_over_NaNs(list_of_orders)#THERE IS AN ISSUE HERE: INTERPOLATION SHOULD ALSO HAPPEN ON THE SIGMAS ARRAY!
 
 
-        #Normalize the orders to their average flux in order to effectively apply
-        #a broad-band colour correction (colour is a function of airmass and seeing).
+
+
+
+
+
+
+
+#Normalize the orders to their average flux in order to effectively apply a broad-band colour correction (colour is typically a function of airmass and seeing).
     if do_colour_correction == True:
         print('---Normalizing orders to common flux level')
         # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',alpha=0.4)
@@ -378,12 +407,34 @@ def run_instance(p):
         # sys.exit()
 
 
-#Construct the cross-correlation template in case we will be doing or plotting xcor.
+
+
+
+
+
+
+
+#Construct the cross-correlation templates in case we will be computing or plotting the CCF.
     if do_xcor == True or plot_xcor == True:
-        templatename=templatelist[0]
-        print('---Building template')
-        wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=120000.0,template_library=template_library)
-        T*=(-1.0)
+
+        list_of_wlts = []
+        list_of_templates = []
+        outpaths = []
+
+        for templatename in templatelist:
+
+            print(f'---Building template {templatename}')
+            wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,template_library=template_library)
+            T*=(-1.0)
+            list_of_wlts.append(wlt)
+            list_of_templates.append(T)
+
+            outpath=Path('output')/Path(dataname)/Path(libraryname)/Path(templatename)
+
+            if not os.path.exists(outpath):
+                print(f"------The output location ({outpath}) didn't exist, I made it now.")
+                os.makedirs(outpath)
+            outpaths.append(outpath)
 
     sys.exit()
 
@@ -392,7 +443,7 @@ def run_instance(p):
 #Perform the cross-correlation on the entire list of orders.
     if do_xcor == True:
         print('---Cross-correlating spectra')
-        rv,ccf,ccf_e,Tsums=analysis.xcor(list_of_wls,list_of_orders_normalised,np.flipud(np.flipud(wlt)),T,drv,RVrange,list_of_errors=list_of_sigmas_normalised)
+        rv,ccf,ccf_e,Tsums=ccf.xcor(list_of_wls,list_of_orders_normalised,np.flipud(np.flipud(wlt)),T,drv,RVrange,list_of_errors=list_of_sigmas_normalised)
         print('------Writing CCFs to '+outpath)
         ut.writefits(outpath+'ccf.fits',ccf)
         ut.writefits(outpath+'ccf_e.fits',ccf_e)
@@ -477,9 +528,7 @@ def run_instance(p):
                     meanfluxes_norm_injected = meanfluxes_injected/np.mean(meanfluxes_injected)
                 else:
                     meanfluxes_norm_injected = fun.findgen(len(list_of_orders_injected[0]))*0.0+1.0#All unity.
-                # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='red',alpha=0.4)
-                # plt.show()
-                # sys.exit()
+
 
                 print('------Cross-correlating injected orders')
                 rv_i,ccf_i,ccf_e_i,Tsums_i=analysis.xcor(list_of_wls,list_of_orders_injected,np.flipud(np.flipud(wlt)),T,drv,RVrange,list_of_errors=list_of_sigmas_injected)

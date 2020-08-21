@@ -169,6 +169,8 @@ def nan_helper(y):
           to convert logical indices of NaNs to 'equivalent' indices
     Example:
         >>> # linear interpolation of NaNs
+        >>> import numpy as np
+        >>> y = np.array([0,0.1,0.2,np.nan,0.4,0.5])
         >>> nans, x= nan_helper(y)
         >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
     """

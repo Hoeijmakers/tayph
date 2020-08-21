@@ -74,7 +74,7 @@ def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0
     return(wlt,T)
 
 
-def get_model(name,library='models/library'):
+def get_model(name,library='models/library',root='models'):
     """This program queries a model from a library file, with predefined models
     for use in model injection, cross-correlation and plotting. These models have
     a standard format. They are 2 rows by N points, where N corresponds to the
@@ -87,6 +87,7 @@ def get_model(name,library='models/library'):
     modelname  modelpath
 
     modelpath starts in the models/ subdirectory.
+    Set the root variable if a location is required other than the ./models directory.
 
     Example call:
     wlm,fxm = get_model('WASP-121_TiO',library='models/testlib')
@@ -96,10 +97,14 @@ def get_model(name,library='models/library'):
     from tayph.util import check_path
     from astropy.io import fits
     from pathlib import Path
+    import errno
+    import os
     typetest(name,str,'name in mod.get_model()')
     check_path(library,exists=True)
-    library = Path(library)
 
+    check_path(root,exists=True)
+    root = Path(root)
+    library = Path(library)
     #First open the library file.
 
     f = open(library, 'r')
@@ -115,11 +120,13 @@ def get_model(name,library='models/library'):
         models[line[0]] = value
 
     try:
-        modelpath=Path('models')/models[name]
+        modelpath=root/models[name]
     except KeyError:
-        raise Exception(f'Model {name} is not present in library at {str(library)}') from None
+        raise KeyError(f'Model {name} is not present in library at {str(library)}') from None
 
-
-    modelarray=fits.getdata(modelpath)#Two-dimensional array with wl on the first row and flux on the second row.
+    try:
+        modelarray=fits.getdata(modelpath)#Two-dimensional array with wl on the first row and flux on the second row.
+    except FileNotFoundError:
+        raise FileNotFoundError(f'Model file {modelpath} from library {str(library)} does not exist.')
     dimtest(modelarray,[2,0])
     return(modelarray[0,:],modelarray[1,:])

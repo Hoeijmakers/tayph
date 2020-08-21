@@ -9,10 +9,10 @@ def test_dimtest():
     trigger = 0
     try:
         dimtest(a,[2,2])
-    except:
+    except ValueError:
         trigger+=1
     try:
         dimtest(a,'a')
-    except:
+    except TypeError:
         trigger+=1
     assert(trigger == 2)

@@ -70,17 +70,17 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
     if len(list_of_wls) != len(list_of_orders):
         raise ValueError(f'In xcor(): List of wls and list of orders have different length ({len(list_of_wls)} & {len(list_of_orders)}).')
 
-    ut.dimtest(wlm,[len(fxm)],'wlm in ccf.xcor()')
-    ut.typetest(wlm,np.ndarray,'wlm in ccf.xcor')
-    ut.typetest(fxm,np.ndarray,'fxm in ccf.xcor')
-    ut.typetest(drv,[int,float],'drv in ccf.xcor')
-    ut.typetest(RVrange,float,'RVrange in ccf.xcor()',)
-    ut.postest(RVrange,'RVrange in ccf.xcor()')
-    ut.postest(drv,'drv in ccf.xcor()')
-    ut.nantest(wlm,'fxm in ccf.xcor()')
-    ut.nantest(fxm,'fxm in ccf.xcor()')
-    ut.nantest(drv,'drv in ccf.xcor()')
-    ut.nantest(RVrange,'RVrange in ccf.xcor()')
+    dimtest(wlm,[len(fxm)],'wlm in ccf.xcor()')
+    typetest(wlm,np.ndarray,'wlm in ccf.xcor')
+    typetest(fxm,np.ndarray,'fxm in ccf.xcor')
+    typetest(drv,[int,float],'drv in ccf.xcor')
+    typetest(RVrange,float,'RVrange in ccf.xcor()',)
+    postest(RVrange,'RVrange in ccf.xcor()')
+    postest(drv,'drv in ccf.xcor()')
+    nantest(wlm,'fxm in ccf.xcor()')
+    nantest(fxm,'fxm in ccf.xcor()')
+    nantest(drv,'drv in ccf.xcor()')
+    nantest(RVrange,'RVrange in ccf.xcor()')
     drv = float(drv)
     N=len(list_of_wls)#Number of orders.
 
@@ -88,7 +88,7 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
         n_exp=1
     else:
         n_exp=len(list_of_orders[0][:,0])#Number of exposures.
-        
+
 #===Then check that all orders indeed have n_exp exposures===
         for i in range(N):
             if len(list_of_orders[i][:,0]) != n_exp:

@@ -93,7 +93,7 @@ def run_instance(p):
     import tayph.tellurics as telcor
     import tayph.masking as masking
     import tayph.models as models
-    import tayph.ccf as ccf
+    from tayph.ccf import xcor
     from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest
     # from lib import models
     # from lib import analysis
@@ -436,28 +436,38 @@ def run_instance(p):
                 os.makedirs(outpath)
             outpaths.append(outpath)
 
+
+
+#Perform the cross-correlation on the entire list of orders.
+    for i in range(len(list_of_wlts)):
+        templatename = templatelist[i]
+        wlt = list_of_wlts[i]
+        T = list_of_templates[i]
+        outpath = outpaths[i]
+        if do_xcor == True:
+            print(f'---Cross-correlating spectra with template {templatename}.')
+            t1=ut.start()
+            rv,ccf,ccf_e,Tsums=xcor(list_of_wls,list_of_orders_normalised,np.flipud(np.flipud(wlt)),T,drv,RVrange,list_of_errors=list_of_sigmas_normalised)
+            ut.end(t1)
+            print(f'------Writing CCFs to {str(outpath)}')
+            ut.writefits(outpath/'ccf.fits',ccf)
+            ut.writefits(outpath/'ccf_e.fits',ccf_e)
+            ut.writefits(outpath/'RV.fits',rv)
+            ut.writefits(outpath/'Tsum.fits',Tsums)
+        else:
+            print(f'---Reading CCFs with template {templatename} from {str(outpath)}.')
+            if os.path.isfile(outpath/'ccf.fits') == False:
+                raise FileNotFoundError(f'CCF output not located at {outpath}. Rerun with do_xcor=True to create these files?')
+        rv=fits.getdata(outpath/'rv.fits')
+        ccf = fits.getdata(outpath/'ccf.fits')
+        ccf_e = fits.getdata(outpath/'ccf_e.fits')
+        Tsums = fits.getdata(outpath/'Tsum.fits')
+
     sys.exit()
 
 
 
-#Perform the cross-correlation on the entire list of orders.
-    if do_xcor == True:
-        print('---Cross-correlating spectra')
-        rv,ccf,ccf_e,Tsums=ccf.xcor(list_of_wls,list_of_orders_normalised,np.flipud(np.flipud(wlt)),T,drv,RVrange,list_of_errors=list_of_sigmas_normalised)
-        print('------Writing CCFs to '+outpath)
-        ut.writefits(outpath+'ccf.fits',ccf)
-        ut.writefits(outpath+'ccf_e.fits',ccf_e)
-        ut.writefits(outpath+'RV.fits',rv)
-        ut.writefits(outpath+'Tsum.fits',Tsums)
-    else:
-        print('---Reading CCFs from '+outpath)
-        if os.path.isfile(outpath+'ccf.fits') == False:
-            print('------ERROR: CCF output not located at '+outpath+'. Set do_xcor to True to create these files?')
-            sys.exit()
-        rv=fits.getdata(outpath+'rv.fits')
-        ccf = fits.getdata(outpath+'ccf.fits')
-        ccf_e = fits.getdata(outpath+'ccf_e.fits')
-        Tsums = fits.getdata(outpath+'Tsum.fits')
+
 
     if plot_xcor == True and inject_model == False:
         print('---Plotting orders and XCOR')

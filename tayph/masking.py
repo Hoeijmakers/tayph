@@ -61,7 +61,7 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2):
     if N == 0:
         raise Exception('Runtime Error in interpolate_over_NaNs: List of orders is empty.')
 
-    N_nans_total = 0
+    # N_nans_total = 0
     N_nans_columns = 0
     N_nans_isolated = 0
     N_healed = 0
@@ -75,7 +75,7 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2):
         N_pixels += nexp*npx
         list_of_masked_columns = []#This will contain the column numbers to mask completely at the end.
         if np.sum(np.isnan(order)) > 0:
-            N_nans_total+=np.sum(np.isnan(order))
+            # N_nans_total+=np.sum(np.isnan(order))
             #So this order contains NaNs.
             #First we loop over all columns to try to find columns where the number
             #of NaNs is greater than CUTOFF.
@@ -107,9 +107,10 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2):
             for l in list_of_masked_columns:
                 order[:,l]+=np.nan#Set the ones that were erroneously healed back to nan.
         list_of_healed_orders.append(order)
-    print('------Number of bad pixels identified: %s (%s of total)' % (N_nans_total,N_nans_total/N_pixels))
-    print('------Number of pixels after masking columns: %s (%s of total)' % (N_nans_columns,N_nans_columns/N_pixels))
-    print('------Number of isolated pixels: %s (%s of total)' % (N_nans_isolated,N_nans_isolated/N_pixels))
+    print(f'------Total number of pixels in {N} orders: {N_pixels}')
+    print(f'------Number of NaNs in columns identified as bad (or previously masked): {N_nans_columns} ({np.round(N_nans_columns/N_pixels*100,2)}% of total)')
+    print(f'------Number of NaNs in isolated pixels: {N_nans_isolated} ({np.round(N_nans_isolated/N_pixels*100,2)}% of total)')
+    print(f'------Number of bad pixels identified: {N_nans_isolated+N_nans_columns} ({np.round((N_nans_isolated+N_nans_columns)/N_pixels*100,2)}% of total)')
     return(list_of_healed_orders)
 
 

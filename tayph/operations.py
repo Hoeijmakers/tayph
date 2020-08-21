@@ -173,6 +173,7 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
     import numpy as np
     import tayph.functions as fun
     from tayph.vartests import dimtest,postest,typetest
+    import warnings
     typetest(list_of_orders,list,'list_of_orders in ops.normalize_orders()')
     typetest(list_of_sigmas,list,'list_of_sigmas in ops.normalize_orders()')
     dimtest(list_of_sigmas,[len(list_of_orders),0,0])
@@ -207,7 +208,9 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
             out_list_of_sigmas.append(list_of_sigmas[i]/meanblock)
     else:
         for i in range(N):
-            meanspec=np.nanmean(list_of_orders[i],axis=0)#Average spectrum in each order.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                meanspec=np.nanmean(list_of_orders[i],axis=0)#Average spectrum in each order.
             x=np.array(range(len(meanspec)))
             poly_block = list_of_orders[i]*0.0#Array that will host the polynomial fits.
             colour = list_of_orders[i]/meanspec
@@ -219,7 +222,9 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
                     #We do that using the weight keyword of polyfit, and just set all those weights to zero.
                     sigma = np.nanstd(res)
                     w = x*0.0+1.0#Start with a weight function that is 1.0 everywhere.
-                    w[np.abs(res)>nsigma*sigma] = 0.0
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", category=RuntimeWarning)
+                        w[np.abs(res)>nsigma*sigma] = 0.0
                     w = x*0.0+1.0#Start with a weight function that is 1.0 everywhere.
                     p2 = np.poly1d(np.polyfit(x[idx],colour[j][idx],deg,w=w[idx]))(x)#Second, weighted polynomial fit to the colour variation.
                     poly_block[j] = p2

@@ -19,7 +19,6 @@ def smooth(fx,w,mode='box',edge_degree=1):
     This function takes a spectrum, and blurs it using either a
     Gaussian kernel or a box kernel, which have a FWHM width of w px everywhere.
     Meaning that the width changes dynamically on a constant d-lambda grid.
-
     Set the mode to gaussian or box. Because in box, care is taken to correctly
     interpolate the edges, it is about twice slower than the Gaussian.
     This interpolation is done manually in the fun.box function.

@@ -6,6 +6,7 @@ __all__ = [
     'nan_helper',
     'findgen',
     'gaussian',
+    'gaussfit',
     'sigma_clip'
 ]
 
@@ -207,11 +208,285 @@ def findgen(n,integer=False):
         return np.linspace(0,n-1,n)
 
 
-def gaussian(x,A,mu,sig,cont=0.0):
+# def gaussian(x,A,mu,sig,cont=0.0):
+#     import numpy as np
+#     """This produces a gaussian function on the grid x with amplitude A, mean mu
+#     and standard deviation sig. No testing is done, to keep it fast."""
+#     return A * np.exp(-0.5*(x - mu)/sig*(x - mu)/sig)+cont
+
+
+def gaussian(x,*args):
     import numpy as np
-    """This produces a gaussian function on the grid x with amplitude A, mean mu
-    and standard deviation sig. No testing is done, to keep it fast."""
-    return A * np.exp(-0.5*(x - mu)/sig*(x - mu)/sig)+cont
+    """
+    This is an alternative to producing a gaussian function on the grid x with amplitude A, mean mu
+    and standard deviation sig. Its primary usage is to be called by the gaussfit
+    function below; but can be used generally in the same way as IDL's gaussian function.
+    No testing is done to keep it fast.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        The grid.
+
+    *args : floats
+        The Gaussian+continuum parameters. The first three values are the Gaussian amplitude,
+        mean and standard deviation. If *args has a length longer than this, a polynomial
+        will be added with degree len(*args)-4.
+
+
+    Returns
+    -------
+    y : np.ndarray
+        If p = *args, the output is a gaussian with parameters set by p[0:3], plus a polynomial continuum
+        as p[4]  +  x * p[5]  +  x**2 * p[6]  + ...
+
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> x=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+    >>> p=[5,10,1.0,0.0,0.5]
+    >>> y=gaussian(x,p)
+    """
+    p=[i for i in args]
+    if len(p) > 3:
+        return p[0] * np.exp(-0.5*(x - p[1])/p[2]*(x - p[1])/p[2])+np.poly1d(p[3:][::-1])(x)
+    else:
+        return p[0] * np.exp(-0.5*(x - p[1])/p[2]*(x - p[1])/p[2])
+
+
+
+
+def gaussfit(x,y,nparams=3,startparams=None,yerr=None,fixparams=None,minvalues=None,maxvalues=None,verbose=False):
+    """
+    This is a wrapper around lmfit to fit a Gaussian plus a polynomial continuum
+    using the LM least-squares minimization algorithm. It is designed to be
+    interacted with in a similar way as IDL's Gaussfit routine, though not
+    exactly the same.
+
+    The user provides data as np.arrays that form x and y pairs. The Gaussian model
+    has a minimum number of 3 parameters: The amplitude, mean and standard deviation.
+    In addition, the user can request additional parameters that describe the continuum
+    as a polynomial with increasing degree. The model is therefore defined as
+    follows:
+
+        y = A*exp(-(x - mu)**2/(sqrt(2)sigma)**2) + c1 + c2*x + c3*x**2 + ...
+
+    If initial guesses for the parameters are unknown or omitted, this function
+    will guess start parameters albeit coarsely. The code will determine whether
+    the peak is positive or negative by comparing the distance between the maximum and
+    the median with the distance between the minimum and the median. If the former is larger,
+    the Gaussian is considered to be positive.
+    The amplitude is then guessed as the maximum - the minimum of the data y and the
+    mean is guessed as the location of that maximum. Vice versa if the peak was
+    established to be a minimum. The standard deviation is estimated as a fifth
+    of the length of the data array.
+
+    The nparams keyword will determine the number of free parameters to fit
+    (3 for the Gaussian plus however many for the continuum).
+
+    If startparams is set, the nparams keyword is overruled; and initial parameters
+    need to be applied in the order [A,mu,sigma,c1,c2,...].
+
+    By default, the least-squares optimizer assumes unweighted data points.
+    If error bars on y are known, provide them with the yerr keyword (in
+    the same way as you would supply them to plt.errorbar(x,y,yerr=...)).
+
+    Parameter values can also be fixed (if startparams is set) or bounded.
+    To fix parameters, set fixparams to a list (with same length as startparams)
+    filled with 0's and 1's. Each parameter that is 1 will be fixed.
+
+    For putting minimum and/or maximum bounds on the parameters, similarly
+    provide lists with the same length as startparams, with the minimum/maximum
+    of each parameter. To set a bound on only one parameter, the others that you
+    wish to remain unbounded need to be set to np.inf or -np.inf.
+
+    NaNs in y are omitted by the lmfit.minimizer routine. NaNs in x are not accepted.
+
+    Lmfit is a powerful package for all of your curvefitting needs, and
+    includes emcee functionality as well. Do check it out if you wish to fit
+    models that are more complex than simple Gaussians, or wish to have
+    access to more advanced statistics: https://lmfit.github.io.
+    If you want to add more advanced functionality or build variations on this
+    wrapper, a very useful page is their examples page:
+    https://lmfit.github.io/lmfit-py/examples/index.html
+
+    Parameters
+    ----------
+    x : np.ndarray
+        The grid onto which the data is defined. NaNs are not allowed.
+
+    y : np.ndarray
+        The data. NaNs are allowed and will be omitted by the minimizer.
+
+    nparams : int, optional.
+        The number of parameters of the model. The model is defined as above, with
+        a minimum of 3 parameters.
+
+    startparmas : list, optional.
+        The starting parameters at which the fit is initialized, in the order
+        [A,mu,sigma,c1,c2,...]. This overrules the nparams keyword.
+
+    yerr : np.ndarray, optional.
+        The standard deviation on each of the values of y, by which the least-squares
+        minimization will be weighted.
+
+    fixparams : list, optional
+        The parameters to fix, in the form of [0,1,0,1,1]; in the same order as
+        startparams.
+
+    minvalues : list, optional
+        The minimum bounds of the fitting parameters, in the form of [-np.inf,10,5,-np.inf,-np.inf].
+
+    maxvalues : list, optional
+        The maximum bounds of the fitting parameters, in the form of [np.inf,10,5,np.inf,np.inf].
+
+    verbose : bool, optional
+        If set to True, the lmfit package will talk to you.
+
+    Returns
+    -------
+    r : list
+        The best-fit parameters, in the same order as startparams.
+    re: list
+        The 1-sigma confidence intervals on the best-fit parameters.
+
+
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> x=findgen(100)
+    >>> p=[10,50,6.0,0.0,0.05]
+    >>> y=gaussian(x,*p)
+    >>> f,e=gaussfit(x,y,startparams=[8.0,47.0,5.0,0.0,0.0],fixparams=[0,0,0,1,0.0])
+    """
+
+
+    import tayph.util as ut
+    from tayph import typetest,minlength,dimtest,nantest
+    from lmfit import Minimizer, Parameters, report_fit
+    import sys
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    typetest(x,np.ndarray,'x in fun.gaussfit()')
+    typetest(y,np.ndarray,'y in fun.gaussfit()')
+    typetest(nparams,int,'nparams in fun.gaussfit()')
+    dimtest(x,[0],'x in fun.gaussfit()')
+    dimtest(y,[len(x)],'y in fun.gaussfit()')
+    nantest(x,'x in fun.gaussfit()')
+    typetest(verbose,bool,'verbose in fun.gaussfit()')
+
+    if startparams is None:
+        if fixparams:#If startparams is not set, fixparams would fix the initial guesses which are likely not accurate, so there is no reason to this and I hereby protect the user against doing this to themselves.
+            raise InputError("in fun.gaussfit(): startparams needs to be provided if you wish to fix any fitting parameters.")
+        N = nparams
+        if nparams <3:
+            raise ValueError(f"in fun.gaussfit: nparams needs to be 3 or greater ({nparams}).")
+        A = np.nanmax(y)-np.nanmin(y)
+        if np.abs(np.nanmax(y)-np.median(y)) > np.abs(np.nanmin(y)-np.median(y)):#then we have a positive signal
+            mu = x[np.nanargmax(y)]
+        else:#or a negative signal.
+            mu = x[np.nanargmin(y)]
+            A*=(-1.0)
+        sig= np.std(x)/5.0
+
+        startparams = [A,mu,sig]
+        paramnames = ['A','mu','sigma']
+        if nparams > 3:
+            for i in range(3,nparams):
+                paramnames.append(f"c{i-2}")
+                startparams.append(0.0)
+    else:
+        typetest(startparams,[list,np.ndarray],'startparams in fun.gaussfit()')
+        minlength(startparams,3,varname='startparams in fun.gaussfit()',warning_only=False)
+        nparams = len(startparams)#Startparams overrides the nparams keyword.
+        paramnames = ['A','mu','sigma']
+        if nparams > 3:
+            for i in range(3,nparams):
+                paramnames.append(f"c{i-2}")
+    if isinstance(startparams,list):
+        startparams=np.array(startparams)
+
+    if yerr is not None:
+        typetest(yerr,np.ndarray,'yerr in fun.gaussfit()')
+        dimtest(yerr,[len(x)],'yerr in fun.gaussfit()')
+        nantest(yerr,'yerr in fun.gaussfit()')
+        weight = 1.0/yerr#Weigh by the variance as per https://en.wikipedia.org/wiki/Weighted_least_squares
+        #Note that there is no square here, because the minimizer function squares.
+    else:
+        weight = x*0.0+1.0#Force weight to 1.0, i.e. unweighted least-sq.
+
+
+    if fixparams is None:
+        fixparams = startparams*0.0#Set all fix parameters to zero. I.e. none will be fixed.
+    else:
+        dimtest(fixparams,[len(startparams)],'fixparams in fun.gaussfit()')
+        nantest(fixparams,'fixparams in fun.gaussfit()')
+
+    if minvalues is None:
+        minvalues = startparams*0.0-np.inf
+    else:
+        dimtest(fixparams,[len(startparams)],'minvalues in fun.gaussfit()')
+        nantest(fixparams,'minvalues in fun.gaussfit()')
+
+    if maxvalues is None:
+        maxvalues = startparams*0.0+np.inf
+    else:
+        dimtest(fixparams,[len(startparams)],'maxvalues in fun.gaussfit()')
+        nantest(fixparams,'maxvalues in fun.gaussfit()')
+
+
+
+    def fcn2min(params, x, y, w):
+        """
+        Model the gaussian and subtract data. The square of the outcome of this
+        will be minimized.
+        """
+        A = params['A']
+        mu = params['mu']
+        s = params['sigma']
+        trigger = 0
+        i=1
+        p = [A,mu,s]
+        while trigger == 0:
+            try:
+                p.append(params[f'c{i}'])
+            except KeyError:
+                trigger = 1
+            i+=1
+        model = gaussian(x,*p)
+        return((model - y)*w)
+
+
+    # pass the Parameters
+    params = Parameters()
+    for i in range(len(paramnames)):
+        params.add(paramnames[i],value=startparams[i])
+        params[paramnames[i]].min=minvalues[i]#These are +/- np.inf by default
+        params[paramnames[i]].max=maxvalues[i]#So they will trivially be overwritten by infs if min/maxvalues are not set.
+        if fixparams[i] == 1:
+            params[paramnames[i]].vary = False
+
+    minner = Minimizer(fcn2min, params, fcn_args=(x, y, weight),nan_policy='omit')
+    result = minner.minimize()
+
+    # write error report
+    if verbose:
+        report_fit(result)
+
+    # calculate final result
+    final = y + result.residual
+
+    out_res = []
+    out_err = []
+    for i in range(len(paramnames)):
+        out_res.append(result.params[paramnames[i]].value)
+        out_err.append(result.params[paramnames[i]].stderr)
+    return(out_res,out_err)
+
+
 
 
 def sigma_clip(array,nsigma=3.0,MAD=False):

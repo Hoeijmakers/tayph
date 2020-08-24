@@ -1,9 +1,38 @@
 #This package contains high-level wrappers for running the entire sequence.
 
 __all__ = [
+    'make_project_folder',
     'start_run',
     'run_instance',
 ]
+
+
+def make_project_folder():
+    from pathlib import Path
+    import os
+    import os.path
+    import sys
+
+    pwd = Path('.')
+    if not os.listdir(pwd):
+        root = pwd
+    else:
+        print("---pwd is not empty. Placing project in subfolder called cross_correlation.")
+        root = Path('cross_correlation')
+        try:
+            root.mkdir(exist_ok=False)
+        except FileExistsError:
+            print('cross_correlation subfolder already exists. Please provide an empty project folder to start.')
+            sys.exit()
+
+
+    dirs = ['data','models','output']
+    for d in dirs:
+        (root/d).mkdir(exist_ok=True)
+    (root/'data'/'WASP-12345'/'night1').mkdir(parents=True,exist_ok=True)
+
+
+
 
 def start_run(configfile):
     """
@@ -30,9 +59,13 @@ def start_run(configfile):
     print('')
     print('')
     print('')
-    print(' = = = = WELCOME TO TAYPH = = = =')
+    print(' = = = = = = = = = = = = = = = = =')
+    print(' = = = = WELCOME TO TAYPH! = = = =')
+    print(' = = = = = = = = = = = = = = = = =')
     print('')
     print(f'    Running {cf}')
+    print('')
+    print(' = = = = = = = = = = = = = = = = =')
     print('')
     print('')
     print('')
@@ -95,10 +128,8 @@ def run_instance(p):
     import tayph.models as models
     from tayph.ccf import xcor
     from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest
-    # from lib import models
     # from lib import analysis
     # from lib import cleaning
-    # from lib import read_data as rd
     # from lib import masking as masking
     # from lib import shadow as shadow
     # from lib import molecfit as telcor
@@ -173,6 +204,9 @@ def run_instance(p):
     typetest(do_keplerian_correction,bool,'do_keplerian_correction in run_instance()')
     typetest(make_doppler_model,bool,   'make_doppler_model in run_instance()')
     typetest(skip_doppler_model,bool,   'skip_doppler_model in run_instance()')
+
+
+
 
 
 
@@ -346,7 +380,6 @@ def run_instance(p):
         list_of_orders = list_of_orders_cor
         list_of_sigmas = list_of_sigmas_cor
 
-
     if len(list_of_orders) != n_orders:
         raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it was before. Something went wrong during telluric correction or velocity correction.')
 
@@ -406,10 +439,8 @@ def run_instance(p):
         # plt.show()
         # sys.exit()
 
-
-
-
-
+    if len(list_of_orders) != n_orders:
+        raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it was before. Something went wrong during masking or colour correction.')
 
 
 

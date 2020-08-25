@@ -95,7 +95,7 @@ def check_path(filepath,varname='filepath in check_path()',exists=False):
 
     import pathlib
     from tayph.vartests import typetest
-    typetest(filepath,[str,pathlib.PosixPath],varname)#Test that we are dealing with a path.
+    typetest(filepath,[str,pathlib.PosixPath,pathlib.WindowsPath],varname)#Test that we are dealing with a path.
     typetest(exists,bool)
     typetest(varname,str)
     if isinstance(filepath,str) == True:

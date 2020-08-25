@@ -165,7 +165,7 @@ def dimtest(var,sizes,varname='var'):
     """
     import numpy as np
     typetest(sizes,[list,tuple,np.ndarray])
-    typetest_array(sizes,[int,np.int64],varname='sizes in dimtest')
+    typetest_array(sizes,[int,np.int32,np.int64],varname='sizes in dimtest')
     typetest(varname,str)
 
     ndim=len(sizes)

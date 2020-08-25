@@ -40,7 +40,7 @@ def test_gaussfit():
     As = []
     Aes = []
     # t1 = ut.start()
-    for i in range(1000):
+    for i in range(2000):
         a,b = do_a_gaussfit()
         As.append(a[0])#Append the gaussian amplitudes.
         Aes.append(b[0])

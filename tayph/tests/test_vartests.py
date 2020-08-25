@@ -4,7 +4,7 @@ def test_dimtest():
     a=[[1,2,3],[4,3,9]]
     dimtest(a,[2,3])
     dimtest(a,(2,3))
-    dimtest(a,np.array([2,3]))
+    dimtest(a,np.array([2,3]).astype(int))
     dimtest(a,np.shape(a))
     trigger = 0
     try:

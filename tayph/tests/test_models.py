@@ -3,11 +3,11 @@ def test_get_model():
     import pathlib
     from ..models import get_model
     import numpy as np
-    libfile1=pathlib.Path(pkg_resources.resource_filename('tayph', 'data/library'))#This is to be able to point
+    libfile1=pathlib.Path(pkg_resources.resource_filename('tayph', str(pathlib.Path('data')/pathlib.Path('library'))))#This is to be able to point
     #tox to the path into which a temporary deployment of Tayph is copied to.
-    libfile2=pathlib.Path(pkg_resources.resource_filename('tayph', 'data/no_library_oh_no_no'))
+    libfile2=pathlib.Path(pkg_resources.resource_filename('tayph', str(pathlib.Path('data')/pathlib.Path('no_library_no_no_no'))))
 
-    root =pathlib.Path(pkg_resources.resource_filename('tayph', 'data/'))
+    root =pathlib.Path(pkg_resources.resource_filename('tayph', 'data'))
 
 
     #Check that the test model can be read.

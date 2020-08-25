@@ -427,6 +427,7 @@ def gaussfit(x,y,nparams=3,startparams=None,yerr=None,fixparams=None,minvalues=N
 
     if minvalues is None:
         minvalues = startparams*0.0-np.inf
+        minvalues[2] = 0 #stddev needs to be positive.
     else:
         dimtest(fixparams,[len(startparams)],'minvalues in fun.gaussfit()')
         nantest(fixparams,'minvalues in fun.gaussfit()')

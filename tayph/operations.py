@@ -325,10 +325,10 @@ def bin_avg(wl,fx,wlm):
     typetest(wlm,[list,np.ndarray],'wlm in ops.bin_avg()')
     dimtest(wl,[0],'wl in ops.bin_avg()')
     dimtest(fx,[len(fx)],'fx in ops.bin_avg()')
-    minlength(wl,0,'wl in ops.bin()')
-    minlength(wl,50,'wl in ops.bin()',warning_only=True)
-    minlength(wlm,0,'wlm in ops.bin()')
-    minlength(wlm,100,'wlm in ops.bin()',warning_only=True)
+    minlength(wl,0,'wl in ops.bin_avg()')
+    minlength(wl,50,'wl in ops.bin_avg()',warning_only=True)
+    minlength(wlm,0,'wlm in ops.bin_avg()')
+    minlength(wlm,100,'wlm in ops.bin_avg()',warning_only=True)
 
     if len(wl) < len(wlm):
         raise ValueError(f"Error in bin_avg: The input grid should have (many) more points than the requested grid of interpolates ({len(wl)}, {len(wlm)}).")

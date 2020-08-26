@@ -422,10 +422,6 @@ def run_instance(p):
 
 
 
-
-
-
-
 #Normalize the orders to their average flux in order to effectively apply a broad-band colour correction (colour is typically a function of airmass and seeing).
     if do_colour_correction == True:
         print('---Normalizing orders to common flux level')

@@ -5,7 +5,8 @@ __all__ = [
     "check_path",
     "save_stack",
     "writefits",
-    "read_binary_model_daniel",
+    "read_binary_kitzmann",
+    "read_wave_from_HARPS_header"
 ]
 
 def statusbar(i,x):
@@ -158,7 +159,6 @@ def save_stack(filename,list_of_2D_frames):
 def writefits(filename,array):
     """
     This is a fast wrapper for fits.writeto, with overwrite enabled.
-
     """
     import astropy.io.fits as fits
     from tayph.vartests import typetest
@@ -172,7 +172,7 @@ def writefits(filename,array):
 
 
 
-def read_binary_model_daniel(inpath,double=True):
+def read_binary_kitzmann(inpath,double=True):
     """This reads a binary model spectrum (those created by Daniel Kitzmann)
     located at path inpath."""
 
@@ -202,3 +202,34 @@ def read_binary_model_daniel(inpath,double=True):
             #I hope that this still works when double=True!
     f.close()
     return(r)
+
+
+def read_wave_from_HARPS_header(h,mode='HARPS'):
+    """
+    This reads the wavelength solution from the HARPS header keywords that
+    encode the coefficients as a 4-th order polynomial.
+    """
+    import numpy as np
+    import tayph.functions as fun
+
+    
+    if mode not in ['HARPS','HARPSN','HARPS-N']:
+        raise ValueError("in read_HARPS_e2ds: mode needs to be set to HARPS or HARPSN.")
+    npx = h['NAXIS1']
+    no = h['NAXIS2']
+    x = fun.findgen(npx)
+    wave=np.zeros((npx,no))
+
+    if mode == 'HARPS':
+        coeffkeyword = 'ESO'
+    if mode == 'HARPSN':
+        coeffkeyword = 'TNG'
+    key_counter = 0
+    for i in range(no):
+        l = x*0.0
+        for j in range(4):
+            l += h[coeffkeyword+' DRS CAL TH COEFF LL%s' %key_counter]*x**j
+            key_counter +=1
+        wave[:,i] = l
+    wave = wave.T
+    return(wave)

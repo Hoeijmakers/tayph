@@ -99,7 +99,7 @@ def selmax(y_in,p,s=0.0):
     """This program returns the p (fraction btw 0 and 1) highest points in y,
     ignoring the very top s % (default zero, i.e. no points ignored), for the
     purpose of outlier rejection."""
-    import tayph.utils as ut
+    import tayph.util as ut
     from tayph.vartests import postest,dimtest
     import numpy as np
     import copy

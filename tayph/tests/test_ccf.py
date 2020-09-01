@@ -26,42 +26,44 @@ def test_ccf():
     """
 
     # import sys
-    # sys.path.insert(0,'../tayph')
-    import tayph.ccf as CCF
-    import tayph.operations as ops
-    import tayph.functions as fun
+    # sys.path.insert(0,'../../../tayph')
+    # from tayph.ccf import xcor
+    # from tayph.operations import smooth
+    # from tayph.functions import findgen, rebinreform
+
+    from ..ccf import xcor
+    from ..operations import smooth
+    from ..functions import findgen, rebinreform
     import matplotlib.pyplot as plt
     import numpy as np
     import astropy.io.fits as fits
     import scipy.interpolate as interpolate
-    import tayph.util as ut
     import math
     from numpy.random import normal
     c=3e5
     snr = 10.0
     #The following tests XCOR on synthetic orders.
-    wl = fun.findgen(4096)*0.00115+600
-    wlm = fun.findgen(2e6)/10000.0+550.0
+    wl = findgen(4096)*0.00115+600
+    wlm = findgen(2e6)/10000.0+550.0
     fxm = wlm*0.0
-    fxm[[(fun.findgen(400)*4e3+1e3).astype(int)]] = 1.0
+    fxm[[(findgen(400)*4e3+1e3).astype(int)]] = 1.0
     px_scale=wlm[1]-wlm[0]
     dldv = np.min(wlm) / c /px_scale
-    T=ops.smooth(fxm,dldv * 4.0)#This makes boxes with a
+    T=smooth(fxm,dldv * 4.0)#This makes boxes with a
     T=T/np.max(T)#This sets the lines to 1.
-    fxm_b=ops.smooth(fxm,dldv * 2.0,mode='gaussian')
+    fxm_b=smooth(fxm,dldv * 20.0,mode='gaussian')
     dspec = interpolate.interp1d(wlm,fxm_b)(wl)
     noise = normal(loc=0.0, scale=1/snr, size=len(wl))
     dspec = dspec/np.max(dspec)
-    order = fun.rebinreform(dspec,30)
-    noisy_order = fun.rebinreform(dspec,30)
+    order = rebinreform(dspec,30)
+    noisy_order = rebinreform(dspec+noise,30)
     noisy_order_error = noisy_order*0.0+1/snr
-    rv,ccf,tsums=CCF.xcor([wl,wl,wl],[order,order*3.0,order*5.0],wlm,T,1.0,100.0)
-    rv2,ccf2,ccf2_e,tsums2=CCF.xcor([wl,wl,wl],[noisy_order,noisy_order*3.0,noisy_order*5.0],wlm,T,1.0,100.0,list_of_errors=[noisy_order_error,noisy_order_error,noisy_order_error])
-
+    rv,ccf,tsums=xcor([wl,wl,wl],[order,order*3.0,order*5.0],wlm,T,1.0,100.0)
+    rv2,ccf2,ccf2_e,tsums2=xcor([wl,wl,wl],[noisy_order,noisy_order*3.0,noisy_order*5.0],wlm,T,1.0,100.0,list_of_errors=[noisy_order_error,noisy_order_error,noisy_order_error])
     assert np.median(ccf) == 0.0#Prove that at velocities where the data is 0, the CCF is zero.
     assert np.sum(np.abs(tsums-tsums2)) == 0#Prove that running the CCF with and without noise returns the same template normalization.
     assert math.isclose(np.max(ccf),3.0, rel_tol=1e-2)#Prove that the peak of the average line is equal to the average line strength in the data, i.e. that the CCF truly acts as a weighted average operator.
-    assert math.isclose(np.mean(ccf2_e),1/snr/np.sqrt(np.mean(tsums2)))#Prove that Gaussian noise is correctly propagated through the CCF.
+    assert math.isclose(np.mean(ccf2_e),1/snr/np.sqrt(np.mean(tsums2)),rel_tol=1e-2)#Prove that Gaussian noise is correctly propagated through the CCF.
 
 
 # test_ccf()

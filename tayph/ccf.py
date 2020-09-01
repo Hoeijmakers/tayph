@@ -65,6 +65,7 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
     import astropy.io.fits as fits
     import matplotlib.pyplot as plt
     import sys
+    import pdb
 
 #===FIRST ALL SORTS OF TESTS ON THE INPUT===
     if len(list_of_wls) != len(list_of_orders):
@@ -97,76 +98,129 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
 #===END OF TESTS. NOW DEFINE CONSTANTS===
     c=const.c.to('km/s').value#In km/s
     RV=fun.findgen(2.0*RVrange/drv+1)*drv-RVrange#..... CONTINUE TO DEFINE THE VELOCITY GRID
-    shift=1.0+RV/c#Array along which the template will be shifted during xcor.
+    beta=1.0-RV/c#The doppler factor with which each wavelength is to be shifted.
+
+    n_rv = len(RV)
 
 
-
-#===Define the output CCF array.
-    CCF = np.zeros((n_exp,len(shift)))#*float('NaN')
+    stack_of_orders = np.hstack(list_of_orders)
+    stack_of_wls = np.concatenate(list_of_wls)
+    shifted_wavelengths = stack_of_wls * beta[:, np.newaxis]#2D broadcast of wl_data, each row shifted by beta[i].
+    T = scipy.interpolate.interp1d(wlm,fxm, bounds_error=False, fill_value=0)(shifted_wavelengths)
+    T[:,np.isnan(stack_of_orders[0])] = 0.0
+    T_sums = np.sum(T,axis = 1)
+    stack_of_orders[np.isnan(stack_of_orders)] = 47.0
+    CCF = stack_of_orders @ T.T/T_sums#Here it the entire cross-correlation. Over all orders and velocity steps. No forloops.
     CCF_E = CCF*0.0
-    Tsums = fun.findgen(len(shift))*0.0*float('NaN')
-#===Then comes the big forloop.
-    #The outer loop is the shifts. For each, we loop through the orders.
+    if list_of_errors is not None:
+        stack_of_errors = np.hstack(list_of_errors)
+        CCF_E = stack_of_errors**2 @ (T.T/T_sums)**2
 
-
-    counter = 0
-    for i in range(len(shift)):
-        T_sum = 0.0
-        wlms=wlm*shift[i]
-        for j in range(N):
-            wl=list_of_wls[j]
-            order=list_of_orders[j]
-
-            T_i=scipy.interpolate.interp1d(wlms[(wlms >= np.min(wl)-10.0) & (wlms <= np.max(wl)+10.0)],fxm[(wlms >= np.min(wl)-10.0) & (wlms <= np.max(wl)+10.0)],bounds_error=False,fill_value=0.0)
-            T = T_i(wl)
-            T_matrix=fun.rebinreform(T,n_exp)
-            CCF[:,i]+=np.nansum(T_matrix*order,1)
-            if list_of_errors != None:
-                sigma=list_of_errors[j]
-                CCF_E[:,i]+=np.nansum((T_matrix*sigma)**2.0,1)#CHANGE THIS WITH PYTHON @ OPERATOR AS PER HOW MATTEO CODES THIS. Matrix multiplication is 20x faster than normal multiplication + summing.
-            T_sum+=np.sum(np.abs(T))
-
-
-        CCF[:,i] /= T_sum
-        CCF_E[:,i] /= T_sum**2.0
-        Tsums[i] = T_sum
-        T_sum = 0.0
-        counter += 1
-        ut.statusbar(i,shift)
     nantest(CCF,'CCF in ccf.xcor()')
     nantest(CCF_E,'CCF_E in ccf.xcor()')
 
-
-    if plot == True:
-        fig, (a0,a1,a2) = plt.subplots(3,1,gridspec_kw = {'height_ratios':[1,1,1]},figsize=(10,7))
-        a02 = a0.twinx()
-        for i in range(N):
-            meanspec=np.nanmean(list_of_orders[i],axis=0)
-            meanwl=list_of_wls[i]
-            T_i=scipy.interpolate.interp1d(wlm[(wlm >= np.min(meanwl)-0.0) & (wlm <= np.max(meanwl)+0.0)],fxm[(wlm >= np.min(meanwl)-0.0) & (wlm <= np.max(meanwl)+0.0)],fill_value='extrapolate')
-            T = T_i(meanwl)
-        # meanspec-=min(meanspec)
-        # meanspec/=np.max(meanspec)
-        # T_plot-=np.min(T)
-        # T_plot/=np.median(T_plot)
-            a02.plot(meanwl,T,color='orange',alpha=0.3)
-            a0.plot(meanwl,meanspec,alpha=0.5)
-        a1.plot(RV,Tsums,'.')
-        if list_of_errors != None:
-            a2.errorbar(RV,np.mean(CCF,axis=0),fmt='.',yerr=np.mean(np.sqrt(CCF_E),axis=0)/np.sqrt(n_exp),zorder=3)
-        else:
-            a2.plot(RV,np.mean(CCF,axis=0),'.')
-        a0.set_title('t-averaged data and template')
-        a1.set_title('Sum(T)')
-        a2.set_title('t-averaged CCF')
-        a0.tick_params(axis='both',labelsize='5')
-        a02.tick_params(axis='both',labelsize='5')
-        a1.tick_params(axis='both',labelsize='5')
-        a2.tick_params(axis='both',labelsize='5')
-        fig.tight_layout()
-        plt.show()
-                    # a0.set_xlim((674.5,675.5))
-                    # a1.set_xlim((674.5,675.5))
     if list_of_errors != None:
-        return(RV,CCF,np.sqrt(CCF_E),Tsums)
-    return(RV,CCF,Tsums)
+        return(RV,CCF,np.sqrt(CCF_E),T_sums)
+    return(RV,CCF,T_sums)
+
+    # ut.writefits('test.fits',CCF)
+    #
+    # pdb.set_trace()
+
+
+
+    # CCF_total = np.zeros((n_exp,n_rv))
+    #
+    # Tsums = fun.findgen(n_rv)*0.0*float('NaN')
+    # T_i = scipy.interpolate.interp1d(wlm,fxm, bounds_error=False, fill_value=0)
+    # t1=ut.start()
+    #
+    # for i,order in enumerate(list_of_orders):
+    #     CCF = np.zeros((n_exp,n_rv))*float('NaN')
+    #     shifted_wavelengths = list_of_wls[i] * beta[:, np.newaxis]#2D broadcast of wl_data, each row shifted by beta[i].
+    #     T=T_i(shifted_wavelengths)
+    #     masked_order = np.ma.masked_array(order,np.isnan(order))
+    #
+    #     for j,spectrum in enumerate(masked_order):
+    #         x = np.repeat(spectrum[:, np.newaxis],n_rv, axis=1).T
+    #         CCF[j] = np.ma.average(x,weights=T, axis=1)
+    #
+    #     CCF_total+=CCF
+    #     ut.statusbar(i,len(list_of_orders))
+    #
+    # ut.end(t1)
+    # ut.save_stack('test_ccf_compared.fits',[fits.getdata('test_ccf.fits'),CCF])
+    # pdb.set_trace()
+
+
+
+#
+# #===Define the output CCF array.
+#     CCF = np.zeros((n_exp,len(shift)))#*float('NaN')
+#     CCF_E = CCF*0.0
+#     Tsums = fun.findgen(len(shift))*0.0*float('NaN')
+# #===Then comes the big forloop.
+#     #The outer loop is the shifts. For each, we loop through the orders.
+#
+#
+#     counter = 0
+#     for i in range(len(shift)):
+#         T_sum = 0.0
+#         wlms=wlm*shift[i]
+#         for j in range(N):
+#             wl=list_of_wls[j]
+#             order=list_of_orders[j]
+#
+#             T_i=scipy.interpolate.interp1d(wlms[(wlms >= np.min(wl)-10.0) & (wlms <= np.max(wl)+10.0)],fxm[(wlms >= np.min(wl)-10.0) & (wlms <= np.max(wl)+10.0)],bounds_error=False,fill_value=0.0)
+#             T = T_i(wl)
+#             T_matrix=fun.rebinreform(T,n_exp)
+#             CCF[:,i]+=np.nansum(T_matrix*order,1)
+#             if list_of_errors != None:
+#                 sigma=list_of_errors[j]
+#                 CCF_E[:,i]+=np.nansum((T_matrix*sigma)**2.0,1)#CHANGE THIS WITH PYTHON @ OPERATOR AS PER HOW MATTEO CODES THIS. Matrix multiplication is 20x faster than normal multiplication + summing.
+#             T_sum+=np.sum(np.abs(T))
+#
+#
+#         CCF[:,i] /= T_sum
+#         CCF_E[:,i] /= T_sum**2.0
+#         Tsums[i] = T_sum
+#         T_sum = 0.0
+#         counter += 1
+#         ut.statusbar(i,shift)
+#     nantest(CCF,'CCF in ccf.xcor()')
+#     nantest(CCF_E,'CCF_E in ccf.xcor()')
+#
+#
+#     if plot == True:
+#         fig, (a0,a1,a2) = plt.subplots(3,1,gridspec_kw = {'height_ratios':[1,1,1]},figsize=(10,7))
+#         a02 = a0.twinx()
+#         for i in range(N):
+#             meanspec=np.nanmean(list_of_orders[i],axis=0)
+#             meanwl=list_of_wls[i]
+#             T_i=scipy.interpolate.interp1d(wlm[(wlm >= np.min(meanwl)-0.0) & (wlm <= np.max(meanwl)+0.0)],fxm[(wlm >= np.min(meanwl)-0.0) & (wlm <= np.max(meanwl)+0.0)],fill_value='extrapolate')
+#             T = T_i(meanwl)
+#         # meanspec-=min(meanspec)
+#         # meanspec/=np.max(meanspec)
+#         # T_plot-=np.min(T)
+#         # T_plot/=np.median(T_plot)
+#             a02.plot(meanwl,T,color='orange',alpha=0.3)
+#             a0.plot(meanwl,meanspec,alpha=0.5)
+#         a1.plot(RV,Tsums,'.')
+#         if list_of_errors != None:
+#             a2.errorbar(RV,np.mean(CCF,axis=0),fmt='.',yerr=np.mean(np.sqrt(CCF_E),axis=0)/np.sqrt(n_exp),zorder=3)
+#         else:
+#             a2.plot(RV,np.mean(CCF,axis=0),'.')
+#         a0.set_title('t-averaged data and template')
+#         a1.set_title('Sum(T)')
+#         a2.set_title('t-averaged CCF')
+#         a0.tick_params(axis='both',labelsize='5')
+#         a02.tick_params(axis='both',labelsize='5')
+#         a1.tick_params(axis='both',labelsize='5')
+#         a2.tick_params(axis='both',labelsize='5')
+#         fig.tight_layout()
+#         plt.show()
+#                     # a0.set_xlim((674.5,675.5))
+#                     # a1.set_xlim((674.5,675.5))
+#     if list_of_errors != None:
+#         return(RV,CCF,np.sqrt(CCF_E),Tsums)
+#     return(RV,CCF,Tsums)

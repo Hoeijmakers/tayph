@@ -82,6 +82,8 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
     nantest(fxm,'fxm in ccf.xcor()')
     nantest(drv,'drv in ccf.xcor()')
     nantest(RVrange,'RVrange in ccf.xcor()')
+
+
     drv = float(drv)
     N=len(list_of_wls)#Number of orders.
 
@@ -105,19 +107,37 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
 
     stack_of_orders = np.hstack(list_of_orders)
     stack_of_wls = np.concatenate(list_of_wls)
+    if list_of_errors is not None:
+        stack_of_errors = np.hstack(list_of_errors)#Stack them horizontally
+
+        #Check that the number of NaNs is the same in the orders as in the errors on the orders;
+        #and that they are in the same place; meaning that if I add the errors to the orders, the number of
+        #NaNs does not increase (NaN+value=NaN).
+        if (np.sum(isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors+stack_of_orders))) and (np.sum(isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors))):
+            raise ValueError(f"in CCF: The number of NaNs in list_of_orders and list_of_errors is not equal ({np.sum(np.isnan(list_of_orders))},{np.sum(np.isnan(list_of_errors))})")
+
+
     shifted_wavelengths = stack_of_wls * beta[:, np.newaxis]#2D broadcast of wl_data, each row shifted by beta[i].
     T = scipy.interpolate.interp1d(wlm,fxm, bounds_error=False, fill_value=0)(shifted_wavelengths)
-    T[:,np.isnan(stack_of_orders[0])] = 0.0
+    T[:,np.isnan(stack_of_orders[0])] = 0.0#All orders are assumed to have NaNs in the same place. If that is not true, the below test will fail.
     T_sums = np.sum(T,axis = 1)
     stack_of_orders[np.isnan(stack_of_orders)] = 47.0
     CCF = stack_of_orders @ T.T/T_sums#Here it the entire cross-correlation. Over all orders and velocity steps. No forloops.
     CCF_E = CCF*0.0
+
+
+    #If the errors were provided, we do the same to those:
     if list_of_errors is not None:
-        stack_of_errors = np.hstack(list_of_errors)
+        stack_of_errors[np.isnan(stack_of_errors)] = 42.0
         CCF_E = stack_of_errors**2 @ (T.T/T_sums)**2
+
+
+
+
 
     nantest(CCF,'CCF in ccf.xcor()')
     nantest(CCF_E,'CCF_E in ccf.xcor()')
+
 
     if list_of_errors != None:
         return(RV,CCF,np.sqrt(CCF_E),T_sums)

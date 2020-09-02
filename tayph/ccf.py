@@ -135,7 +135,7 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
         #Check that the number of NaNs is the same in the orders as in the errors on the orders;
         #and that they are in the same place; meaning that if I add the errors to the orders, the number of
         #NaNs does not increase (NaN+value=NaN).
-        if (np.sum(isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors+stack_of_orders))) and (np.sum(isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors))):
+        if (np.sum(np.isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors+stack_of_orders))) and (np.sum(np.isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors))):
             raise ValueError(f"in CCF: The number of NaNs in list_of_orders and list_of_errors is not equal ({np.sum(np.isnan(list_of_orders))},{np.sum(np.isnan(list_of_errors))})")
 
 #===HERE IS THE JUICY BIT===

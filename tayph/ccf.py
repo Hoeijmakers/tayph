@@ -14,6 +14,28 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
 
     It returns the RV axis and the resulting CCF in a tuple.
 
+    Thanks to Brett Morris (bmorris3), this code now implements a clever numpy broadcasting trick to
+    instantly apply and interpolate the wavelength shifts of the model template onto
+    the data grid in 2 dimensions. The matrix multiplication operator (originally
+    recommended to me by Matteo Brogi) allowed this 2D template matrix to be multiplied
+    with a 2D spectral order. np.hstack() is used to concatenate all orders end to end,
+    effectively making a giant single spectral order (with NaNs in between due to masking).
+
+    All these steps have eliminated ALL the forloops from the equation, and effectuated a
+    speed gain of a factor between 2,000 and 3,000. The time to do cross correlations is now
+    typically measured in 100s of milliseconds rather than minutes.
+
+    This way of calculation does impose some strict rules on NaNs, though. To keep things fast,
+    NaNs are now used to set the interpolated template matrix to zero wherever there are NaNs in the data.
+    These NaNs are found by looking at the first spectrum in the stack, with the assumption that
+    every NaN is in an all-NaN column. In the standard cross-correlation work-flow, isolated
+    NaNs are interpolated over (healed), after all.
+
+    The places where there are NaN columns in the data are therefore set to 0 in the template matrix.
+    The NaN values themselves are then set to to an arbitrary value, since they will never
+    weigh into the average by construction.
+
+
     Parameters
     ----------
     list_of_wls : list
@@ -101,10 +123,10 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
     c=const.c.to('km/s').value#In km/s
     RV=fun.findgen(2.0*RVrange/drv+1)*drv-RVrange#..... CONTINUE TO DEFINE THE VELOCITY GRID
     beta=1.0-RV/c#The doppler factor with which each wavelength is to be shifted.
-
     n_rv = len(RV)
 
 
+#===STACK THE ORDERS IN MASSIVE CONCATENATIONS===
     stack_of_orders = np.hstack(list_of_orders)
     stack_of_wls = np.concatenate(list_of_wls)
     if list_of_errors is not None:
@@ -116,26 +138,23 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
         if (np.sum(isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors+stack_of_orders))) and (np.sum(isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors))):
             raise ValueError(f"in CCF: The number of NaNs in list_of_orders and list_of_errors is not equal ({np.sum(np.isnan(list_of_orders))},{np.sum(np.isnan(list_of_errors))})")
 
-
+#===HERE IS THE JUICY BIT===
     shifted_wavelengths = stack_of_wls * beta[:, np.newaxis]#2D broadcast of wl_data, each row shifted by beta[i].
-    T = scipy.interpolate.interp1d(wlm,fxm, bounds_error=False, fill_value=0)(shifted_wavelengths)
-    T[:,np.isnan(stack_of_orders[0])] = 0.0#All orders are assumed to have NaNs in the same place. If that is not true, the below test will fail.
+    T = scipy.interpolate.interp1d(wlm,fxm, bounds_error=False, fill_value=0)(shifted_wavelengths)#...making this a 2D thing.
+    T[:,np.isnan(stack_of_orders[0])] = 0.0#All NaNs are assumed to be in all-NaN columns. If that is not true, the below nantest will fail.
     T_sums = np.sum(T,axis = 1)
-    stack_of_orders[np.isnan(stack_of_orders)] = 47.0
+    stack_of_orders[np.isnan(stack_of_orders)] = 47e20#Set NaNs to arbitrarily high values.
     CCF = stack_of_orders @ T.T/T_sums#Here it the entire cross-correlation. Over all orders and velocity steps. No forloops.
     CCF_E = CCF*0.0
 
-
     #If the errors were provided, we do the same to those:
     if list_of_errors is not None:
-        stack_of_errors[np.isnan(stack_of_errors)] = 42.0
-        CCF_E = stack_of_errors**2 @ (T.T/T_sums)**2
+        stack_of_errors[np.isnan(stack_of_errors)] = 42e20#we have already tested that these NaNs are in the same place.
+        CCF_E = stack_of_errors**2 @ (T.T/T_sums)**2#This has been mathematically proven.
 
 
-
-
-
-    nantest(CCF,'CCF in ccf.xcor()')
+#===THAT'S ALL. TEST INTEGRITY AND RETURN THE RESULT===
+    nantest(CCF,'CCF in ccf.xcor()')#If anything went wrong with NaNs in the data, these tests will fail because the matrix operation @ is non NaN-friendly.
     nantest(CCF_E,'CCF_E in ccf.xcor()')
 
 
@@ -143,9 +162,6 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
         return(RV,CCF,np.sqrt(CCF_E),T_sums)
     return(RV,CCF,T_sums)
 
-    # ut.writefits('test.fits',CCF)
-    #
-    # pdb.set_trace()
 
 
 

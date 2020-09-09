@@ -6,7 +6,7 @@ __all__ = [
     "save_stack",
     "writefits",
     "read_binary_kitzmann",
-    "read_wave_from_HARPS_header"
+    "read_wave_from_e2ds_header"
 ]
 
 def statusbar(i,x):
@@ -204,7 +204,7 @@ def read_binary_kitzmann(inpath,double=True):
     return(r)
 
 
-def read_wave_from_HARPS_header(h,mode='HARPS'):
+def read_wave_from_e2ds_header(h,mode='HARPS'):
     """
     This reads the wavelength solution from the HARPS header keywords that
     encode the coefficients as a 4-th order polynomial.
@@ -212,9 +212,9 @@ def read_wave_from_HARPS_header(h,mode='HARPS'):
     import numpy as np
     import tayph.functions as fun
 
-    
-    if mode not in ['HARPS','HARPSN','HARPS-N']:
-        raise ValueError("in read_HARPS_e2ds: mode needs to be set to HARPS or HARPSN.")
+
+    if mode not in ['HARPS','HARPSN','HARPS-N','UVES']:
+        raise ValueError("in read_wave+from_e2ds_header: mode needs to be set to HARPS, HARPSN or UVES.")
     npx = h['NAXIS1']
     no = h['NAXIS2']
     x = fun.findgen(npx)
@@ -222,14 +222,23 @@ def read_wave_from_HARPS_header(h,mode='HARPS'):
 
     if mode == 'HARPS':
         coeffkeyword = 'ESO'
-    if mode == 'HARPSN':
+    if mode in ['HARPSN','HARPS-N']:
         coeffkeyword = 'TNG'
-    key_counter = 0
-    for i in range(no):
-        l = x*0.0
-        for j in range(4):
-            l += h[coeffkeyword+' DRS CAL TH COEFF LL%s' %key_counter]*x**j
-            key_counter +=1
-        wave[:,i] = l
+    if mode == 'UVES':
+        delt = h['CDELT1']
+        for i in range(no):
+            keystart = h[f'WSTART{i+1}']
+            keyend = h[f'WEND{i+1}']
+            wave[:,i] = fun.findgen(npx)*(keyend-keystart)/(npx-1)+keystart
+            # print(np.max(wave)-keyend)
+            
+    else:
+        key_counter = 0
+        for i in range(no):
+            l = x*0.0
+            for j in range(4):
+                l += h[coeffkeyword+' DRS CAL TH COEFF LL%s' %key_counter]*x**j
+                key_counter +=1
+            wave[:,i] = l
     wave = wave.T
     return(wave)

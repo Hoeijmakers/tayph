@@ -5,6 +5,7 @@ __all__ = [
     "berv",
     "v_orb",
     "astropyberv",
+    "calculateberv",
     "phase",
     "RV_star"
 ]
@@ -184,9 +185,12 @@ def v_orb(dp):
 
 def astropyberv(dp):
     """
-    This does the same as berv(dp), but uses astropy to compute the BERV from the dates.
-    Useful if the BERV keyword was somehow wrong or missing. Requires latitude, longitude
-    and elevation to be provided in the config file as lat, long and elev.
+    This does the same as berv(dp), but uses astropy to compute the BERV for the
+    dates of observation given a data parameter file.
+    Useful if the BERV keyword was somehow wrong or missing, or if you wish to
+    cross-validate. Requires latitude, longitude, ra, dec and elevation to be provided in
+    the config file as lat, long, RA, DEC and elev in units of degrees and meters.
+    Date should be provided as mjd.
     """
     from tayph.vartests import typetest
     from pathlib import Path
@@ -214,16 +218,16 @@ def astropyberv(dp):
     return berv
 
 
-# def calculateberv(date,lat,long,elev,ra,dec):
-#     """This is a copy of the astropyberv above, but as a function."""
-#     from astropy.time import Time
-#     from astropy import units as u
-#     from astropy.coordinates import SkyCoord, EarthLocation
-#     import pdb
-#     observatory = EarthLocation.from_geodetic(lat=lat*u.deg, lon=long*u.deg, height=elev*u.m)
-#     sc = SkyCoord(ra+' '+dec, unit=(u.hourangle, u.deg))
-#     barycorr = sc.radial_velocity_correction(obstime=Time(date,format='mjd'), location=observatory).to(u.km/u.s)
-#     return(barycorr.value)
+def calculateberv(date,lat,long,elev,ra,dec):
+    """This is a copy of the astropyberv above, but as a function for a single
+    date in mjd. lat, long, RA, DEC and elev are in units of degrees and meters."""
+    from astropy.time import Time
+    from astropy import units as u
+    from astropy.coordinates import SkyCoord, EarthLocation
+    observatory = EarthLocation.from_geodetic(lat=lat*u.deg, lon=long*u.deg, height=elev*u.m)
+    sc = SkyCoord(f'{ra} {dec}', unit=(u.hourangle, u.deg))
+    barycorr = sc.radial_velocity_correction(obstime=Time(date,format='mjd'), location=observatory).to(u.km/u.s)
+    return(barycorr.value)
 
 
 

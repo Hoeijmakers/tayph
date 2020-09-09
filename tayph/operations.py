@@ -175,6 +175,7 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
     import warnings
     typetest(list_of_orders,list,'list_of_orders in ops.normalize_orders()')
     typetest(list_of_sigmas,list,'list_of_sigmas in ops.normalize_orders()')
+    dimtest(list_of_orders,[0,0,0])
     dimtest(list_of_sigmas,[len(list_of_orders),0,0])
     typetest(deg,int,'degree in ops.normalize_orders()')
     typetest(nsigma,[int,float],'nsigma in ops.normalize_orders()')

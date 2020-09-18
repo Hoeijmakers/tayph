@@ -86,6 +86,7 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
     import os
     import pdb
     from astropy.io import fits
+    import astropy.constants as const
     import numpy as np
     import matplotlib.pyplot as plt
     import sys
@@ -308,6 +309,82 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
                 e2ds_count += 1
 
 
+    elif mode == 'ESPRESSO':
+        catkeyword = 'EXTNAME'
+        bervkeyword = 'HIERARCH ESO QC BERV'
+        airmass_keyword1 = 'HIERARCH ESO TEL'
+        airmass_keyword2 = ' AIRM '
+        airmass_keyword3_start = 'START'
+        airmass_keyword3_end = 'END'
+
+        for i in range(N):
+            if filelist[i].endswith('S2D_A.fits'):
+                e2ds_count += 1
+                print(filelist[i])
+                hdul = fits.open(inpath/filelist[i])
+                data = copy.deepcopy(hdul[1].data)
+                hdr = hdul[0].header
+                hdr2 = hdul[1].header
+                wavedata=copy.deepcopy(hdul[5].data)
+                hdul.close()
+                del hdul[1].data
+
+                if hdr2[catkeyword] == 'SCIDATA':
+                    print('science keyword found')
+                    framename.append(filelist[i])
+                    header.append(hdr)
+                    type.append('SCIENCE')
+                    texp=np.append(texp,hdr['EXPTIME'])
+                    date.append(hdr['DATE-OBS'])
+                    mjd=np.append(mjd,hdr['MJD-OBS'])
+                    npx=np.append(npx,hdr2['NAXIS1'])
+                    norders=np.append(norders,hdr2['NAXIS2'])
+                    e2ds.append(data)
+                    sci_count += 1
+                    berv=np.append(berv,hdr[bervkeyword]*1000.0)
+                    telescope = hdr['TELESCOP'][-1]
+                    airmass = np.append(airmass,0.5*(hdr[airmass_keyword1+telescope+' AIRM START']+hdr[airmass_keyword1+telescope+' AIRM END']))
+                    wave.append(wavedata*(1.0-(hdr[bervkeyword]*u.km/u.s/const.c).decompose().value))
+                    #Ok.! So unlike HARPS, ESPRESSO wavelengths are BERV corrected in the S2Ds.
+                    #WHY!!!?. WELL SO BE IT. IN ORDER TO HAVE E2DSes THAT ARE ON THE SAME GRID, AS REQUIRED, WE UNDO THE BERV CORRECTION HERE.
+                    #WHEN COMPARING WAVE[0] WITH WAVE[1], YOU SHOULD SEE THAT THE DIFFERENCE IS NILL.
+                    #THATS WHY LATER WE JUST USE WAVE[0] AS THE REPRESENTATIVE GRID FOR ALL.
+
+            if filelist[i].endswith('CCF_A.fits'):
+                #ccf,hdr=fits.getdata(inpath+filelist[i],header=True)
+                hdul = fits.open(inpath/filelist[i])
+                ccf = copy.deepcopy(hdul[1].data)
+                hdr = hdul[0].header
+                hdr2 = hdul[1].header
+                hdul.close()
+                del hdul[1].data
+
+                if hdr2[catkeyword] == 'SCIDATA':
+                    print('CCF ADDED')
+                    #ccftotal+=ccf
+                    ccfs.append(ccf)
+                    ccfmjd=np.append(ccfmjd,hdr['MJD-OBS'])
+                    nrv=np.append(nrv,hdr2['NAXIS1'])
+                    ccf_count += 1
+
+            if filelist[i].endswith('S1D_A.fits'):
+                hdul = fits.open(inpath/filelist[i])
+                data_table = copy.deepcopy(hdul[1].data)
+                hdr = hdul[0].header
+                hdr2 = hdul[1].header
+                hdul.close()
+                del hdul[1].data
+                if hdr['HIERARCH ESO PRO SCIENCE'] == True:
+                    s1d.append(data_table.field(2))
+                    wave1d.append(data_table.field(1))
+                    s1dhdr.append(hdr)
+                    s1dmjd=np.append(s1dmjd,hdr['MJD-OBS'])
+                    s1d_count += 1
+
+
+
+
+
 
     else:#IF we are HARPS-like:
         for i in range(N):
@@ -445,10 +522,31 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
             wave=wave[0]
 
 
+    if mode == 'ESPRESSO':
+        dimtest(wave1d,np.shape(s1d),'wave and s1d in read_e2ds()')
+        dimtest(wave,np.shape(e2ds),'wave and e2ds in read_e2ds()')
+        diff = wave-wave[0]
+        if np.abs(np.nanmax(diff))>(np.nanmin(wave[0])/1e6):
+            warnings.warn(" in read_e2ds: The wavelength solution over the time series is not constant. I continue by interpolating all the data onto the wavelength solution of the first frame. This will break if the wavelength solutions of your time-series are vastly different, in which case the output will be garbage.",RuntimeWarning)
+            for ii in range(len(e2ds)):
+                if ii>0:
+                    for jj in range(len(e2ds[ii])):
+                        e2ds[ii][jj] = interp.interp1d(wave[ii][jj],e2ds[ii][jj],fill_value='extrapolate')(wave[0][jj])
+        wave=wave[0]
+
+        diff1d = wave1d-wave1d[0]
+        if np.abs(np.nanmax(diff1d))>(np.nanmin(wave1d)/1e6):#if this is true, all the wavelength solutions are the same. Great!
+            warnings.warn(" in read_e2ds: The wavelength solution over the time series of the 1D spectra is not constant. I continue by interpolating all the 1D spectra onto the wavelength solution of the first frame. This will break if the wavelength solutions of your time-series are vastly different, in which case the output will be garbage.",RuntimeWarning)
+            for ii in range(len(s1d)):
+                if ii>0:
+                        s1d[ii] = interp.interp1d(wave1d[ii],s1d[ii],fill_value='extrapolate')(wave1d[0])
+        wave1d=wave1d[0]
+
+
 
     #We are going to test whether the wavelength solution is the same for the
-    #entire time series in the case of UVES/ESPRESSO. In normal use cases this should be true.
-    if mode in ['UVES-red','UVES-blue','ESPRESSO']:
+    #entire time series in the case of UVES. In normal use cases this should be true.
+    if mode in ['UVES-red','UVES-blue']:
         dimtest(wave1d,np.shape(s1d),'wave and s1d in read_e2ds()')
         dimtest(wave,np.shape(e2ds),'wave and e2ds in read_e2ds()')
 

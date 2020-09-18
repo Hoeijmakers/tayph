@@ -73,7 +73,7 @@ def start_run(configfile):
     print('---Start')
     print('---Load parameters from config file')
     modellist = sp.paramget('model',cf,full_path=True).split(',')
-    templatelist = sp.paramget('model',cf,full_path=True).split(',')
+    templatelist = sp.paramget('template',cf,full_path=True).split(',')
 
     params={'dp':sp.paramget('datapath',cf,full_path=True),
             'shadowname':sp.paramget('shadowname',cf,full_path=True),

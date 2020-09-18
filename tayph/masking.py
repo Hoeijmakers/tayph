@@ -133,7 +133,7 @@ class mask_maker(object):
         import matplotlib.pyplot as plt
         import itertools
         from matplotlib.widgets import MultiCursor
-        import tayph.utils as ut
+        import tayph.util as ut
         from tayph.vartests import typetest,postest
         import copy
         #Upon initialization, we raise the keywords onto self.
@@ -299,7 +299,7 @@ class mask_maker(object):
         import numpy as np
         import tayph.functions as fun
         import warnings
-        import tayph.utils as ut
+        import tayph.util as ut
         import copy
         from tayph.vartests import typetest
         typetest(i,int,'i in mask_maker.set_order()',)
@@ -619,12 +619,8 @@ def manual_masking(list_of_wls,list_of_orders,list_of_masks,Nxticks = 20,Nyticks
     import tayph.drag_colour as dcb
     import tayph.util as ut
     from tayph.vartests import typetest,postest,dimtest
-    import lib.functions as fun
-    import lib.system_parameters as sp
-    import lib.plotting as fancyplots
-    import lib.analysis as analysis
+    import tayph.functions as fun
     import sys
-    import lib.cleaning as cleaning
     from matplotlib.widgets import Slider, Button, RadioButtons, CheckButtons
     """
     This brings the user into a GUI in which he/she/they can both visualize

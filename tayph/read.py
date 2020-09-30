@@ -111,7 +111,8 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
     typetest(molecfit,bool,'molecfit switch in read_HARPS_e2ds()')
     typetest(ignore_exp,list,'ignore_exp in read_HARPS_e2ds()')
     typetest(mode,str,'mode in read_HARPS_e2ds()')
-    config = ut.check_path(config,exists=True)
+    if molecfit:
+        config = ut.check_path(config,exists=True)
 
     if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue']:
         raise ValueError("in read_HARPS_e2ds: mode needs to be set to HARPS, HARPSN, UVES-red, UVES-blue or ESPRESSO.")

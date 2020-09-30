@@ -46,6 +46,7 @@ def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0
         wlt=np.flipud(wlt)
         fxt=np.flipud(fxt)
 
+
     wle,fxe=ops.envelope(wlt,fxt-np.median(fxt),binsize,selfrac=maxfrac,mode=mode)#These are binpoints of the top-envelope.
     #The median of fxm is first removed to decrease numerical errors, because the spectrum may
     #have values that are large (~1.0) while the variations are small (~1e-5).
@@ -64,7 +65,7 @@ def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0
     # plt.show()
     if resolution !=0.0:
         dRV = c/resolution
-        print('------Blurring template to resolution fo data (%s, %s km/s)' % (round(resolution,0),round(dRV,2)))
+        print('------Blurring template to resolution of data (%s, %s km/s)' % (round(resolution,0),round(dRV,2)))
         wlt_cv,T_cv,vstep=ops.constant_velocity_wl_grid(wlt,T,oversampling=2.0)
         print('---------v_step is %s km/s' % vstep)
         print('---------So the resolution blurkernel has an avg width of %s px.' % (dRV/vstep))

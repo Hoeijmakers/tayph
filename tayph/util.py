@@ -188,11 +188,8 @@ def read_binary_kitzmann(inpath,double=True):
     check_path(inpath,exists=True)
 
     r = []
-    try:
-        f = open(inpath,'rb')
-    except FileNotFoundError:
-        print('ERROR in read_binary_model_daniel: file %s not found.' % inpath)
-        sys.exit()
+
+    f = open(inpath,'rb')
     while True:
         seq = f.read(nbytes)
         if not seq:
@@ -231,7 +228,7 @@ def read_wave_from_e2ds_header(h,mode='HARPS'):
             keyend = h[f'WEND{i+1}']
             wave[:,i] = fun.findgen(npx)*(keyend-keystart)/(npx-1)+keystart
             # print(np.max(wave)-keyend)
-            
+
     else:
         key_counter = 0
         for i in range(no):

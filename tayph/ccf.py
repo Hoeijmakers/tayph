@@ -1,3 +1,11 @@
+__all__ = [
+    "xcor",
+    "clean_ccf",
+    "filter_ccf"
+]
+
+
+
 def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_errors=None):
     """
     This routine takes a combined dataset (in the form of lists of wl spaces,
@@ -161,6 +169,221 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
     if list_of_errors != None:
         return(RV,CCF,np.sqrt(CCF_E),T_sums)
     return(RV,CCF,T_sums)
+
+
+
+
+
+
+
+
+
+
+def clean_ccf(rv,ccf,ccf_e,dp):
+    """
+    This routine normalizes the CCF fluxes and subtracts the average out of
+    transit CCF, using the transit lightcurve as a mask.
+
+
+    Parameters
+    ----------
+
+    rv : np.ndarray
+        The radial velocity axis
+
+    ccf : np.ndarray
+        The CCF with second dimension matching the length of rv.
+
+    ccf_e : np.ndarray
+        The error on ccf.
+
+    dp : str or path-like
+        The datapath of the present dataset, to establish which exposures in ccf
+        are in or out of transit.
+
+    Returns
+    -------
+
+    ccf_n : np.ndarray
+        The transit-lightcurve normalised CCF.
+
+    ccf_ne : np.ndarray
+        The error on ccf_n
+
+    ccf_nn : np.ndarray
+        The CCF relative to the out-of-transit time-averaged, if sufficient (>25%
+        of the time-series) out of transit exposures were available. Otherwise, the
+        average over the entire time-series is used.
+
+    ccf_ne : np.array
+        The error on ccf_nn.
+
+
+    """
+
+    import numpy as np
+    import tayph.functions as fun
+    import tayph.util as ut
+    from matplotlib import pyplot as plt
+    import pdb
+    import tayph.system_parameters as sp
+    import tayph.operations as ops
+    import astropy.io.fits as fits
+    import sys
+    import copy
+    from tayph.vartests import typetest,dimtest,nantest
+
+    typetest(rv,np.ndarray,'rv in clean_ccf()')
+    typetest(ccf,np.ndarray,'ccf in clean_ccf')
+    typetest(ccf_e,np.ndarray,'ccf_e in clean_ccf')
+    dp=ut.check_path(dp)
+    dimtest(ccf,[0,len(rv)])
+    dimtest(ccf_e,[0,len(rv)])
+    nantest(rv,'rv in clean_ccf()')
+    nantest(ccf,'ccf in clean_ccf()')
+    nantest(ccf_e,'ccf_e in clean_ccf()')
+    #ADD PARAMGET DV HERE.
+
+    transit=sp.transit(dp)
+    # transitblock = fun.rebinreform(transit,len(rv))
+
+
+    meanflux=np.median(ccf,axis=1)#Normalize the baseline flux.
+    meanflux_e=1.0/len(rv)*np.sqrt(np.nansum(ccf_e**2.0,axis=1))#1/N times sum of squares.
+    #I validated that this is approximately equal to ccf_e/sqrt(N).
+    meanblock=fun.rebinreform(meanflux,len(rv))
+    meanblock_e=fun.rebinreform(meanflux_e,len(rv))
+
+    ccf_n = ccf/meanblock.T
+    ccf_ne = np.abs(ccf_n) * np.sqrt((ccf_e/ccf)**2.0 + (meanblock_e.T/meanblock.T)**2.0)#R=X/Z -> dR = R*sqrt( (dX/X)^2+(dZ/Z)^2 )
+    #I validated that this is essentially equal to ccf_e/meanblock.T; as expected because the error on the mean spectrum is small compared to ccf_e.
+
+
+    if np.sum(transit==1) == 0:
+        print('------WARNING in Cleaning: The data contains only in-transit exposures.')
+        print('------The mean ccf is taken over the entire time-series.')
+        meanccf=np.nanmean(ccf_n,axis=0)
+        meanccf_e=1.0/len(transit)*np.sqrt(np.nansum(ccf_ne**2.0,axis=0))#I validated that this is approximately equal
+        #to sqrt(N)*ccf_ne, where N is the number of out-of-transit exposures.
+    elif np.sum(transit==1) <= 0.25*len(transit):
+        print('------WARNING in Cleaning: The data contains very few (<25%) out of transit exposures.')
+        print('------The mean ccf is taken over the entire time-series.')
+        meanccf=np.nanmean(ccf_n,axis=0)
+        meanccf_e=1.0/len(transit)*np.sqrt(np.nansum(ccf_ne**2.0,axis=0))#I validated that this is approximately equal
+        #to sqrt(N)*ccf_ne, where N is the number of out-of-transit exposures.
+    else:
+        meanccf=np.nanmean(ccf_n[transit == 1.0,:],axis=0)
+        meanccf_e=1.0/np.sum(transit==1)*np.sqrt(np.nansum(ccf_ne[transit == 1.0,:]**2.0,axis=0))#I validated that this is approximately equal
+        #to sqrt(N)*ccf_ne, where N is the number of out-of-transit exposures.
+    if np.min(transit) == 1.0:
+        print('------WARNING in Cleaning: The data is not predicted to contain in-transit exposures.')
+        print('------If you expect to be dealing with transit-data, please check the ephemeris at %s.'%dp)
+        sys.exit()
+
+
+    meanblock2=fun.rebinreform(meanccf,len(meanflux))
+    meanblock2_e=fun.rebinreform(meanccf_e,len(meanflux))
+
+    ccf_nn = ccf_n/meanblock2#MAY NEED TO DO SUBTRACTION INSTEAD TOGETHER W. NORMALIZATION OF LIGHTCURVE. SEE ABOVE.
+    ccf_nne = np.abs(ccf_n/meanblock2)*np.sqrt((ccf_ne/ccf_n)**2.0 + (meanblock2_e/meanblock2)**2.0)
+    #I validated that this error is almost equal to ccf_ne/meanccf
+
+
+    #ONLY WORKS IF LIGHTCURVE MODEL IS ACCURATE, i.e. if Euler observations are available.
+    print("---> WARNING IN CLEANING.CLEAN_CCF(): NEED TO ADD A FUNCTION THAT YOU CAN NORMALIZE BY THE LIGHTCURVE AND SUBTRACT INSTEAD OF DIVISION!")
+    return(ccf_n,ccf_ne,ccf_nn-1.0,ccf_nne)
+
+
+def filter_ccf(rv,ccf,v_width):
+    """
+    Performs a high-pass filter on a CCF.
+    """
+    import copy
+    import tayph.operations as ops
+    ccf_f = copy.deepcopy(ccf)
+    wiggles = copy.deepcopy(ccf)*0.0
+    dv = rv[1]-rv[0]#Assumes that the RV axis is constant.
+    w = v_width / dv
+    for i,ccf_row in enumerate(ccf):
+        wiggle = ops.smooth(ccf_row,w,mode='gaussian')
+        wiggles[i] = wiggle
+        ccf_f[i] = ccf_row-wiggle
+    return(ccf_f,wiggles)
+
+def shift_ccf(RV,CCF,drv):
+    """
+    This shifts the rows of a CCF based on velocities provided in drv.
+    Improve those tests. I got functions for that.
+    """
+    import tayph.functions as fun
+    import tayph.util as ut
+    import numpy as np
+    #import matplotlib.pyplot as plt
+    import scipy.interpolate
+    import pdb
+    import astropy.io.fits as fits
+    import matplotlib.pyplot as plt
+    import sys
+    import scipy.ndimage.interpolation as scint
+
+    if np.ndim(CCF) == 1.0:
+        print("ERROR in shift_ccf: CCF should be a 2D block.")
+        sys.exit()
+    else:
+        n_exp=len(CCF[:,0])#Number of exposures.
+        n_rv=len(CCF[0,:])
+    if len(RV) != n_rv:
+        print('ERROR in shift_ccf: RV does not have the same length as the base size of the CCF block.')
+        sys.exit()
+    if len(drv) != n_exp:
+        print('ERROR in shift_ccf: drv does not have the same height as the CCF block.')
+        sys.exit()
+    dv = RV[1]-RV[0]
+    CCF_new=CCF*0.0
+    for i in range(n_exp):
+        #C_i=scipy.interpolate.interp1d(RV,CCF[i],fill_value=(0.0,0.0))
+        #CCF_new[i,:] = C_i(RV-drv[i]*2.0)
+        CCF_new[i,:] = scint.shift(CCF[i],drv[i]/dv,mode='nearest',order=1)
+    return(CCF_new)
+
+
+
+def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
+    """The name says it all. Do good tests."""
+    import tayph.functions as fun
+    import tayph.operations as ops
+    import numpy as np
+    import tayph.system_parameters as sp
+    import matplotlib.pyplot as plt
+    import astropy.io.fits as fits
+    import tayph.util as ut
+    import sys
+    import pdb
+    Kp = fun.findgen((kprange[1]-kprange[0])/dkp+1)*dkp+kprange[0]
+    n_exp = np.shape(ccf)[0]
+    KpVsys = np.zeros((len(Kp),len(rv)))
+    KpVsys_e = np.zeros((len(Kp),len(rv)))
+    transit = sp.transit(dp)-1.0
+    transit /= np.nansum(transit)
+    transitblock = fun.rebinreform(transit,len(rv)).T
+
+    j = 0
+    ccfs = []
+    for i in Kp:
+        dRV = sp.RV(dp,vorb=i)*(-1.0)
+        ccf_shifted = shift_ccf(rv,ccf,dRV)
+        ccf_e_shifted = shift_ccf(rv,ccf_e,dRV)
+        ccfs.append(ccf_shifted)
+        KpVsys[j,:] = np.nansum(transitblock * ccf_shifted,axis=0)
+        KpVsys_e[j,:] = (np.nansum((transitblock*ccf_e_shifted)**2.0,axis=0))**0.5
+        # plt.plot(rv,KpVsys[j,:])
+        # plt.fill_between(rv, KpVsys[j,:]-KpVsys_e[j,:], KpVsys[j,:]+KpVsys_e[j,:],alpha=0.5)
+        # plt.show()
+        # pdb.set_trace()
+        j+=1
+        ut.statusbar(i,Kp)
+    return(Kp,KpVsys,KpVsys_e)
+
 
 
 

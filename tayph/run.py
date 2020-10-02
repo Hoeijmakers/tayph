@@ -7,13 +7,13 @@ __all__ = [
 ]
 
 
-def make_project_folder():
+def make_project_folder(pwd='.'):
     from pathlib import Path
     import os
     import os.path
     import sys
 
-    pwd = Path('.')
+    pwd = Path(pwd)
     if not os.listdir(pwd):
         root = pwd
     else:
@@ -126,7 +126,7 @@ def run_instance(p):
     import tayph.tellurics as telcor
     import tayph.masking as masking
     import tayph.models as models
-    from tayph.ccf import xcor
+    from tayph.ccf import xcor,clean_ccf,filter_ccf,construct_KpVsys
     from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest
     # from lib import analysis
     # from lib import cleaning
@@ -412,12 +412,12 @@ def run_instance(p):
     if apply_mask == True:
         print('---Applying mask')
         list_of_orders = masking.apply_mask_from_file(dp,maskname,list_of_orders)
-
+        list_of_sigmas = masking.apply_mask_from_file(dp,maskname,list_of_sigmas)
 #Interpolate over all isolated NaNs and set bad columns to NaN (so that they are ignored in the CCF)
     if do_xcor == True:
         print('---Healing NaNs')
         list_of_orders = masking.interpolate_over_NaNs(list_of_orders)#THERE IS AN ISSUE HERE: INTERPOLATION SHOULD ALSO HAPPEN ON THE SIGMAS ARRAY!
-
+        list_of_sigmas = masking.interpolate_over_NaNs(list_of_sigmas)
 
 
 
@@ -453,6 +453,9 @@ def run_instance(p):
             print(f'---Building template {templatename}')
             wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,template_library=template_library)
             T*=(-1.0)
+            if np.mean(wlt) < 50.0:#This is likely in microns:
+                print('------WARNING: The loaded template has a mean wavelength less than 50.0, meaning that it is very likely not in nm, but in microns. I have divided by 1,000 now and hope for the best...')
+                wlt*=1000.0
             list_of_wlts.append(wlt)
             list_of_templates.append(T)
 
@@ -490,61 +493,70 @@ def run_instance(p):
         ccf_e = fits.getdata(outpath/'ccf_e.fits')
         Tsums = fits.getdata(outpath/'Tsum.fits')
 
+
+
+
+
+    #
+    #
+    # if plot_xcor == True and inject_model == False:
+    #     print('---Plotting orders and XCOR')
+    #     fitdv = sp.paramget('fitdv',dp)
+    #     analysis.plot_XCOR(list_of_wls,list_of_orders_normalised,wlt,T,rv,ccf,Tsums,dp,CCF_E=ccf_e,dv=fitdv)
+    #
+
+        ccf_cor = ccf*1.0
+        ccf_e_cor = ccf_e*1.0
+
+        print('---Cleaning CCFs')
+        ccf_n,ccf_ne,ccf_nn,ccf_nne= clean_ccf(rv,ccf_cor,ccf_e_cor,dp)
+
+        #THE DOPPLER MODEL HAS NOT BEEN TAYPHIFIED YET!
+        if make_doppler_model == True and skip_doppler_model == False:
+            shadow.construct_doppler_model(rv,ccf_nn,dp,shadowname,xrange=[-200,200],Nxticks=20.0,Nyticks=10.0)
+        if skip_doppler_model == False:
+            print('---Reading doppler shadow model from '+shadowname)
+            doppler_model,maskHW = shadow.read_shadow(dp,shadowname,rv,ccf)
+            ccf_clean,matched_ds_model = shadow.match_shadow(rv,ccf_nn,dp,doppler_model,maskHW)#THIS IS AN ADDITIVE CORRECTION, SO CCF_NNE DOES NOT NEED TO BE ALTERED AND IS STILL VALID VOOR CCF_CLEAN
+        else:
+            print('---Not performing shadow correction')
+            ccf_clean = ccf_nn*1.0
+            matched_ds_model = ccf_clean*0.0
+
+
+        if f_w > 0.0:
+            print('---Performing high-pass filter on the CCF')
+            ccf_clean_filtered,wiggles = filter_ccf(rv,ccf_clean,v_width = f_w)#THIS IS ALSO AN ADDITIVE CORRECTION, SO CCF_NNE IS STILL VALID.
+        else:
+            print('---Skipping high-pass filter')
+            ccf_clean_filtered = ccf_clean*1.0
+            wiggles = ccf_clean*0.0#This filtering is additive so setting to zero is accurate.
+
+        print('---Weighing CCF rows by mean fluxes that were normalised out')
+        ccf_clean_weighted = np.transpose(np.transpose(ccf_clean_filtered)*meanfluxes_norm)#MULTIPLYING THE AVERAGE FLUXES BACK IN! NEED TO CHECK THAT THIS ALSO GOES PROPERLY WITH THE ERRORS!
+        ccf_nne = np.transpose(np.transpose(ccf_nne)*meanfluxes_norm)
+
+        ut.save_stack(outpath/'cleaning_steps.fits',[ccf,ccf_cor,ccf_nn,ccf_clean,matched_ds_model,ccf_clean_filtered,wiggles,ccf_clean_weighted])
+        ut.writefits(outpath/'ccf_cleaned.fits',ccf_clean_weighted)
+        ut.writefits(outpath/'ccf_cleaned_error.fits',ccf_nne)
+
+
+        print('---Constructing KpVsys')
+        Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp)
+        ut.writefits(outpath/'KpVsys.fits',KpVsys)
+        ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
+        ut.writefits(outpath/'Kp.fits',Kp)
+
+
+
+
+    return
     sys.exit()
 
 
-
-
-
-    if plot_xcor == True and inject_model == False:
-        print('---Plotting orders and XCOR')
-        fitdv = sp.paramget('fitdv',dp)
-        analysis.plot_XCOR(list_of_wls,list_of_orders_normalised,wlt,T,rv,ccf,Tsums,dp,CCF_E=ccf_e,dv=fitdv)
-
-
-    ccf_cor = ccf*1.0
-    ccf_e_cor = ccf_e*1.0
-
-    print('---Cleaning CCFs')
-    ccf_n,ccf_ne,ccf_nn,ccf_nne= cleaning.clean_ccf(rv,ccf_cor,ccf_e_cor,dp)
-    ut.writefits(outpath+'ccf_normalized.fits',ccf_nn)
-    ut.writefits(outpath+'ccf_ne.fits',ccf_ne)
-    if make_doppler_model == True and skip_doppler_model == False:
-        # pdb.set_trace()
-        shadow.construct_doppler_model(rv,ccf_nn,dp,shadowname,xrange=[-200,200],Nxticks=20.0,Nyticks=10.0)
-    if skip_doppler_model == False:
-        print('---Reading doppler shadow model from '+shadowname)
-        doppler_model,maskHW = shadow.read_shadow(dp,shadowname,rv,ccf)
-        ccf_clean,matched_ds_model = shadow.match_shadow(rv,ccf_nn,dp,doppler_model,maskHW)#THIS IS AN ADDITIVE CORRECTION, SO CCF_NNE DOES NOT NEED TO BE ALTERED AND IS STILL VALID VOOR CCF_CLEAN
-    else:
-        print('---Not performing shadow correction')
-        ccf_clean = ccf_nn*1.0
-        matched_ds_model = ccf_clean*0.0
-
-    if f_w > 0.0:
-        ccf_clean_filtered,wiggles = cleaning.filter_ccf(rv,ccf_clean,v_width = f_w)#THIS IS ALSO AN ADDITIVE CORRECTION, SO CCF_NNE IS STILL VALID.
-    else:
-        ccf_clean_filtered = ccf_clean*1.0
-        wiggles = ccf_clean*0.0
-
-    ut.save_stack(outpath+'cleaning_steps.fits',[ccf,ccf_cor,ccf_nn,ccf_clean,matched_ds_model,ccf_clean_filtered,wiggles])
-    ut.writefits(outpath+'ccf_cleaned.fits',ccf_clean_filtered)
-    ut.writefits(outpath+'ccf_cleaned_error.fits',ccf_nne)
-
-    print('---Weighing CCF rows by mean fluxes that were normalised out')
-    ccf_clean_filtered = np.transpose(np.transpose(ccf_clean_filtered)*meanfluxes_norm)#MULTIPLYING THE AVERAGE FLUXES BACK IN! NEED TO CHECK THAT THIS ALSO GOES PROPERLY WITH THE ERRORS!
-    ccf_nne = np.transpose(np.transpose(ccf_nne)*meanfluxes_norm)
-
-    print('---Constructing KpVsys')
-    Kp,KpVsys,KpVsys_e = analysis.construct_KpVsys(rv,ccf_clean_filtered,ccf_nne,dp)
-    ut.writefits(outpath+'KpVsys.fits',KpVsys)
-    ut.writefits(outpath+'KpVsys_e.fits',KpVsys_e)
-    ut.writefits(outpath+'Kp.fits',Kp)
     if plot_xcor == True and inject_model == False:
         print('---Plotting KpVsys')
         analysis.plot_KpVsys(rv,Kp,KpVsys,dp)
-
-
 
 
 

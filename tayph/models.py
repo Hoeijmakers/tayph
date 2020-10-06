@@ -7,9 +7,10 @@ __all__ = [
 
 
 
-def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0.0,twopass=False,template_library='models/library'):
+def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0.0,c_subtract=True,twopass=False,template_library='models/library'):
     """This routine reads a specified model from the library and turns it into a
-    cross-correlation template by subtracting the top-envelope (or bottom envelope)"""
+    cross-correlation template by subtracting the top-envelope (or bottom envelope),
+    if c_subtract is set to True."""
 
     import tayph.util as ut
     from tayph.vartests import typetest,postest,notnegativetest
@@ -47,28 +48,27 @@ def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0
         fxt=np.flipud(fxt)
 
 
-    wle,fxe=ops.envelope(wlt,fxt-np.median(fxt),binsize,selfrac=maxfrac,mode=mode)#These are binpoints of the top-envelope.
-    #The median of fxm is first removed to decrease numerical errors, because the spectrum may
-    #have values that are large (~1.0) while the variations are small (~1e-5).
-    e_i = interpolate.interp1d(wle,fxe,fill_value='extrapolate')
-    envelope=e_i(wlt)
-    # plt.plot(wlt,fxt-np.median(fxt))
-    # plt.plot(wlt,envelope,'.')
-    # plt.show()
-    T = fxt-np.median(fxt)-envelope
-    absT = np.abs(T)
-    T[(absT < 1e-4 * np.max(absT))] = 0.0 #This is now continuum-subtracted and binary-like.
-    #Any values that are small are taken out.
-    #This therefore assumes that the model has lines that are deep compared to the numerical
-    #error of envelope subtraction (!).
-    # plt.plot(wlt,T)
-    # plt.show()
+    if c_subtract == True:
+        wle,fxe=ops.envelope(wlt,fxt-np.median(fxt),binsize,selfrac=maxfrac,mode=mode)#These are binpoints of the top-envelope.
+        #The median of fxm is first removed to decrease numerical errors, because the spectrum may
+        #have values that are large (~1.0) while the variations are small (~1e-5).
+        e_i = interpolate.interp1d(wle,fxe,fill_value='extrapolate')
+        envelope=e_i(wlt)
+        T = fxt-np.median(fxt)-envelope
+        absT = np.abs(T)
+        T[(absT < 1e-4 * np.max(absT))] = 0.0 #This is now continuum-subtracted and binary-like.
+        #Any values that are small are taken out.
+        #This therefore assumes that the model has lines that are deep compared to the numerical
+        #error of envelope subtraction (!).
+    else:
+        T = fxt*1.0
+
     if resolution !=0.0:
         dRV = c/resolution
-        print('------Blurring template to resolution of data (%s, %s km/s)' % (round(resolution,0),round(dRV,2)))
+        print(f'------Blurring template to resolution of data ({round(resolution,0)}, {round(dRV,2)} km/s)')
         wlt_cv,T_cv,vstep=ops.constant_velocity_wl_grid(wlt,T,oversampling=2.0)
-        print('---------v_step is %s km/s' % vstep)
-        print('---------So the resolution blurkernel has an avg width of %s px.' % (dRV/vstep))
+        print(f'---------v_step is {np.round(vstep,3)} km/s')
+        print(f'---------So the resolution blurkernel has an avg width of {np.round(dRV/vstep,3)} px.')
         T_b=ops.smooth(T_cv,dRV/vstep,mode='gaussian')
         wlt = wlt_cv*1.0
         T = T_b*1.0

@@ -93,6 +93,7 @@ def start_run(configfile):
             'skip_doppler_model':sp.paramget('skip_doppler_model',cf,full_path=True),
             'modellist':modellist,
             'templatelist':templatelist,
+            'c_subtract':sp.paramget('c_subtract',cf,full_path=True),
             'template_library':sp.paramget('template_library',cf,full_path=True),
             'model_library':sp.paramget('model_library',cf,full_path=True),
     }
@@ -128,6 +129,7 @@ def run_instance(p):
     import tayph.models as models
     from tayph.ccf import xcor,clean_ccf,filter_ccf,construct_KpVsys
     from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest
+    import tayph.shadow as shadow
     # from lib import analysis
     # from lib import cleaning
     # from lib import masking as masking
@@ -190,6 +192,7 @@ def run_instance(p):
     plot_xcor=p['plot_xcor']
     make_mask=p['make_mask']
     apply_mask=p['apply_mask']
+    c_subtract=p['c_subtract']
     do_berv_correction=p['do_berv_correction']
     do_keplerian_correction=p['do_keplerian_correction']
     make_doppler_model=p['make_doppler_model']
@@ -200,6 +203,7 @@ def run_instance(p):
     typetest(plot_xcor,bool,            'plot_xcor in run_instance()')
     typetest(make_mask,bool,            'make_mask in run_instance()')
     typetest(apply_mask,bool,           'apply_mask in run_instance()')
+    typetest(c_subtract,bool,           'c_subtract in run_instance()')
     typetest(do_berv_correction,bool,   'do_berv_correction in run_instance()')
     typetest(do_keplerian_correction,bool,'do_keplerian_correction in run_instance()')
     typetest(make_doppler_model,bool,   'make_doppler_model in run_instance()')
@@ -449,9 +453,8 @@ def run_instance(p):
         outpaths = []
 
         for templatename in templatelist:
-
             print(f'---Building template {templatename}')
-            wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,template_library=template_library)
+            wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,template_library=template_library,c_subtract=c_subtract)
             T*=(-1.0)
             if np.mean(wlt) < 50.0:#This is likely in microns:
                 print('------WARNING: The loaded template has a mean wavelength less than 50.0, meaning that it is very likely not in nm, but in microns. I have divided by 1,000 now and hope for the best...')
@@ -495,29 +498,19 @@ def run_instance(p):
 
 
 
-
-
-    #
-    #
-    # if plot_xcor == True and inject_model == False:
-    #     print('---Plotting orders and XCOR')
-    #     fitdv = sp.paramget('fitdv',dp)
-    #     analysis.plot_XCOR(list_of_wls,list_of_orders_normalised,wlt,T,rv,ccf,Tsums,dp,CCF_E=ccf_e,dv=fitdv)
-    #
-
         ccf_cor = ccf*1.0
         ccf_e_cor = ccf_e*1.0
 
         print('---Cleaning CCFs')
         ccf_n,ccf_ne,ccf_nn,ccf_nne= clean_ccf(rv,ccf_cor,ccf_e_cor,dp)
 
-        #THE DOPPLER MODEL HAS NOT BEEN TAYPHIFIED YET!
         if make_doppler_model == True and skip_doppler_model == False:
             shadow.construct_doppler_model(rv,ccf_nn,dp,shadowname,xrange=[-200,200],Nxticks=20.0,Nyticks=10.0)
+            make_doppler_model = False # This sets it to False after it's been run once, for the first template.
         if skip_doppler_model == False:
             print('---Reading doppler shadow model from '+shadowname)
-            doppler_model,maskHW = shadow.read_shadow(dp,shadowname,rv,ccf)
-            ccf_clean,matched_ds_model = shadow.match_shadow(rv,ccf_nn,dp,doppler_model,maskHW)#THIS IS AN ADDITIVE CORRECTION, SO CCF_NNE DOES NOT NEED TO BE ALTERED AND IS STILL VALID VOOR CCF_CLEAN
+            doppler_model,dsmask = shadow.read_shadow(dp,shadowname,rv,ccf)#This returns both the model evaluated on the rv,ccf grid, as well as the mask that blocks the planet trace.
+            ccf_clean,matched_ds_model = shadow.match_shadow(rv,ccf_nn,dsmask,dp,doppler_model)#THIS IS AN ADDITIVE CORRECTION, SO CCF_NNE DOES NOT NEED TO BE ALTERED AND IS STILL VALID VOOR CCF_CLEAN
         else:
             print('---Not performing shadow correction')
             ccf_clean = ccf_nn*1.0
@@ -589,12 +582,6 @@ def run_instance(p):
                 ut.writefits(outpath_i+'/'+'ccf_e_i_'+modelname+'.fits',ccf_e_i)
             else:
                 print('---Reading injected CCFs from '+outpath_i)
-                # try:
-
-                    # f = open(outpath_i+'ccf_i_'+modelname+'.fits', 'r')
-                    # print(outpath_i+'ccf_i_'+modelname+'.fits')
-                    # f2 = open(outpath+'ccf_e_i_'+modelname+'.fits','r')
-                # except FileNotFoundError:
                 if os.path.isfile(outpath_i+'ccf_i_'+modelname+'.fits') == False:
                     print('------ERROR: Injected CCF not located at '+outpath_i+'ccf_i_'+modelname+'.fits'+'. Set do_xcor and inject_model to True?')
                     sys.exit()

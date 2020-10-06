@@ -37,7 +37,7 @@ def smooth(fx,w,mode='box',edge_degree=1):
 
     if mode not in ['box','gaussian']:
         raise Exception(f'RuntimeError in ops.smooth(): Mode should be set to "top" or "bottom" ({mode}).')
-    truncsize=4.0#The gaussian is truncated at 8 sigma.
+    truncsize=4.0#The gaussian is truncated at 4 sigma.
     shape=np.shape(fx)
 
     sig_w = w / 2*np.sqrt(2.0*np.log(2)) #Transform FWHM to Gaussian sigma. In km/s.
@@ -805,4 +805,3 @@ def vactoair(wlnm):
     s = 1e4/wlA
     f = 1.0 + 5.792105e-2/(238.0185e0 - s**2) + 1.67917e-3/( 57.362e0 - s**2)
     return(wlA/f/10.0)
-    

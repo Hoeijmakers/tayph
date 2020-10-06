@@ -1,7 +1,9 @@
 __all__ = [
     "xcor",
     "clean_ccf",
-    "filter_ccf"
+    "filter_ccf",
+    "shift_ccf",
+    "construct_KpVsys"
 ]
 
 
@@ -226,6 +228,7 @@ def clean_ccf(rv,ccf,ccf_e,dp):
     import tayph.util as ut
     from matplotlib import pyplot as plt
     import pdb
+    import math
     import tayph.system_parameters as sp
     import tayph.operations as ops
     import astropy.io.fits as fits
@@ -247,9 +250,13 @@ def clean_ccf(rv,ccf,ccf_e,dp):
     transit=sp.transit(dp)
     # transitblock = fun.rebinreform(transit,len(rv))
 
+    Nrv = int(math.floor(len(rv)))
 
-    meanflux=np.median(ccf,axis=1)#Normalize the baseline flux.
-    meanflux_e=1.0/len(rv)*np.sqrt(np.nansum(ccf_e**2.0,axis=1))#1/N times sum of squares.
+    baseline_ccf  = np.hstack((ccf[:,0:int(0.25*Nrv)],ccf[:,int(0.75*Nrv):]))
+    baseline_ccf_e= np.hstack((ccf_e[:,0:int(0.25*Nrv)],ccf_e[:,int(0.75*Nrv):]))
+    baseline_rv   = np.hstack((rv[0:int(0.25*Nrv)],rv[int(0.75*Nrv):]))
+    meanflux=np.median(baseline_ccf,axis=1)#Normalize the baseline flux, but away from the signal of the planet.
+    meanflux_e=1.0/len(baseline_rv)*np.sqrt(np.nansum(baseline_ccf_e**2.0,axis=1))#1/N times sum of squares.
     #I validated that this is approximately equal to ccf_e/sqrt(N).
     meanblock=fun.rebinreform(meanflux,len(rv))
     meanblock_e=fun.rebinreform(meanflux_e,len(rv))

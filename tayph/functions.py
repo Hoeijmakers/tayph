@@ -7,7 +7,8 @@ __all__ = [
     'findgen',
     'gaussian',
     'gaussfit',
-    'sigma_clip'
+    'sigma_clip',
+    'local_v_star'
 ]
 
 
@@ -525,3 +526,14 @@ def sigma_clip(array,nsigma=3.0,MAD=False):
     vmin = m-nsigma*s
     vmax = m+nsigma*s
     return vmin,vmax
+
+
+def local_v_star(phase,aRstar,inclination,vsini,l):
+    """This is the rigid-body, circular-orbt approximation of the local velocity occulted
+    by the planet as it goes through transit, as per Cegla et al. 2016. No tests are done
+    to keep this fast."""
+    import numpy as np
+    xp = aRstar * np.sin(2.0*np.pi*phase)
+    yp = (-1.0)*aRstar * np.cos(2.0*np.pi*phase) * np.cos(np.deg2rad(inclination))
+    x_per = xp*np.cos(np.deg2rad(l)) - yp*np.sin(np.deg2rad(l))
+    return(x_per*vsini)

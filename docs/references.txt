@@ -1,0 +1,5 @@
+.. _Astroplan: https://astroplan.readthedocs.io
+.. _Tayph: https://github.com/Hoeijmakers/tayph
+.. _Numpy: http://www.numpy.org
+.. _Matplotlib: http://www.matplotlib.org
+.. _Molecfit: https://www.eso.org/sci/software/pipelines/skytools/molecfit

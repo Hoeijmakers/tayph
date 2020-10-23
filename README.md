@@ -10,7 +10,7 @@ THIS IS A WORK IN PROGRESS AND ONLY SEGMENTS OF THE PROJECT ARE CURRENTLY FUNCTI
 ![ViewCount](https://views.whatilearened.today/views/github/Hoeijmakers/tayph.svg)
 
 
-Tayph is envisioned as a package to help you analyze high-resolution spectral time-series of exoplanets using the Cross-correlation technique introduced by [Snellen et al. 2010](https://www.nature.com/articles/nature09111) in a *robust*, *transparent*, *flexible* and *user-friendly* way.
+Tayph is envisioned as a package to help you analyze high-resolution spectral time-series of exoplanets using the Cross-correlation technique introduced by [Snellen et al. 2010](https://www.nature.com/articles/nature09111) in a *robust*, *transparent*, *flexible* and *user friendly* way.
 
 - **Robust**: The analysis of high-resolution spectral time series can be challenging, and normally involves a number of analysis steps that may depend strongly on the type of data, planet, and circumstances. The steps applied in the analysis cascade have been developed and tested over the course of a number of published analyses. The code itself is thoroughly tested at the build and execution levels.
 - **Transparent**: Tayph aims to be transparent in its capabilities, assumptions and limitations. To this end, the entire package is open-source, and the analysis steps have been well described in published literature. The code is documented following the Astropy style, and thoroughly commented in-line. Ongoing issues, bugs and improvements are maintained and documented in public on [Tayphs GitHub page](https://github.com/Hoeijmakers/tayph).

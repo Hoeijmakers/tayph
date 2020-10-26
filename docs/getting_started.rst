@@ -87,37 +87,78 @@ coordinates, the transit center time, the spectral resolution of the instrument,
 inclination in degrees (close to 90 if the planet is transiting), the projected equatorial rotation velocity of the stellar disk,
 whether or not the wavelength solution is in air.
 
-After the data is reformatted and a configuration file is created, we need to proceed to create a run-file that specifies the
-working settings of our cross-correlation run. This file is again a 2-column ASCII table with keywords in the first column
+After the data is reformatted and a configuration file is created, we need to point Tayph to a set of models that are going to be used as
+cross-correlation templates and (optionally) for model injection-comparison. Models are located in the /Users/tayph/xcor_project/models/ directory,
+with optional subdirectories for different sets of models. In most use-cases, the user will have multiple sets of models to choose from, which
+may or may not be similar in their naming or content. To be able to access different sets of models, Tayph assumes that models are organised
+in so-called libraries, which are ASCII tables that act as dictionaries with which the user can refer to model files saved in subfolders using short-hand names or labels.
+The library file and template name/label are passed to Tayph at runtime, and the library files are structured as 2-column ASCII tables in the models/
+directory. A typical library file called KELT-9-models.dat may look as follows::
+
+  FeI     KELT-9/4000K_Fe.fits
+  FeII    KELT-9/4000K_Fe_p.fits
+  TiI     KELT-9/4000K_Ti.fits
+  TiII    KELT-9/4000K_Ti_p.fits
+  TiO     KELT-9/3000K_TiO.fits
+  H2O     KELT-9/3000K_H2O.fits
+
+Individual models are assumed to be saved in FITS files, in subdirectories starting in the /Users/tayph/xcor_project/models/ directory. E
+In this example, the FITS files are located at in the /Users/tayph/xcor_project/models/KELT-9 directory. ach FITS file is a 2-row FITS image, with
+wavelength (in nm) on the first row, and flux on the second row. In the case of transit spectra, this flux will typically be the expected transit radius of the planet as a function
+of wavelength. To convert models into cross-correlation templates, Tayph (optionally) performs a continuum subtraction (controlled by the c_subtract switch below).
+Examples of a model/template library file and associated model files are prepackaged along with the dummy data. Place these in the models subfolder of the working directory.
+
+A second library file located at /Users/tayph/xcor_project/models/WASP-123-models.dat relevant to a different exoplanet system may take the following form::
+
+  FeI_2k      WASP-123/2000K_FeI.fits
+  FeI_3k      WASP-123/3000K_FeI.fits
+  FeII_3k     WASP-123/3000K_FeII.fits
+  FeI_2k      WASP-123/2000K_TiI.fits
+  FeI_3k      WASP-123/3000K_TiI.fits
+  FeII_3k     WASP-123/3000K_TiII.fits
+  TiO         WASP-123/2000K_TiO.fits
+  H2O         WASP-123/2000K_H2O.fits
+
+For each run of Tayph, only one model library or template library may be specified, so the user should organise their library files according to what models and templates they wish to run in batches.
+
+
+
+
+
+
+Finally, we proceed by creating a run-file that specifies the working settings of our cross-correlation run. This file is again a 2-column ASCII table with keywords in the first column
 and values in the second. This may look like below. The entries in the second column may be followed by commentary that
 explains keywords or choices that are not self-descriptive or that you wish to remember.::
 
     molecfit_input_folder     /Users/username/Molecfit/share/molecfit/spectra/cross_cor/
     molecfit_prog_folder      /Users/username/Molecfit/bin/
-    model                     FeI
-    template                  FeI,FeII,TiI,TiII
-    c_subtract                True    Set to True if your templates are not already continuum-subtracted.
+    datapath                  data/KELT-9/night1  #The path to your test data.
+    template_library          models/KELT-9-models   #The path to your library of models to be used as templates.
+    model_library             models/KELT-9-models   #The path to your library of models to be used as injection models.
+    model                     FeI                 ##A comma-separated list of templates as defined in your library file.
+    template                  FeI,FeII,TiI,TiII   #A comma-separated list of templates as defined in your library file.
+    c_subtract                True    #Set to True if your templates are not already continuum-subtracted.
     do_telluric_correction    True
     do_colour_correction      True
-    do_xcor                   True    Set this to True if you want the CCF to be recomputed. Set to False if you have already computed the CCF in a previous run, and now you just want to alter some plotting, cleaning or doppler shadow parameters. CCFs need to be rerun when masking, orbital parameters, velocity corrections, injected models or telluric corrections are altered.
+    do_xcor                   True    #Set this to True if you want the CCF to be recomputed. Set to False if you have already computed the CCF in a previous run, and now you just want to alter some plotting, cleaning or doppler shadow parameters. CCFs need to be rerun when masking, orbital parameters, velocity corrections, injected models or telluric corrections are altered.
     inject_model              False
     plot_xcor                 True
-    make_mask                 False   Don't be enthusiastic in making a mask. Once you change things like BERVs and airtovac corrections, the mask wont be valid anymore. Make 100% sure that these are correct first.
+    make_mask                 False   #Don't be enthusiastic in making a mask. Once you change things like BERVs and airtovac corrections, the mask wont be valid anymore. Make 100% sure that these are correct first.
     apply_mask                True
     do_berv_correction        True
     do_keplerian_correction   True
-    make_doppler_model        True     Make a new doppler model (True) / use the previously generated one (False). If multiple templates are provided, the GUI to make a model will only be called on the first template. Make sure that is a template with strong stellar lines, i.e. FeI or FeII.
-    skip_doppler_model        False    This is skipping the application of the doppler model altogether.
-    RVrange                   1000.0    Extent of the CCF velocity excursion. Linearly increases computation time.
-    drv                       2.0       Cross-correlation step size in km/s.
-    f_w                       60.0      Cross-correlation filter width in km/s. Set to zero to disable hipass filter.
-    shadowname                shadow_FeII     This is the name of the file containing the doppler model shadow that is to be made or loaded. This file is located in the data folder, along with the spectral orders, telluric correction files, etc.
-    maskname                  generic_mask    Same, for the mask.
+    make_doppler_model        True     #Make a new doppler model (True) / use the previously generated one (False). If multiple templates are provided, the GUI to make a model will only be called on the first template. Make sure that is a template with strong stellar lines, i.e. FeI or FeII.
+    skip_doppler_model        False    #This is skipping the application of the doppler model altogether.
+    RVrange                   1000.0   #Extent of the CCF velocity excursion. Linearly increases computation time.
+    drv                       2.0      #Cross-correlation step size in km/s.
+    f_w                       60.0     #Cross-correlation filter width in km/s. Set to zero to disable hipass filter.
+    shadowname                shadow_FeII     #This is the name of the file containing the doppler model shadow that is to be made or loaded. This file is located in the data folder, along with the spectral orders, telluric correction files, etc.
+    maskname                  generic_mask    #Same, for the mask.
 
 
 
-This file is typically saved in the working directory (i.e. /Users/tayph/xcor_project/), and is the primer for initializing
-a cross-correlation run.
+This file is typically saved in the working directory (i.e. /Users/tayph/xcor_project/testrun.dat), and is the primer for initialising
+a cross-correlation run by calling::
 
-The required model/template library file, as well as the models themselves are prepackaged along with
-the dummy data. Place these in the models subfolder of the working directory.
+    import tayph.run
+    run.start_run('testrun.dat')

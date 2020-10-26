@@ -36,7 +36,7 @@ use-cases may exist where this is desirable, it is non-standard from the point o
 
 Open a python interpreter in your working directory (i.e. /Users/tayph/xcor_project/) and call::
 
-    import Tayph.read
+    import tayph.read
     tayph.read.read_e2ds('/Users/tayph/downloads/HARPS_data/','KELT-9/night1','',nowave=True,molecfit=False,mode='HARPS',ignore_exp=[])
 
 to convert the pipeline-reduced data to the format used by Tayph, and place it in the data folder in your working directory.
@@ -90,7 +90,7 @@ whether or not the wavelength solution is in air.
 After the data is reformatted and a configuration file is created, we need to proceed to create a run-file that specifies the
 working settings of our cross-correlation run. This file is again a 2-column ASCII table with keywords in the first column
 and values in the second. This may look like below. The entries in the second column may be followed by commentary that
-explains keywords or choices that are not self-descriptive or that you wish to remember.
+explains keywords or choices that are not self-descriptive or that you wish to remember.::
 
     molecfit_input_folder     /Users/username/Molecfit/share/molecfit/spectra/cross_cor/
     molecfit_prog_folder      /Users/username/Molecfit/bin/

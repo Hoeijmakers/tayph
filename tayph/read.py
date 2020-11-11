@@ -95,7 +95,6 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
     import tayph.tellurics as mol
     import tayph.system_parameters as sp
     import tayph.functions as fun
-    import pyfits
     import copy
     import scipy.interpolate as interp
     import pickle
@@ -662,7 +661,7 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
                 #tel_order[c,:] = T_i[wave_axis]
                 #Now I also need to write it to file.
                 if i ==0:#Only do it the first time, not for every order.
-                    line = str(mjd[sorting[j]])+'\t'+date[sorting[j]]+'\t'+str(texp[sorting[j]])+'\t'+str(np.round(airmass[sorting[j]],3))+'\t'+str(np.round(berv[sorting[j]]/1000.0,5))+'\t'+framename[sorting[j]]+'\n'
+                    line = str(mjd[sorting[j]])+'\t'+date[sorting[j]]+'\t'+str(texp[sorting[j]])+'\t'+str(np.round(airmass[sorting[j]],3))+'\t'+str(np.round(berv[sorting[j]],5))+'\t'+framename[sorting[j]]+'\n'
                     f.write(line)
                 c+=1
 

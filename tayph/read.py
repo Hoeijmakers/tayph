@@ -634,7 +634,7 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
 
         if len(list_of_trans) != len(sorting):
             raise ValueError("in read_e2ds(): Molecfit did not produce the same number of spectra as there are in the e2ds spectra.")
-        mol.write_telluric_transmission_to_file(list_of_wls,list_of_trans,outpath+'telluric_transmission_spectra.pkl')
+        mol.write_telluric_transmission_to_file(list_of_wls,list_of_trans,outpath/'telluric_transmission_spectra.pkl')
 
 
     #Now we loop over all exposures and collect the i-th order from each exposure,

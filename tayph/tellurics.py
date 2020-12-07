@@ -140,7 +140,7 @@ def retrieve_output_molecfit(path):
     import sys
     from pathlib import Path
     import tayph.util as ut
-    file = Path(path)/'_out_tac.fits'
+    file = Path(str(Path(path))+'_out_tac.fits')
     ut.check_path(file,exists=True)
 
     with fits.open(file) as hdul:

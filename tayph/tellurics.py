@@ -12,7 +12,7 @@ __all__ = [
 
 
 
-def do_molecfit(headers,spectra,configfile,wave=[],mode='HARPS',load_previous=False):
+def do_molecfit(headers,spectra,configfile,wave=[],mode='HARPS',load_previous=False,save_individual=''):
     """This is the main wrapper for molecfit that pipes a list of s1d spectra and
     executes it. It first launces the molecfit gui on the middle spectrum of the
     sequence, and then loops through the entire list, returning the transmission
@@ -23,8 +23,11 @@ def do_molecfit(headers,spectra,configfile,wave=[],mode='HARPS',load_previous=Fa
     are in air wavelengths by default.
 
     If you have run do_molecfit before, and want to reuse the output of the previous run
-    for whatever reason, set the load_previous keyword to True. This will reload the
-    list of transmission spectra created last time, if available.
+    for whatever reason (i.e. due to a crash), set the load_previous keyword to True.
+    This will reload the list of transmission spectra created last time, if available.
+
+    You can also set save_individual to a path to an existing folder to which the
+    transmission spectra of the time-series can be written one by one.
     """
 
     import pdb
@@ -62,6 +65,8 @@ def do_molecfit(headers,spectra,configfile,wave=[],mode='HARPS',load_previous=Fa
     ut.check_path(molecfit_input_root/parname,exists=True)#Test that the molecfit parameter file for this mode exists.
     ut.check_path(molecfit_prog_root/'molecfit',exists=True)
     ut.check_path(molecfit_prog_root/'molecfit_gui',exists=True)
+    if len(save_individual) > 0:
+        ut.check_path(save_individual,exists=True)
 
     pickle_outpath = molecfit_input_root/'previous_run_of_do_molecfit.pkl'
 
@@ -98,6 +103,14 @@ def do_molecfit(headers,spectra,configfile,wave=[],mode='HARPS',load_previous=Fa
             list_of_fxc.append(fx/trans)
             list_of_trans.append(trans)
             ut.end(t1)
+            if len(save_individual) > 0:
+                indv_outpath=Path(save_individual)/f'tel_{i}.fits'
+                indv_out = np.zeros((2,len(trans)))
+                indv_out[0]=wl*1000.0
+                indv_out[1]=trans
+                fits.writeto(indv_outpath,indv_out)
+
+
 
         pickle_outpath = molecfit_input_root/'previous_run_of_do_molecfit.pkl'
         with open(pickle_outpath, 'wb') as f: pickle.dump((list_of_wls,list_of_fxc,list_of_trans),f)
@@ -167,11 +180,24 @@ def write_file_to_molecfit(molecfit_file_root,name,headers,spectra,ii,mode='HARP
     """This is a wrapper for writing a spectrum from a list to molecfit format.
     name is the filename of the fits file that is the output.
     headers is the list of astropy header objects associated with the list of spectra
-    in the spectra variable. ii is the number from that list that needs to be written.
+    in the spectra variable. ii is the number from that list that needs to be written (meaning
+    that this routine is expected to be called as part of a loop).
 
-    The wave keyword is set for when the s1d headers do not contain wavelength information like HARPS does.
+    The mode keyword will determine how to handle the spectra provided, notably what to do
+    with the FITS headers and the wavelengths.
+
+    In the case of HARPS and ESPRESSO, s1d spectra are normally in air and in the barycenter.
+    Using the BERV correction in the header, they are shifted back to the Earths frame to put
+    the tellurics back to 0km/s.
+
+    An arbitrary mode can be set, but in that case the user must make sure that their wavelength
+    axes are provided correctly, either encoded in the FITS header in the observatory restframe;
+    or via the wave keyword.
+
+    The wave keyword is used for when the s1d headers do not contain wavelength information like HARPS does.
     (for instance, ESPRESSO). The wave keyword needs to be set in this case, to the wavelength array as extracted from FITS files or smth.
-    If you do that for HARPS and set the wave keyword, this code will still grab it from the header, and overwrite it. So dont bother.
+    If you do that for HARPS or HARPSN and also set the wave keyword, this code will still
+    grab it from the header and ignore it.
     """
     import astropy.io.fits as fits
     from scipy import stats
@@ -201,7 +227,6 @@ def write_file_to_molecfit(molecfit_file_root,name,headers,spectra,ii,mode='HARP
         berv = headers[ii]['HIERARCH ESO QC BERV']#Need to un-correct the s1d spectra to go back to the frame of the Earths atmosphere.
         wave = copy.deepcopy(wave*(1.0-(berv*u.km/u.s/const.c).decompose().value))
 
-
     err = np.sqrt(spectrum)
 
     #Write out the s1d spectrum in a format that molecfit eats.
@@ -219,7 +244,7 @@ def write_file_to_molecfit(molecfit_file_root,name,headers,spectra,ii,mode='HARP
     prihdu = fits.PrimaryHDU(header=prihdr)
     thdulist = fits.HDUList([prihdu, tbhdu])
     thdulist.writeto(molecfit_file_root/name,overwrite=True)
-    print(f'Spectrum {ii} written')
+    print(f'Spectrum {ii} written to {str(molecfit_file_root/name)}')
     return(0)
 
 

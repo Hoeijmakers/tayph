@@ -105,16 +105,16 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
     # molecfit = False
     #First check the input:
     inpath=ut.check_path(inpath,exists=True)
-    typetest(outname,str,'outname in read_HARPS_e2ds()')
-    typetest(nowave,bool,'nowave switch in read_HARPS_e2ds()')
-    typetest(molecfit,bool,'molecfit switch in read_HARPS_e2ds()')
-    typetest(ignore_exp,list,'ignore_exp in read_HARPS_e2ds()')
-    typetest(mode,str,'mode in read_HARPS_e2ds()')
+    typetest(outname,str,'outname in read_e2ds()')
+    typetest(nowave,bool,'nowave switch in read_e2ds()')
+    typetest(molecfit,bool,'molecfit switch in read_e2ds()')
+    typetest(ignore_exp,list,'ignore_exp in read_e2ds()')
+    typetest(mode,str,'mode in read_e2ds()')
     if molecfit:
         config = ut.check_path(config,exists=True)
 
     if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue']:
-        raise ValueError("in read_HARPS_e2ds: mode needs to be set to HARPS, HARPSN, UVES-red, UVES-blue or ESPRESSO.")
+        raise ValueError("in read_e2ds: mode needs to be set to HARPS, HARPSN, UVES-red, UVES-blue or ESPRESSO.")
 
 
 
@@ -186,7 +186,7 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
     #and blaze files, though these are not really used.
 
 
-    print(f'Read_e2ds is attempting to read a {mode} datafolder.')
+    print(f'Read_e2ds is attempting to read a {mode} datafolder at {str(inpath)}.')
     if mode == 'UVES-red' or mode == 'UVES-blue':#IF we are UVES-like
         for i in range(N):
             print(filelist[i])
@@ -194,13 +194,13 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
                 tmp_products = [i for i in (inpath/Path(filelist[i])).glob('resampled_science_*.fits')]
                 tmp_products1d = [i for i in (inpath/Path(filelist[i])).glob('red_science_*.fits')]
                 if mode == 'UVES-red' and len(tmp_products) != 2:
-                    raise ValueError(f"in read_e2ds: When mode=UVES-red there should be 2 resampled_science files (redl and redu), but {len(tmp_products)} were detected.")
+                    raise ValueError(f"in read_e2ds: When mode=UVES-red there should be 2 resampled_science files (redl and redu), but {len(tmp_products)} were detected in {str(inpath/Path(filelist[i]))}.")
                 if mode == 'UVES-blue' and len(tmp_products) != 1:
-                    raise ValueError(f"in read_e2ds: When mode=UVES-rblue there should be 1 resampled_science files (blue), but {len(tmp_products)} were detected.")
+                    raise ValueError(f"in read_e2ds: When mode=UVES-rblue there should be 1 resampled_science files (blue), but {len(tmp_products)} were detected in {str(inpath/Path(filelist[i]))}.")
                 if mode == 'UVES-red' and len(tmp_products1d) != 2:
-                    raise ValueError(f"in read_e2ds: When mode=UVES-red there should be 2 red_science files (redl and redu), but {len(tmp_products1d)} were detected.")
+                    raise ValueError(f"in read_e2ds: When mode=UVES-red there should be 2 red_science files (redl and redu), but {len(tmp_products1d)} were detected in {str(inpath/Path(filelist[i]))}.")
                 if mode == 'UVES-blue' and len(tmp_products1d) != 1:
-                    raise ValueError(f"in read_e2ds: When mode=UVES-rblue there should be 1 red_science files (blue), but {len(tmp_products1d)} were detected.")
+                    raise ValueError(f"in read_e2ds: When mode=UVES-rblue there should be 1 red_science files (blue), but {len(tmp_products1d)} were detected in {str(inpath/Path(filelist[i]))}.")
 
                 data_combined = []#This will store the two chips (redu and redl) in case of UVES_red, or simply the blue chip if otherwise.
                 wave_combined = []
@@ -456,7 +456,7 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
 
 
     if e2ds_count == 0:
-        raise FileNotFoundError(f"in read_e2ds: The input folder {str(inpath)} does not contain files ending in e2ds.fits.")
+        raise FileNotFoundError(f"in read_e2ds: The input folder {str(inpath)} does not contain files recognised as e2ds-format FITS files.")
     if sci_count == 0:
         print('')
         print('')
@@ -464,17 +464,17 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
         print("These are the files and their types:")
         for i in range(len(type)):
             print('   '+framename[i]+'  %s' % type[i])
-        raise ValueError("in read_e2ds: The input folder (%2) contains e2ds files, but none of them are classified as SCIENCE frames with the HIERARCH ESO DPR CATG/OBS-TYPE keyword or HIERARCH ESO PRO SCIENCE keyword. The list of frames is printed above.")
+        raise ValueError("in read_e2ds: The input folder (%2) contains e2ds files, but none of them are classified as SCIENCE frames with the HIERARCH ESO DPR CATG, OBS-TYPE or HIERARCH ESO PRO SCIENCE keyword. The list of frames is printed above.")
     if np.max(np.abs(norders-norders[0])) == 0:
         norders=int(norders[0])
     else:
         print('')
         print('')
         print('')
-        print("These are the files and their number of orders:")
+        print("These are the files and their numbers of orders:")
         for i in range(len(type)):
             print('   '+framename[i]+'  %s' % norders[i])
-        raise ValueError("in read_e2ds: Not all files have the same number of orders. The list of frames is printed above.")
+        raise ValueError("in read_e2ds: Not all e2ds files have the same number of orders. The list of frames is printed above.")
 
     if np.max(np.abs(npx-npx[0])) == 0:
         npx=int(npx[0])
@@ -482,10 +482,10 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
         print('')
         print('')
         print('')
-        print("These are the files and their number of pixels:")
+        print("These are the files and their numbers of pixels:")
         for i in range(len(type)):
             print('   '+framename[i]+'  %s' % npx[i])
-        raise ValueError("in read_HARPS_e2ds: Not all files have the same number of pixels. The list of frames is printed above.")
+        raise ValueError("in read_e2ds: Not all e2ds files have the same number of pixels. The list of frames is printed above.")
     if wave_count >= 1:
         wave=wave[0]#SELECT ONLY THE FIRST WAVE FRAME. The rest is ignored.
     else:
@@ -499,7 +499,7 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
                 print(filelist[i])
             print("This may have happened if you downloaded the HARPS data from the")
             print("ADP query form, which doesn't include wave_A files (as far as I")
-            print("have seen). Set the /nowave keyword in your call to read_HARPS_e2ds")
+            print("have seen). Set the /nowave keyword in your call to read_e2ds")
             print("if you indeed do not expect a wave_A file to be present.")
             raise FileNotFoundError("No wave_A.fits file was detected. More details are printed above.")
 
@@ -508,8 +508,8 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
 
     if nowave == True and mode not in ['UVES-red','UVES-blue','ESPRESSO']:#This here is peculiar to HARPS/HARPSN.
         if all(x == wavefile_used[0] for x in wavefile_used):
-            print("Nowave is set, and simple wavelength calibration extraction")
-            print("works, as all files in the dataset used the same wave_A file.")
+            print("Nowave is set, and simple extraction of the wavelength calibration information")
+            print("works because all files in the dataset were originally reduced using the same wave_A file.")
             wave=wave[0]
         else:
             print('')
@@ -518,7 +518,7 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
             print("These are the filenames and their wave_A file used:")
             for i in range(N-1):
                 print('   '+framename[i]+'  %s' % wavefile_used[0])
-            warnings.warn("in read_e2ds: Nowave is set, but not all files in the dataset used the same wave_A file when the pipeline was run. This script will continue using only the first wavelength solution. Theoretically, this may affect the quality of the data if the solution is wrong (in which case interpolation would be needed), but due to the stability of HARPS this is probably not an issue worth interpolating for.",RuntimeWarning)
+            warnings.warn("in read_e2ds: Nowave is set, but not all files in the dataset used the same wave_A file when the pipeline was run. This script will continue using only the first wavelength solution. Theoretically, this may affect the quality of the data if the solution is wrong (in which case interpolation would be needed), but due to the stability of HARPS/HARPS-N this is probably not an issue worth interpolating for.",RuntimeWarning)
             wave=wave[0]
 
 
@@ -609,7 +609,7 @@ def read_e2ds(inpath,outname,config,nowave=False,molecfit=False,mode='HARPS',ign
     #Sort the s1d files for application of molecfit.
     if molecfit == True:
         if len(sorting) != len(s1dsorting):
-            raise ValueError("in read_HARPS_e2ds: Sorted science frames and sorted s1d frames are not of the same length. Telluric correction can't proceed.")
+            raise ValueError("in read_e2ds: Sorted science frames and sorted s1d frames are not of the same length. Telluric correction can't proceed. Make sure that the number of files of each type is correct.")
 
         s1dhdr_sorted=[]
         s1d_sorted=[]

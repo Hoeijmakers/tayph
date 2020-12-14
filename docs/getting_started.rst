@@ -18,68 +18,61 @@ This installs Tayph as a python package on your system.
 
 Create an empty directory somewhere on your system. This will be the working directory that contains your dataset(s), models,
 templates, and Tayph output. For the purpose of this walk-through, we will assume that folder is located at
-/Users/tayph/xcor_project/
+:code:`'/Users/tayph/xcor_project/'`
 
 Open a python interpreter and call::
 
     import tayph.run
     tayph.run.make_project_folder(p)
 
-where you have set p to a string describing the filepath of the empty directory you just created. This creates the necessary folder structure Tayph uses.
+where you have set :code:`'p'` to a string describing the filepath of the empty directory you just created. This creates the necessary folder structure Tayph uses.
 
 Download the dummy data, located here [URL]. You may also download any other pipeline-reduced HARPS dataset from the ESO archive.
 A pipeline-reduced dataset will consist of a number of files for each exposure, i.e. e2ds_A/B, s1d_A/B, blaze_A/B files, etc.
 Tayph does *not* work on raw echelle data. For the purpose of this walk-through, we will assume that this folder is located at
-/Users/tayph/downloads/HARPS_data/. Take care to download and process only *one* transit at a time. Do not put the observations
+:code:`'/Users/tayph/downloads/HARPS_data/'`. Take care to download and process only *one* transit at a time. Do not put the observations
 of multiple transits in the same download folder, because Tayph will treat them as a single time-series. Although certain
 use-cases may exist where this is desirable, it is non-standard from the point of view of present literature.
 
-Open a python interpreter in your working directory (i.e. /Users/tayph/xcor_project/) and call::
+Open a python interpreter in your working directory (i.e. :code:`'/Users/tayph/xcor_project/'`) and call::
 
     import tayph.read
     tayph.read.read_e2ds('/Users/tayph/downloads/HARPS_data/','KELT-9/night1','',nowave=True,molecfit=False,mode='HARPS',ignore_exp=[])
 
 to convert the pipeline-reduced data to the format used by Tayph, and place it in the data folder in your working directory.
-The input parameters mean the following:
-The first parameter is the location of your downloaded data.
-The second is the name of your dataset, as a folder name. Typically, this takes the form of system_name_b, or system_name_b/night_n
-if multiple transits of the same system are available.
-The third is the location of your configuration file (see below). This is only needed in case Molecfit is used (because the
-configuration file points Tayph to where Molecfit is installed). This is left blank for now because we are not planning to
-use Molecfit at the moment.
-The nowave keyword indicates whether a wavelength file is present in the downloaded data. This would be the case if you had
-run the HARPS pipeline yourself, but the wavelength file is typically not present for data downloaded from the archive.
-We therefore set this keyword to True, telling Tayph to take the wavelength solution from the FITS headers instead.
-Molecfit is set to False because we ignore it for the time being. For most metals in the optical, telluric correction is not
-crucially important, at least in first instance.
-The mode keyword can be used to switch between HARPS, ESPRESSO, UVES-red and UVES-blue modes. In this case, we are dealing
-with HARPS data.
-ignore_exp can be set to a list of integers, which allows you to ignore exposures in the time series. This can be useful if you
-find out, after reading in the data that some exposures are bad for whatever reason; and you want to ignore these from the
-analysis without going around deleting files. Of course you'd want to do this inspection before running Molecfit (if you were
-going to), because Molecfit will need to be run again after ignore_exp is changed, and typically takes a long time.
+The input parameters are structured in the following way::
 
-This has produced a new folder /Users/tayph/xcor_project/data/KELT-9/night1/, in which the various files are located. This has
+    tayph.read.read_e2ds('input_folder','output_folder','location_of_configfile',nowave=True,molecfit=False,mode='HARPS',ignore_exp=[])
+
+- :code:`'input_folder'`: The first parameter is the location of your downloaded data. This is typically a dedicated folder in your project or even your downloads folder. 
+- :code:`'output_folder'`: The second is the name of your dataset, as a folder name. Typically, this takes the form of system_name_b, or system_name_b/night_n if multiple transits of the same system are available.
+- :code:`'location_of_configfile'`: The third is the location of your configuration file (see below). This is only needed in case Molecfit is used (because the configuration file points Tayph to where Molecfit is installed). This is left blank for now because we are not planning to use Molecfit at the moment.
+- :code:`nowave=True`: The nowave keyword indicates whether a wavelength file is present in the downloaded data. This would be the case if you had run the HARPS pipeline yourself, but the wavelength file is typically not present for data downloaded from the archive. We therefore set this keyword to True, telling Tayph to take the wavelength solution from the FITS headers instead.
+- :code:`molecfit=False`: Molecfit is set to False because we ignore it for the time being. For most metals in the optical, telluric correction is not crucially important, at least in first instance.
+- :code:`mode='HARPS`:The mode keyword can be used to switch between HARPS, ESPRESSO, UVES-red and UVES-blue modes. In this case, we are dealing with HARPS data.
+- :code:`ignore_exp=[]`: ignore_exp can be set to a list of integers, which allows you to ignore exposures in the time series. This can be useful if you find out, after reading in the data that some exposures are bad for whatever reason; and you want to ignore these from the analysis without going around deleting files. Of course you'd want to do this inspection before running Molecfit (if you were going to), because Molecfit will need to be run again after ignore_exp is changed, and typically takes a long time.
+
+This has produced a new folder :code:`'/Users/tayph/xcor_project/data/KELT-9/night1/'`, in which the various files are located. This has
 not created a configuration file, which we will typically need to make ourselves, but one is provided in the prepackaged template.
 The configuration file is a 2-column tab-separated table with keywords in the first column and corresponding values in the second
 column. The configuration file for this dataset may look like this::
 
-    P			1.4811235
-    a			0.03462
-    aRstar			3.153
-    Rp			1.891
-    Mp			2.48
-    K       0.275
-    RpRstar			0.08228
-    vsys    -18
-    RA			20:31:26.4
-    DEC			+39:56:20
-    Tc			2457095.68572
-    duration		235.0
-    resolution		110000.0
-    inclination		86.79
-    vsini       111.0
-    air         True
+    P              1.4811235
+    a              0.03462
+    aRstar         3.153
+    Rp             1.891
+    Mp             2.48
+    K              0.275
+    RpRstar        0.08228
+    vsys           -18
+    RA             20:31:26.4
+    DEC            +39:56:20
+    Tc             2457095.68572
+    duration       235.0
+    resolution     110000.0
+    inclination    86.79
+    vsini          111.0
+    air            True
 
 which describe the orbital period in days, the semi-major axis in AU, the mass/radius of the planet relative to Jupiter, the radial
 velocity semi-amplitude of the star in km/s, the radius-ratio of the planet and star, the systemic velocity in km/s, the RA and DEC
@@ -88,12 +81,13 @@ inclination in degrees (close to 90 if the planet is transiting), the projected 
 whether or not the wavelength solution is in air.
 
 After the data is reformatted and a configuration file is created, we need to point Tayph to a set of models that are going to be used as
-cross-correlation templates and (optionally) for model injection-comparison. Models are located in the /Users/tayph/xcor_project/models/ directory,
+cross-correlation templates and (optionally) for model injection-comparison. Models are located in the :code:`'/Users/tayph/xcor_project/models/'` directory,
 with optional subdirectories for different sets of models. In most use-cases, the user will have multiple sets of models to choose from, which
 may or may not be similar in their naming or content. To be able to access different sets of models, Tayph assumes that models are organised
 in so-called libraries, which are ASCII tables that act as dictionaries with which the user can refer to model files saved in subfolders using short-hand names or labels.
+
 The library file and template name/label are passed to Tayph at runtime, and the library files are structured as 2-column ASCII tables in the models/
-directory. A typical library file called KELT-9-models.dat may look as follows::
+directory. A typical library file called :code:`'KELT-9-models.dat'` may look as follows::
 
   FeI     KELT-9/4000K_Fe.fits
   FeII    KELT-9/4000K_Fe_p.fits
@@ -102,13 +96,17 @@ directory. A typical library file called KELT-9-models.dat may look as follows::
   TiO     KELT-9/3000K_TiO.fits
   H2O     KELT-9/3000K_H2O.fits
 
-Individual models are assumed to be saved in FITS files, in subdirectories starting in the /Users/tayph/xcor_project/models/ directory. E
-In this example, the FITS files are located at in the /Users/tayph/xcor_project/models/KELT-9 directory. ach FITS file is a 2-row FITS image, with
-wavelength (in nm) on the first row, and flux on the second row. In the case of transit spectra, this flux will typically be the expected transit radius of the planet as a function
-of wavelength. To convert models into cross-correlation templates, Tayph (optionally) performs a continuum subtraction (controlled by the c_subtract switch below).
-Examples of a model/template library file and associated model files are prepackaged along with the dummy data. Place these in the models subfolder of the working directory.
+Individual models are assumed to be saved in FITS files, in subdirectories starting in the :code:`'/Users/tayph/xcor_project/models/'` directory.
+In this example, the FITS files are located at in the :code:`'/Users/tayph/xcor_project/models/KELT-9'` directory. Each FITS file is a 2-row FITS image, with
+wavelength (in nm) on the first row, and flux on the second row. In the case of transit spectra, this flux will typically be the expected transit radius of the 
+planet as a function of wavelength. To convert models into cross-correlation templates, Tayph (optionally) performs a continuum subtraction (controlled by the
+c_subtract switch below).
 
-A second library file located at /Users/tayph/xcor_project/models/WASP-123-models.dat relevant to a different exoplanet system may take the following form::
+Examples of a model/template library file and associated model files are prepackaged along with the dummy data. Place these in the models subfolder of the working
+directory.
+
+A second library file located at :code:`'/Users/tayph/xcor_project/models/WASP-123-models.dat'` relevant to a different exoplanet system may take the following
+form::
 
   FeI_2k      WASP-123/2000K_FeI.fits
   FeI_3k      WASP-123/3000K_FeI.fits
@@ -119,15 +117,11 @@ A second library file located at /Users/tayph/xcor_project/models/WASP-123-model
   TiO         WASP-123/2000K_TiO.fits
   H2O         WASP-123/2000K_H2O.fits
 
-For each run of Tayph, only one model library or template library may be specified, so the user should organise their library files according to what models and templates they wish to run in batches.
+For each run of Tayph, only one model library or template library may be specified, so the user should organise their library files according to what models and
+templates they wish to run in batches.
 
-
-
-
-
-
-Finally, we proceed by creating a run-file that specifies the working settings of our cross-correlation run. This file is again a 2-column ASCII table with keywords in the first column
-and values in the second. This may look like below. The entries in the second column may be followed by commentary that
+Finally, we proceed by creating a run-file that specifies the working settings of our cross-correlation run. This file is again a 2-column ASCII table with
+keywords in the first column and values in the second. This may look like below. The entries in the second column may be followed by commentary that
 explains keywords or choices that are not self-descriptive or that you wish to remember.::
 
     molecfit_input_folder     /Users/username/Molecfit/share/molecfit/spectra/cross_cor/
@@ -157,7 +151,7 @@ explains keywords or choices that are not self-descriptive or that you wish to r
 
 
 
-This file is typically saved in the working directory (i.e. /Users/tayph/xcor_project/testrun.dat), and is the primer for initialising
+This file is typically saved in the working directory (i.e. :code:`'/Users/tayph/xcor_project/testrun.dat'`), and is the primer for initialising
 a cross-correlation run by calling::
 
     import tayph.run

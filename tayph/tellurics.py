@@ -40,6 +40,7 @@ def do_molecfit(headers,spectra,configfile,wave=[],mode='HARPS',load_previous=Fa
     from pathlib import Path
     import tayph.util as ut
     import tayph.system_parameters as sp
+    import astropy.io.fits as fits
     configfile=ut.check_path(configfile,exists=True)
 
     molecfit_input_folder=sp.paramget('molecfit_input_folder',configfile,full_path=True)
@@ -390,12 +391,12 @@ def check_fit_gui(wls,fxc,trans):
     from matplotlib.widgets import Slider, Button, RadioButtons, CheckButtons
     import tayph.functions as fun
     import numpy as np
-
+    print('Starting visual inspection GUI')
     M = molecfit_gui(wls,fxc,trans)
 
     #The slider to cycle through orders:
     rax_slider = plt.axes([0.8, 0.2, 0.1, 0.02])
-    rax_slider.set_title('Order')
+    rax_slider.set_title('Exposure #')
     M.spectrum_slider = Slider(rax_slider,'', 0,M.N-1,valinit=0,valstep=1)#Store the slider in the model class
     M.spectrum_slider.on_changed(M.slide_spectrum)
 

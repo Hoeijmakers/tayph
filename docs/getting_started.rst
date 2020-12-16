@@ -42,11 +42,11 @@ Open a python interpreter in your working directory (i.e. :code:`'/Users/tayph/x
 to convert the pipeline-reduced data to the format used by Tayph, and place it in the data folder in your working directory.
 The input parameters are structured in the following way::
 
-    tayph.read.read_e2ds('input_folder','output_folder','location_of_configfile',nowave=True,molecfit=False,mode='HARPS',ignore_exp=[])
+    tayph.read.read_e2ds('input_folder','output_folder','location_of_runfile',nowave=True,molecfit=False,mode='HARPS',ignore_exp=[])
 
 - :code:`'input_folder'`: The first parameter is the location of your downloaded data. This is typically a dedicated folder in your project or even your downloads folder. 
 - :code:`'output_folder'`: The second is the name of your dataset, as a folder name. Typically, this takes the form of system_name_b, or system_name_b/night_n if multiple transits of the same system are available.
-- :code:`'location_of_configfile'`: The third is the location of your configuration file (see below). This is only needed in case Molecfit is used (because the configuration file points Tayph to where Molecfit is installed). This is left blank for now because we are not planning to use Molecfit at the moment.
+- :code:`'location_of_runfile'`: The third is the location of your runfile (see below). This is only needed in case Molecfit is used (because the runfile points Tayph to where Molecfit is installed). This is left blank for now because we are not planning to use Molecfit at the moment.
 - :code:`nowave=True`: The nowave keyword indicates whether a wavelength file is present in the downloaded data. This would be the case if you had run the HARPS pipeline yourself, but the wavelength file is typically not present for data downloaded from the archive. We therefore set this keyword to True, telling Tayph to take the wavelength solution from the FITS headers instead.
 - :code:`molecfit=False`: Molecfit is set to False because we ignore it for the time being. For most metals in the optical, telluric correction is not crucially important, at least in first instance.
 - :code:`mode='HARPS`:The mode keyword can be used to switch between HARPS, ESPRESSO, UVES-red and UVES-blue modes. In this case, we are dealing with HARPS data.

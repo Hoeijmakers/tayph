@@ -4,6 +4,8 @@
 Demonstration tutorial
 **********************
 
+Getting started with tayph
+##########################
 
 Along with the core package of Tayph , a package with demo data is made available containing a part of the HARPS data
 that was first used to find iron in the transmission spectrum of the UHJ KELT-9 b. This package also contains the necessary
@@ -54,6 +56,10 @@ The input parameters are structured in the following way::
 
 This has produced a new folder :code:`'/Users/tayph/xcor_project/data/KELT-9/night1/'`, in which the various files are located. This has
 not created a configuration file, which we will typically need to make ourselves, but one is provided in the prepackaged template.
+
+The configuration file
+**********************
+
 The configuration file is a 2-column tab-separated table with keywords in the first column and corresponding values in the second
 column. The configuration file for this dataset may look like this::
 
@@ -79,6 +85,9 @@ velocity semi-amplitude of the star in km/s, the radius-ratio of the planet and 
 coordinates, the transit center time, the spectral resolution of the instrument, the transit duration in minutes, the orbital
 inclination in degrees (close to 90 if the planet is transiting), the projected equatorial rotation velocity of the stellar disk,
 whether or not the wavelength solution is in air.
+
+The library file
+****************
 
 After the data is reformatted and a configuration file is created, we need to point Tayph to a set of models that are going to be used as
 cross-correlation templates and (optionally) for model injection-comparison. Models are located in the :code:`'/Users/tayph/xcor_project/models/'` directory,
@@ -120,6 +129,9 @@ form::
 For each run of Tayph, only one model library or template library may be specified, so the user should organise their library files according to what models and
 templates they wish to run in batches.
 
+The run file 
+************
+
 Finally, we proceed by creating a run-file that specifies the working settings of our cross-correlation run. This file is again a 2-column ASCII table with
 keywords in the first column and values in the second. This may look like below. The entries in the second column may be followed by commentary that
 explains keywords or choices that are not self-descriptive or that you wish to remember.::
@@ -151,8 +163,63 @@ explains keywords or choices that are not self-descriptive or that you wish to r
 
 
 
-This file is typically saved in the working directory (i.e. :code:`'/Users/tayph/xcor_project/testrun.dat'`), and is the primer for initialising
+This file is typically saved in the working directory (i.e. as a file :code:`'/Users/tayph/xcor_project/testrun.dat'`), and is the primer for initialising
 a cross-correlation run by calling::
 
     import tayph.run
     run.start_run('testrun.dat')
+
+
+Use molecfit for telluric corrections
+#####################################
+
+
+So far we have not used molecfit in order to correct for telluric lines. We did avoid using molecfit by setting the molecfit-parameter to :code:`False`. 
+If you want to use molecfit for telluric corrections, these are the necessary steps you have to take: 
+
+- A parameter file for your instrument has to be created. An example of this parameter file is shown below. 
+- The paths in your runfile have to be set correctly for molecfit to be executed. An example is shown below. 
+- Exchange some files in the molecfit program folder.
+- The read-call of tayph has to be executed with the right path indication for the runfile. An example is shown below. 
+
+
+The parameter file
+******************
+
+For each instrument a parameter file has to be created. To work with the given example of KELT-9 b data, the parameter file can be downloaded here (add URL). 
+For the purpose of this example we assume this file to be located in your molecfit-folder (i.e. :code:`'/Users/username/Molecfit/share/molecfit/spectra/cross_cor/'`. The following inputs have to be adapted to your system.
+
+- :code:`user_workdir`: The user directory has to be set to the path of your project in our example case here we use :code:`user_workdir: /Users/tayph/xcor_project`. 
+- :code:`filename`: The filename of the fits file that is created during the molecfit run has to be set. This file shall be named after your parameter file. Hence in this example: :code:`'filename: /Users/username/Molecfit/share/molecfit/spectra/cross_cor/HARPS.fits'`. 
+
+
+
+The run file
+************
+
+Within the run file two paths have to be indicated. One of the paths is supposed to point at the folder where the parameter file is located. 
+The other path indicates the position where the :code:`molecfit_gui` is located. These two paths are in the run file as given above. Here as a reminder::
+
+    molecfit_input_folder     /Users/username/Molecfit/share/molecfit/spectra/cross_cor/
+    molecfit_prog_folder      /Users/username/Molecfit/bin/
+
+We are here assuming that molecfit is installed in the directory :code:`/Users/username/`. 
+
+
+Exchange of molecfit files
+**************************
+
+In order to correct for an error in a code line of a molecfit python file, as well as making molecfit executable with python3, several changes have to be made. 
+The necessary files including the file structure are given here (insert URL). 
+
+Be aware that when replacing the file :code:`SM02GUI_Main.py` will lose its alias, which is the molecfit_gui in another folder. Make sure to create this alias again, name it molecfit_gui and replace the broken version in the bin folder (i.e. :code:`/Users/username/Molecfit/bin/`).
+
+
+The read call
+*************
+
+In order to call tayph with molecfit, the following command has to be executed instead of the old read-command::
+
+    tayph.read.read_e2ds('/Users/tayph/downloads/HARPS_data/','KELT-9/night1','/Users/tayph/xcor_project/testrun.dat',nowave=True,molecfit=True,mode='HARPS',ignore_exp=[])
+    
+Don't forget to set :code:`molecfit=True`.

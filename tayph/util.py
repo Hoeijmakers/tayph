@@ -225,9 +225,13 @@ def read_wave_from_e2ds_header(h,mode='HARPS'):
         delt = h['CDELT1']
         for i in range(no):
             keystart = h[f'WSTART{i+1}']
-            keyend = h[f'WEND{i+1}']
-            wave[:,i] = fun.findgen(npx)*(keyend-keystart)/(npx-1)+keystart
-            # print(np.max(wave)-keyend)
+            # keyend = h[f'WEND{i+1}']
+            # wave[:,i] = fun.findgen(npx)*(keyend-keystart)/(npx-1)+keystart
+            wave[:,i] = fun.findgen(npx)*delt+keystart
+            #These FITS headers have a start and end, but (end-start)/npx does not equal
+            #the stepsize provided in CDELT (by far). Turns out that keystart+n*CDELT is the correct
+            #representation of the wavelength. I do not know why WEND is provided at all and how
+            #it got to be so wrong...
 
     else:
         key_counter = 0

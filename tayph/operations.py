@@ -187,22 +187,24 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
     out_list_of_orders=[]
     out_list_of_sigmas=[]
     n_px=np.shape(list_of_orders[0])[1]
-    n_exp=np.shape(list_of_orders[0])[0]
+    n_exp=np.shape(list_of_orders[0])[0]#Need to remove extreme outliers first?
 
+
+    #First compute the exposure-to-exposure flux variations to be used as weights.
     meanfluxes = fun.findgen(n_exp)*0.0
     N_i = 0
     for i in range(N):
-        m = np.nanmean(list_of_orders[i],axis=1)
+        m = np.nanmedian(list_of_orders[i],axis=1)#Median or mean?
         if np.sum(np.isnan(m)) > 0:
             print('---Warning in normalise_orders: Skipping order %s because many nans are present.'%i)
         else:
             N_i+=1
             meanfluxes+=m#These contain the exposure-to-exposure variability of the time-series.
-    meanfluxes/=N_i
+    meanfluxes/=N_i#These are the weights.
 
     if deg == 1:
         for i in range(N):
-            meanflux=np.nanmean(list_of_orders[i],axis=1)#Average flux in each order.
+            meanflux=np.nanmedian(list_of_orders[i],axis=1)#Average flux in each order. Median or mean?
             meanblock=fun.rebinreform(meanflux/np.nanmean(meanflux),n_px).T#This is a slow operation. Row-by-row division is better done using a double-transpose...
             out_list_of_orders.append(list_of_orders[i]/meanblock)
             out_list_of_sigmas.append(list_of_sigmas[i]/meanblock)
@@ -213,7 +215,7 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
                 meanspec=np.nanmean(list_of_orders[i],axis=0)#Average spectrum in each order.
             x=np.array(range(len(meanspec)))
             poly_block = list_of_orders[i]*0.0#Array that will host the polynomial fits.
-            colour = list_of_orders[i]/meanspec
+            colour = list_of_orders[i]/meanspec#What if there are zeroes? I.e. padding around the edges of the order?
             for j,s in enumerate(list_of_orders[i]):
                 idx = np.isfinite(colour[j])
                 if np.sum(idx) > 0:

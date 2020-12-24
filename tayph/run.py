@@ -351,7 +351,7 @@ def run_instance(p):
 
 #Do velocity correction of wl-solution. Explicitly after telluric correction
 #but before masking. Because the cross-correlation relies on columns being masked.
-#Then if you start to move the CCFs around before removing the time-average,
+#Then if you start to move the spectra around before removing the time-average,
 #each masked column becomes slanted. Bad deal.
     rv_cor = 0
     if do_berv_correction == True:

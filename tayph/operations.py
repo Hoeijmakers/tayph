@@ -204,6 +204,9 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
 
     if deg == 1:
         for i in range(N):
+
+            #What I'm doing here is probably stupid and numpy division will probably work just fine without
+            #IDL-relics.
             meanflux=np.nanmedian(list_of_orders[i],axis=1)#Average flux in each order. Median or mean?
             meanblock=fun.rebinreform(meanflux/np.nanmean(meanflux),n_px).T#This is a slow operation. Row-by-row division is better done using a double-transpose...
             out_list_of_orders.append(list_of_orders[i]/meanblock)

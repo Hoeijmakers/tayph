@@ -1,5 +1,81 @@
 
+def test_running_median_2D():
+    """This tests running median, mean and std functions in 2D, and implicitly tests
+    strided-window."""
+    import numpy as np
+    from ..functions import running_mean_2D,running_std_2D,running_median_2D,strided_window
 
+    def slow_running_median_v2(D,w):
+        """This is the way I'd want a running median to behave, with a truncated kernel at the edges."""
+        nx=D.shape[1]
+        s=np.arange(0,nx,dtype=float)
+        dx1=int(0.5*w)
+        dx2=int(0.5*w)+(w%2)
+        for i in range(0,nx):
+            minx = max([0,i-dx1])
+            maxx = min([nx,i+dx2])#This here is only a 3% slowdown.
+            s[i]=np.median(D[:,minx:maxx])#This is what takes 97% of the time.
+        return(s)
+    def slow_running_mean_v2(D,w):
+        """This is the way I'd want a running mean to behave, with a truncated kernel at the edges."""
+        nx=D.shape[1]
+        s=np.arange(0,nx,dtype=float)
+        dx1=int(0.5*w)
+        dx2=int(0.5*w)+(w%2)
+        for i in range(0,nx):
+            minx = max([0,i-dx1])
+            maxx = min([nx,i+dx2])#This here is only a 3% slowdown.
+            s[i]=np.mean(D[:,minx:maxx])#This is what takes 97% of the time.
+        return(s)
+    def slow_running_std_v2(D,w):
+        """This is the way I'd want a running std to behave, with a truncated kernel at the edges."""
+        nx=D.shape[1]
+        s=np.arange(0,nx,dtype=float)
+        dx1=int(0.5*w)
+        dx2=int(0.5*w)+(w%2)
+        for i in range(0,nx):
+            minx = max([0,i-dx1])
+            maxx = min([nx,i+dx2])#This here is only a 3% slowdown.
+            s[i]=np.std(D[:,minx:maxx])#This is what takes 97% of the time.
+        return(s)
+
+
+
+
+    Ny=5
+    Nx1=17
+    Nx2=300
+    w1=5
+    w2=10
+    D1=np.tile(np.arange(0,int(Nx1),dtype=float),(Ny,1))#Create a data array.
+    D2=np.tile(np.arange(0,int(Nx2),dtype=float),(Ny,1))#Create a data array.
+    m1=slow_running_median_v2(D1,w1)
+    m2=slow_running_median_v2(D2,w2)
+    a1=slow_running_mean_v2(D1,w1)
+    a2=slow_running_mean_v2(D2,w2)
+    s1=slow_running_std_v2(D1,w1)
+    s2=slow_running_std_v2(D2,w2)
+
+    strided_m1=running_median_2D(D1,w1)
+    strided_m2=running_median_2D(D2,w2)
+    strided_a1=running_mean_2D(D1,w1)
+    strided_a2=running_mean_2D(D2,w2)
+    strided_s1=running_std_2D(D1,w1)
+    strided_s2=running_std_2D(D2,w2)
+
+
+    assert len(m1)==len(strided_m1)
+    assert len(m2)==len(strided_m2)
+    assert len(a1)==len(strided_a1)
+    assert len(a2)==len(strided_a2)
+    assert len(s1)==len(strided_s1)
+    assert len(s2)==len(strided_s2)
+    assert np.sum(np.abs(m1-strided_m1))==0
+    assert np.sum(np.abs(m2-strided_m2))==0
+    assert np.sum(np.abs(a1-strided_a1))==0
+    assert np.sum(np.abs(a2-strided_a2))==0
+    assert np.sum(np.abs(s1-strided_s1))==0
+    assert np.sum(np.abs(s2-strided_s2))==0
 
 def test_findgen():
     import pkg_resources

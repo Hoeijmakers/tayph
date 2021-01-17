@@ -2,6 +2,11 @@ __all__ = [
     'box',
     'selmax',
     'running_MAD_2D',
+    'running_MAD',
+    'strided_window',
+    'running_median_2D',
+    'running_std_2D',
+    'running_mean_2D',
     'rebinreform',
     'nan_helper',
     'findgen',
@@ -128,13 +133,84 @@ def selmax(y_in,p,s=0.0):
         return y_sorting[min_index:max_index]
 
 
-def running_MAD_2D(z,w):
+
+def strided_window(a,L,pad=False):
+    """This function computes the rolling window over a rectangular (i.e. long in X)
+    array as a sequence of views into the original array, eliminating the need to index.
+    This comes from https://stackoverflow.com/questions/44305987/sliding-windows-along-last-axis-of-a-2d-array-to-give-a-3d-array-using-numpy-str
+
+    The output is what looks like a 3D array (though it doesn't take the memory of
+    a 3D array because it's just a sequence of views stacked along the third axis)
+    and you can do an operation in that direction without having to do the indexing
+    needed to look up the values in that window from the large array.
+
+    These windows are stacked along the 0th axis.
+
+    If pad is set to False, the window only goes from the left edge to the right edge without going over.
+    If set to True, the array is first padded with columns of NaNs such that the window effectively diminishes in size
+    at the edges if e.g. nanmeans or nanmedians or equavalent nan-ignoring algorithms are applied later.
+
+    """
+    import copy
+    import numpy as np
+    if pad:
+        ny,nx=a.shape
+        a=np.hstack([np.full((ny,int(0.5*L)),np.nan),a,np.full((ny,int(0.5*L)+(L%2)-1),np.nan)])#This pads half a window worth of columns of NaNs to the edges of the array to make the window diminish at the edges.
+    s0,s1 = a.strides
+    m,n = a.shape
+    return np.lib.stride_tricks.as_strided(a, shape=(m,n-L+1,L), strides=(s0,s1,s1)).transpose(1, 0, 2)
+
+def running_median_2D(D,w):
+    """This computes a running median on a 2D array in a window with width w that
+    slides over the array in the horizontal (x) direction."""
+    import numpy as np
+    from tayph.vartests import typetest,dimtest,postest
+    typetest(D,np.ndarray,'z in fun.running_mean_2D()')
+    typetest(w,[int,float],'w in fun.running_mean_2D()')
+    postest(w,'w in fun.running_mean_2D()')
+    ny,nx=D.shape
+    m2=strided_window(D,w,pad=True)
+    s=np.nanmedian(m2,axis=(1,2))
+    return(s)
+
+def running_std_2D(D,w):
+    """This computes a running standard deviation on a 2D array in a window with width w that
+    slides over the array in the horizontal (x) direction."""
+    import numpy as np
+    from tayph.vartests import typetest,dimtest,postest
+    typetest(D,np.ndarray,'z in fun.running_mean_2D()')
+    typetest(w,[int,float],'w in fun.running_mean_2D()')
+    postest(w,'w in fun.running_mean_2D()')
+    ny,nx=D.shape
+    m2=strided_window(D,w,pad=True)
+    s=np.nanstd(m2,axis=(1,2))
+    return(s)
+
+def running_mean_2D(D,w):
+    """This computes a running mean on a 2D array in a window with width w that
+    slides over the array in the horizontal (x) direction."""
+    import numpy as np
+    from tayph.vartests import typetest,dimtest,postest
+    typetest(D,np.ndarray,'z in fun.running_mean_2D()')
+    typetest(w,[int,float],'w in fun.running_mean_2D()')
+    postest(w,'w in fun.running_mean_2D()')
+    ny,nx=D.shape
+    m2=strided_window(D,w,pad=True)
+    s=np.nanmean(m2,axis=(1,2))
+    return(s)
+
+
+
+
+def running_MAD_2D(z,w,verbose=False):
     """Computers a running standard deviation of a 2-dimensional array z.
     The stddev is evaluated over the vertical block with width w pixels.
-    The output is a 1D array with length equal to the width of z."""
+    The output is a 1D array with length equal to the width of z.
+    This is very slow on arrays that are wide in x (hundreds of thousands of points)."""
     import astropy.stats as stats
     import numpy as np
     from tayph.vartests import typetest,dimtest,postest
+    import tayph.util as ut
     typetest(z,np.ndarray,'z in fun.running_MAD_2D()')
     dimtest(z,[0,0],'z in fun.running_MAD_2D()')
     typetest(w,[int,float],'w in fun.running_MAD_2D()')
@@ -142,12 +218,39 @@ def running_MAD_2D(z,w):
     size = np.shape(z)
     ny = size[0]
     nx = size[1]
-    s = findgen(nx)*0.0
+    s = np.arange(0,nx,dtype=float)*0.0
+    dx1=int(0.5*w)
+    dx2=int(0.5*w)+(w%2)#To deal with odd windows.
     for i in range(nx):
-        minx = max([0,i-int(0.5*w)])
-        maxx = min([nx-1,i+int(0.5*w)])
-        s[i] = stats.mad_std(z[:,minx:maxx],ignore_nan=True)
+        minx = max([0,i-dx1])#This here is only a 3% slowdown.
+        maxx = min([nx,i+dx2])
+        s[i] = stats.mad_std(z[:,minx:maxx],ignore_nan=True)#This is what takes 97% of the time.
+        if verbose: ut.statusbar(i,nx)
     return(s)
+
+def running_MAD(z,w):
+    """Computers a running standard deviation of a 1-dimensional array z.
+    The stddev is evaluated over a range with width w pixels.
+    The output is a 1D array with length equal to the width of z."""
+    import astropy.stats as stats
+    import numpy as np
+    from tayph.vartests import typetest,dimtest,postest
+    typetest(z,np.ndarray,'z in fun.running_MAD()')
+    typetest(w,[int,float],'w in fun.running_MAD()')
+    postest(w,'w in fun.running_MAD_2D()')
+    nx = len(z)
+    s = np.arange(0,nx,dtype=float)*0.0
+    dx1=int(0.5*w)
+    dx2=int(0.5*w)+(w%2)#To deal with odd windows.
+    for i in range(nx):
+        minx = max([0,i-dx1])
+        maxx = min([nx,i+dx2])
+        s[i] = stats.mad_std(z[minx:maxx],ignore_nan=True)
+    return(s)
+
+
+
+
 
 def rebinreform(a,n):
     """
@@ -155,6 +258,8 @@ def rebinreform(a,n):
     array manipulation operations to transform a 1D array into a 2D stack of itself,
     to be able to do operations on another 2D array by multiplication/addition/division
     without having to loop through the second dimension of said array.
+
+    This is likely depricated and may not even be used.
     """
     import numpy as np
     return(np.transpose(np.repeat(np.expand_dims(a,1),n,axis=1)))

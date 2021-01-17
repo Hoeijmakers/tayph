@@ -153,6 +153,13 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
     T = scipy.interpolate.interp1d(wlm,fxm, bounds_error=False, fill_value=0)(shifted_wavelengths)#...making this a 2D thing.
     T[:,np.isnan(stack_of_orders[0])] = 0.0#All NaNs are assumed to be in all-NaN columns. If that is not true, the below nantest will fail.
     T_sums = np.sum(T,axis = 1)
+
+    #We check whether there are isolated NaNs:
+    n_nans = np.sum(np.isnan(stack_of_orders),axis=0)#This is the total number of NaNs in each column.
+    n_nans[n_nans==len(stack_of_orders)]=0#Whenever the number of NaNs equals the length of a column, set the flag to zero.
+    if np.max(n_nans)>0:#If there are any columns which still have NaNs in them, we need to crash.
+        raise ValueError(f"in CCF: Not all NaN values are purely in columns. There are still isolated NaNs. Remove those.")
+
     stack_of_orders[np.isnan(stack_of_orders)] = 47e20#Set NaNs to arbitrarily high values.
     CCF = stack_of_orders @ T.T/T_sums#Here it the entire cross-correlation. Over all orders and velocity steps. No forloops.
     CCF_E = CCF*0.0
@@ -166,7 +173,6 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
 #===THAT'S ALL. TEST INTEGRITY AND RETURN THE RESULT===
     nantest(CCF,'CCF in ccf.xcor()')#If anything went wrong with NaNs in the data, these tests will fail because the matrix operation @ is non NaN-friendly.
     nantest(CCF_E,'CCF_E in ccf.xcor()')
-
 
     if list_of_errors != None:
         return(RV,CCF,np.sqrt(CCF_E),T_sums)

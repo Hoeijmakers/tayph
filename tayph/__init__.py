@@ -13,6 +13,7 @@ from .system_parameters import *
 from .tellurics import *
 from .util import *
 from .vartests import *
+from .phoenix import *
 
 
 # import .run as run

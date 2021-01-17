@@ -2,6 +2,11 @@ __all__ = [
     'box',
     'selmax',
     'running_MAD_2D',
+    'running_MAD',
+    'strided_window',
+    'running_median_2D',
+    'running_std_2D',
+    'running_mean_2D',  
     'rebinreform',
     'nan_helper',
     'findgen',
@@ -152,9 +157,6 @@ def running_MAD_2D(z,w):
         s[i] = stats.mad_std(z[:,minx:maxx],ignore_nan=True)
     return(s)
 
-
-
-
 def running_MAD(z,w):
     """Computers a running standard deviation of a 1-dimensional array z.
     The stddev is evaluated over a range with width w pixels.
@@ -174,6 +176,66 @@ def running_MAD(z,w):
         maxx = min([nx,i+dx2])
         s[i] = stats.mad_std(z[minx:maxx],ignore_nan=True)
     return(s)
+
+
+def strided_window(a,L,pad=False):
+    """This function computes the rolling window over a rectangular (i.e. long in X)
+    array as a sequence of views into the original array, eliminating the need to index.
+    This comes from https://stackoverflow.com/questions/44305987/sliding-windows-along-last-axis-of-a-2d-array-to-give-a-3d-array-using-numpy-str
+
+    The output is what looks like a 3D array (though it doesn't take the memory of
+    a 3D array because it's just a sequence of views stacked along the third axis)
+    and you can do an operation in that direction without having to do the indexing
+    needed to look up the values in that window from the large array.
+
+    These windows are stacked along the 0th axis.
+
+    If pad is set to False, the window only goes from the left edge to the right edge without going over.
+    If set to True, the array is first padded with columns of NaNs such that the window effectively diminishes in size
+    at the edges if e.g. nanmeans or nanmedians or equavalent nan-ignoring algorithms are applied later.
+
+    """
+    import copy
+    import numpy as np
+    if pad:
+        a=np.hstack([np.full((ny,int(0.5*w)),np.nan),a,np.full((ny,int(0.5*w)+(w%2)-1),np.nan)])#This pads half a window worth of columns of NaNs to the edges of the array to make the window diminish at the edges.
+    s0,s1 = a.strides
+    m,n = a.shape
+    return np.lib.stride_tricks.as_strided(a, shape=(m,n-L+1,L), strides=(s0,s1,s1)).transpose(1, 0, 2)
+
+def running_median_2D(D,w):
+    """This computes a running median on a 2D array in a window with width w that
+    slides over the array in the horizontal (x) direction."""
+    import numpy as np
+    ny,nx=D.shape
+    m2=strided_window(D_padded,w,pad=True)
+    s=np.nanmedian(m2,axis=(1,2))
+    return(s)
+
+def running_std_2D(D,w):
+    """This computes a running standard deviation on a 2D array in a window with width w that
+    slides over the array in the horizontal (x) direction."""
+    import numpy as np
+    ny,nx=D.shape
+    m2=strided_window(D_padded,w,pad=True)
+    s=np.nanstd(m2,axis=(1,2))
+    return(s)
+
+def running_mean_2D(D,w):
+    """This computes a running mean on a 2D array in a window with width w that
+    slides over the array in the horizontal (x) direction."""
+    import numpy as np
+    ny,nx=D.shape
+    m2=strided_window(D_padded,w,pad=True)
+    s=np.nanmean(m2,axis=(1,2))
+    return(s)
+
+
+
+
+
+
+
 
 def rebinreform(a,n):
     """

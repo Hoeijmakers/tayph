@@ -131,7 +131,8 @@ def selmax(y_in,p,s=0.0):
 def running_MAD_2D(z,w):
     """Computers a running standard deviation of a 2-dimensional array z.
     The stddev is evaluated over the vertical block with width w pixels.
-    The output is a 1D array with length equal to the width of z."""
+    The output is a 1D array with length equal to the width of z.
+    This is very slow on arrays that are wide in x (hundreds of thousands of points)."""
     import astropy.stats as stats
     import numpy as np
     from tayph.vartests import typetest,dimtest,postest
@@ -143,10 +144,35 @@ def running_MAD_2D(z,w):
     ny = size[0]
     nx = size[1]
     s = findgen(nx)*0.0
+    dx1=int(0.5*w)
+    dx2=int(0.5*w)+(w%2)#To deal with odd windows.
     for i in range(nx):
-        minx = max([0,i-int(0.5*w)])
-        maxx = min([nx-1,i+int(0.5*w)])
+        minx = max([0,i-dx1])#This here is only a 3% slowdown.
+        maxx = min([nx,i+dx2])#This is what takes 97% of the time.
         s[i] = stats.mad_std(z[:,minx:maxx],ignore_nan=True)
+    return(s)
+
+
+
+
+def running_MAD(z,w):
+    """Computers a running standard deviation of a 1-dimensional array z.
+    The stddev is evaluated over a range with width w pixels.
+    The output is a 1D array with length equal to the width of z."""
+    import astropy.stats as stats
+    import numpy as np
+    from tayph.vartests import typetest,dimtest,postest
+    typetest(z,np.ndarray,'z in fun.running_MAD()')
+    typetest(w,[int,float],'w in fun.running_MAD()')
+    postest(w,'w in fun.running_MAD_2D()')
+    nx = len(z)
+    s = findgen(nx)*0.0
+    dx1=int(0.5*w)
+    dx2=int(0.5*w)+(w%2)#To deal with odd windows.
+    for i in range(nx):
+        minx = max([0,i-dx1])
+        maxx = min([nx,i+dx2])
+        s[i] = stats.mad_std(z[minx:maxx],ignore_nan=True)
     return(s)
 
 def rebinreform(a,n):
@@ -155,6 +181,8 @@ def rebinreform(a,n):
     array manipulation operations to transform a 1D array into a 2D stack of itself,
     to be able to do operations on another 2D array by multiplication/addition/division
     without having to loop through the second dimension of said array.
+
+    This is likely depricated and may not even be used.
     """
     import numpy as np
     return(np.transpose(np.repeat(np.expand_dims(a,1),n,axis=1)))

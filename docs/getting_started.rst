@@ -167,7 +167,7 @@ This file is typically saved in the working directory (i.e. as a file :code:`'/U
 a cross-correlation run by calling::
 
     import tayph.run
-    run.start_run('testrun.dat')
+    tayph.run.start_run('testrun.dat')
 
 
 Use molecfit for telluric corrections

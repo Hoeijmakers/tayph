@@ -36,7 +36,7 @@ def test_running_median_2D():
         for i in range(0,nx):
             minx = max([0,i-dx1])
             maxx = min([nx,i+dx2])#This here is only a 3% slowdown.
-            s[i]=np.mean(D[:,minx:maxx])#This is what takes 97% of the time.
+            s[i]=np.std(D[:,minx:maxx])#This is what takes 97% of the time.
         return(s)
 
 
@@ -56,19 +56,26 @@ def test_running_median_2D():
     s1=slow_running_std_v2(D1,w1)
     s2=slow_running_std_v2(D2,w2)
 
-    strided_m1=slow_running_median_v2(D1,w1)
-    strided_m2=slow_running_median_v2(D2,w2)
-    strided_a1=slow_running_mean_v2(D1,w1)
-    strided_a2=slow_running_mean_v2(D2,w2)
-    strided_s1=slow_running_std_v2(D1,w1)
-    strided_s2=slow_running_std_v2(D2,w2)
+    strided_m1=running_median_2D(D1,w1)
+    strided_m2=running_median_2D(D2,w2)
+    strided_a1=running_mean_2D(D1,w1)
+    strided_a2=running_mean_2D(D2,w2)
+    strided_s1=running_std_2D(D1,w1)
+    strided_s2=running_std_2D(D2,w2)
 
-    assert(np.sum(np.abs(m1-strided_m1))==0)
-    assert(np.sum(np.abs(m2-strided_m2))==0)
-    assert(np.sum(np.abs(a1-strided_a1))==0)
-    assert(np.sum(np.abs(a2-strided_a2))==0)
-    assert(np.sum(np.abs(s1-strided_s1))==0)
-    assert(np.sum(np.abs(s2-strided_s2))==0)
+
+    assert len(m1)==len(strided_m1)
+    assert len(m2)==len(strided_m2)
+    assert len(a1)==len(strided_a1)
+    assert len(a2)==len(strided_a2)
+    assert len(s1)==len(strided_s1)
+    assert len(s2)==len(strided_s2)
+    assert np.sum(np.abs(m1-strided_m1))==0
+    assert np.sum(np.abs(m2-strided_m2))==0
+    assert np.sum(np.abs(a1-strided_a1))==0
+    assert np.sum(np.abs(a2-strided_a2))==0
+    assert np.sum(np.abs(s1-strided_s1))==0
+    assert np.sum(np.abs(s2-strided_s2))==0
 
 def test_findgen():
     import pkg_resources

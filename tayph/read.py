@@ -554,53 +554,53 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         plt.axvline(np.nanmean(centroids1d),color='red',alpha=0.5)
         plt.axvline(np.nanmean(centroidsT1d),color='blue',alpha=0.5)
         plt.axvline(np.nanmean(centroidsT2d),color='navy',alpha=1.0)
-        plt.title(f'CCF between 2D orders and {star} PHOENIX spectrum in air ({np.nanmean(centroids2d)} km/s).' \
-                'See commentary in terminal for details',fontsize=8)
+        plt.title(f'CCF between {mode} data and {star} PHOENIX and telluric models. See commentary in terminal for details',fontsize=9)
         plt.xlabel('Radial velocity (km/s)')
         plt.ylabel('Mean flux')
         plt.legend()
-        print('')
-        print('')
-        print('')
+        print('\n \n \n')
+
+        print('The derived line positions are as follows:')
+        print(f'1D spectra with PHOENIX:  Line center near RV = {np.round(np.nanmean(centroids1d),1)} km/s.')
+        print(f'1D spectra with tellurics:  Line center near RV = {np.round(np.nanmean(centroidsT1d),1)} km/s.')
+        print(f'2D orders with PHOENIX:  Line center near RV ={np.round(np.nanmean(centroids2d),1)} km/s.')
+        print(f'2D orders with tellurics:  Line center near RV ={np.round(np.nanmean(centroidsT2d),1)} km/s.')
+        print('\n \n \n')
+
 
         terminal_height,terminal_width = subprocess.check_output(['stty', 'size']).split()#Get the window size of the terminal, from https://stackoverflow.com/questions/566746/how-to-get-linux-console-window-width-in-python
         if mode == 'ESPRESSO':
-            explanation=f'For ESPRESSO, the S1D and S2D spectra are typically \
+            explanation=[f'For ESPRESSO, the S1D and S2D spectra are typically \
 provided in the barycentric frame, in air. Because the S1D spectra are used for \
 telluric correction, this code undoes this barycentric correction so that the \
 S1Ds are saved in the telluric rest-frame while the S2D spectra remain in the \
-barycentric frame. \n \n Therefore, you should see the following values for the \
-the measured line centers: \n \
- - The 1D spectra correlated with PHOENIX should peak at the systemic velocity minus \
-the BERV correction (equal to {np.nanmean(berv)} km/s on average).\n \
- - The 1D spectra correlated with the telluric model should peak at 0 km/s.\n \
- - The 2D spectra correlated with PHOENIX should peak the systemic velocity of this star.\n \
- - The 2D spectra correlated with the tellurics should peak at the barycentric velocity, negative.'
+barycentric frame.','','Therefore, you should see the following values for the \
+the measured line centers:' ,\
+f'- The 1D spectra correlated with PHOENIX should peak at the systemic velocity minus \
+the BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).', \
+'- The 1D spectra correlated with the telluric model should peak at 0 km/s.', \
+'- The 2D spectra correlated with PHOENIX should peak the systemic velocity of this star.', \
+'- The 2D spectra correlated with the tellurics should peak at the barycentric velocity.','', \
+'If this is correct, in the config file of this dataset, do_berv_correction should be set to False and air should be True.']
 
 
         if mode in ['HARPS','HARPSN']:
-            explanation=f'For HARPS, the s1d spectra are typically \
-provided in the barycentric restframe, while the e2ds spectra are left in the observatory. \
+            explanation=[f'For HARPS, the s1d spectra are typically \
+provided in the barycentric restframe, while the e2ds spectra are left in the observatory \
 frame, both in air. Because the s1d spectra are used for telluric correction, this code undoes \
-this arycentric correction so that the s1ds are saved in the telluric rest-frame while the \
-e2ds spectra remain in the observatory frame. \n \n Therefore, you should see the following \
-values for the the measured line centers: \n \
- - The 1D spectra correlated with PHOENIX should peak at the systemic velocity minus \
-the BERV correction (equal to {np.nanmean(berv)} km/s on average).\n \
- - The 1D spectra correlated with the telluric model should peak at 0 km/s.\n \
- - The 2D spectra correlated with PHOENIX should peak the systemic velocity minus the \
- BERV correction (equal to {np.nanmean(berv)} km/s on average).\n \
- - The 2D spectra correlated with the tellurics should peak at 0 km/s.'
-
-        print(textwrap.fill(explanation, width=int(terminal_width)-5,replace_whitespace=False))
-        print('\n \n \n')
-        print('The derived line positions are as follows:')
-        print(f'1D spectra with PHOENIX:  Line center near RV = {np.nanmean(centroids1d)} km/s.')
-        print(f'1D spectra with tellurics:  Line center near RV = {np.nanmean(centroidsT1d)} km/s.')
-        print(f'2D orders with PHOENIX:  Line center near RV ={np.nanmean(centroids2d)} km/s.')
-        print(f'2D orders with tellurics:  Line center near RV ={np.nanmean(centroidsT2d)} km/s.')
+this barycentric correction so that the s1ds are saved in the telluric rest-frame so that they \
+end up in the same frame as the e2ds spectra.','', \
+'Therefore, you should see the following values for the the measured line centers:', \
+f'- The 1D spectra correlated with PHOENIX should peak at the systemic velocity minus \
+the BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).', \
+'- The 1D spectra correlated with the telluric model should peak at 0 km/s.', \
+f'- The 2D spectra correlated with PHOENIX should peak the systemic velocity minus the \
+ BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).', \
+'- The 2D spectra correlated with the tellurics should peak at 0 km/s.','', \
+'If this is correct, in the config file of this dataset, do_berv_correction should be set to True and air should be True.']
 
 
+        for s in explanation: print(textwrap.fill(s, width=int(terminal_width)-5))
         print('\n \n \n')
         final_notes = "Large deviations can occur if the wavelength solution from the pipeline is \
 incorretly assumed to be in air, or if for whatever reason, the wavelength solution is \
@@ -615,11 +615,11 @@ If no peak is visible at all, the spectral orders are suffering from unknown vel
 or contnuum fluctuations that this code was not able to take out. In this case, please inspect \
 your daa carefully to determine whether you can locate the source of the problem. Continuing to \
 run Tayph from this point on would probably make it very difficult to obtain meaningful cross-correlations."
-        print(textwrap.fill(final_notes, width=int(terminal_width)-5,replace_whitespace=False))
+        print(textwrap.fill(final_notes, width=int(terminal_width)-5))
         plt.show()
 
     print('\n \n \n')
-    print('Read_e2ds successfully completed')
+    print('Read_e2ds completed successfully.')
     print('')
 
 

@@ -9,7 +9,8 @@ __all__ = [
     "constant_velocity_wl_grid",
     "blur_rotate",
     "airtovac",
-    "vactoair"
+    "vactoair",
+    "clean_block"
 ]
 
 
@@ -810,3 +811,67 @@ def vactoair(wlnm):
     s = 1e4/wlA
     f = 1.0 + 5.792105e-2/(238.0185e0 - s**2) + 1.67917e-3/( 57.362e0 - s**2)
     return(wlA/f/10.0)
+
+
+
+def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True):
+    """This quickly cleans a spectral block by performing trimming of zeroes at the edges,
+    setting zeroes and negative values to NaN, normalising the flux along both axes, rejecting
+    outlier values by using a running MAD, and optionally detrending using polynomials. This is
+    intended for quick-look cross-correlation when reading in the data.
+
+    The output is the trimmed wavelength axis, the outlier-rejected sequence of spectra (block),
+    and the residuals after outlier rejection. If detrend set to True, polynomials will be fit, and the
+    residuals after polyfitting are also returned. So setting detrend=True increases the number of output
+    variables from 3 to 4.
+
+    I've ran mad trying to make this faster but medians simply don't collapse into nice matrix operations.
+    So what remains is to parallelise, but doing that right the first time (I don't have experience here)
+    in a platform agnostic way seems unlikely.
+
+    Set the renorm keyword to maintain the average flux in the block. If set to false, this function will return
+    spectra that have the same average as before cleaning.
+    """
+    import numpy as np
+    import tayph.functions as fun
+    import warnings
+    import copy
+    import tayph.util as ut
+    import pdb
+    block[np.abs(block)<1e-10*np.nanmedian(block)]=0.0#First set very small values to zero.
+    sum=np.nansum(np.abs(block),axis=0)#Anything that is zero in this sum (i.e. the all-zero columns) will be identified.
+    npx=len(sum)
+    leftsize=npx-len(np.trim_zeros(sum,'f'))#Size of zero-padding on the left.
+    rightsize=npx-len(np.trim_zeros(sum,'b'))#Size of zero-padding on the right
+
+    wl_trimmed=wl[leftsize:npx-rightsize-1]
+    block = block[:,leftsize:npx-rightsize-1]
+    block[block<=0]=np.nan            #We get rid of remaining zeroes and negative values:
+
+    #Compute residuals of s1d spectra by double-normalisation:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        avg_flux=np.nanmean(block,axis=1)
+        block = np.transpose(np.transpose(block)/avg_flux)
+        block_avg=np.nanmean(block,axis=0)
+    r=block/block_avg
+
+    if renorm==False:
+        avg_flux=avg_flux*0.0+1.0
+
+    #Outlier rejection in the 2D residuals via a running MAD:
+    MAD=fun.running_MAD_2D(r,w,verbose=verbose)#This can take long.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        r[np.abs(r-np.nanmean(r))/MAD>nsigma]=np.nan
+        block[np.abs(r-np.nanmean(r))/MAD>nsigma]=np.nan
+    if deg>0:
+        r2=copy.deepcopy(r)
+        for j,s in enumerate(r):
+            nansel=np.isnan(s)
+            p=np.polyfit(wl_trimmed[~nansel],s[~nansel],deg)
+            block[j]/=np.polyval(p,wl_trimmed)
+            r2[j]/=np.polyval(p,wl_trimmed)
+            ut.statusbar(j,len(r))
+        return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r,r2)#Avg_flux is 1 unless renorm=True.
+    return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r)

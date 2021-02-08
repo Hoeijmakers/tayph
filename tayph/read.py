@@ -7,8 +7,11 @@ import astropy.constants as const
 import astropy.units as u
 import numpy as np
 import matplotlib.pyplot as plt
+
+import sys
 import tayph.util as ut
 from tayph.vartests import typetest,dimtest
+import tayph.tellurics as mol
 import tayph.system_parameters as sp
 import tayph.functions as fun
 import tayph.operations as ops
@@ -18,12 +21,14 @@ import scipy.interpolate as interp
 import pickle
 from pathlib import Path
 import warnings
+import glob
 from scipy import interpolate
 import tayph.masking as masking
 import subprocess
 import textwrap
 
 from .phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
+
 
 def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='solar'):
     """This is the workhorse for reading in a time-series of archival 2D echelle

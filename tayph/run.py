@@ -335,14 +335,14 @@ def run_instance(p):
         print('---Applying telluric correction')
         telpath = dp/'telluric_transmission_spectra.pkl'
         list_of_orders,list_of_sigmas = telcor.apply_telluric_correction(telpath,list_of_wls,list_of_orders,list_of_sigmas)
- 
+
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='blue')
     # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='blue',alpha=0.5)#plot corrected spectra
 
     # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',alpha=0.5) #plot SNR
     # plt.show()
     # pdb.set_trace()
-
+   
 
 
 

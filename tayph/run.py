@@ -342,7 +342,7 @@ def run_instance(p):
     # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',alpha=0.5) #plot SNR
     # plt.show()
     # pdb.set_trace()
-     
+        
 
 
 

@@ -1,5 +1,5 @@
 __all__ = [
-    "do_molecfit",
+    "molecfit",
     "execute_molecfit",
     "remove_output_molecfit",
     "retrieve_output_molecfit",
@@ -7,12 +7,17 @@ __all__ = [
     "molecfit_gui",
     "write_telluric_transmission_to_file",
     "read_telluric_transmission_from_file",
-    "apply_telluric_correction"
+    "apply_telluric_correction",
+    "set_molecfit_config",
+    "test_molecfit_config",
+    "get_molecfit_config"
 ]
 
 
 
-def do_molecfit(headers,spectra,configfile,wave=[],mode='HARPS',load_previous=False,save_individual=''):
+#MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
+def molecfit(dp,mode='HARPS',load_previous=False,save_individual=''):
+# def do_molecfit(headers,waves,spectra,configfile,mode='HARPS',load_previous=False,save_individual=''):
     """This is the main wrapper for molecfit that pipes a list of s1d spectra and
     executes it. It first launces the molecfit gui on the middle spectrum of the
     sequence, and then loops through the entire list, returning the transmission
@@ -29,6 +34,9 @@ def do_molecfit(headers,spectra,configfile,wave=[],mode='HARPS',load_previous=Fa
     You can also set save_individual to a path to an existing folder to which the
     transmission spectra of the time-series can be written one by one.
     """
+#MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
+#MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
+#MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
 
     import pdb
     import numpy as np
@@ -41,70 +49,118 @@ def do_molecfit(headers,spectra,configfile,wave=[],mode='HARPS',load_previous=Fa
     import tayph.util as ut
     import tayph.system_parameters as sp
     import astropy.io.fits as fits
-    configfile=ut.check_path(configfile,exists=True)
-
-    molecfit_input_folder=sp.paramget('molecfit_input_folder',configfile,full_path=True)
-    molecfit_prog_folder=sp.paramget('molecfit_prog_folder',configfile,full_path=True)
-    temp_specname = copy.deepcopy(mode)#The name of the temporary file used (without extension).
-    #The spectrum will be named like this.fits There should be a this.par file as well,
-    #that contains a line pointing molecfit to this.fits:
-    parname=temp_specname+'.par'
+    import pkg_resources
 
 
-    #====== ||  START OF PROGRAM   ||======#
-    N = len(headers)
-    if N != len(spectra):
-        raise RuntimeError(f' in prep_for_molecfit: Length of list of headers is not equal to length of list of spectra ({N},{len(spectra)})')
-
-    #Test that the input root and molecfit roots exist; that the molecfit root contains the molecfit executables.
-    #that the input root contains the desired parfile and later fitsfile.
-    molecfit_input_root=Path(molecfit_input_folder)
-    molecfit_prog_root=Path(molecfit_prog_folder)
-
-    ut.check_path(molecfit_input_root,exists=True)
-    ut.check_path(molecfit_prog_root,exists=True)
-    ut.check_path(molecfit_input_root/parname,exists=True)#Test that the molecfit parameter file for this mode exists.
-    ut.check_path(molecfit_prog_root/'molecfit',exists=True)
-    ut.check_path(molecfit_prog_root/'molecfit_gui',exists=True)
-    if len(save_individual) > 0:
-        ut.check_path(save_individual,exists=True)
-
-    pickle_outpath = molecfit_input_root/'previous_run_of_do_molecfit.pkl'
+    #The DP contains the S1D files and the configile of the data (air or vaccuum)
+    dp = ut.check_path(dp,exists=True)
+    config=ut.check_path(dp/'config',exists=True)
+    s1d_path=ut.check_path(dp/'s1ds.pkl',exists=True)
+    molecfit_config=get_molecfit_config()#Path at which the system-wide molecfit configuration file
+    #is supposed to be located, packaged within Tayph.
 
 
+
+
+
+    #If this file doesn't exist (e.g. due to accidental corruption) the user needs to supply these
+    #parameters.
+    if molecfit_config.exists() == False:
+        set_molecfit_config()
+    else:        #Otherwise we test its contents.
+        test_molecfit_config(molecfit_config)
+    molecfit_input_folder = Path(sp.paramget('molecfit_input_folder',molecfit_config,
+        full_path=True))
+    molecfit_prog_folder = Path(sp.paramget('molecfit_prog_folder',molecfit_config,full_path=True))
+    python_alias = sp.paramget('python_alias',molecfit_config,full_path=True)
+    #If this passes, the molecfit confugration file appears to be set correctly.
+
+
+
+
+
+
+    #Check if we actually want to run molecfit, or if we are loading previously saved output.
+    pickle_outpath = molecfit_input_folder/'previous_run_of_do_molecfit.pkl'#Where to save backup.
     if load_previous == True:
-        if os.path.isfile(pickle_outpath) ==  False:
-            print('WARNING in do_molecfit(): Previously saved run was asked for but is not available.')
-            print('The program will proceed to re-fit. That run will then be saved.')
+        if pickle_outpath.exists() ==  False:
+            warn_msg = ('WARNING in molecfit(): Previously saved run was asked for but is not '
+                'available. The program will proceed to re-fit. That run will then be saved.')
+            ut.tprint(warn_msg)
             load_previous = False
         else:
             pickle_in = open(pickle_outpath,"rb")
             list_of_wls,list_of_fxc,list_of_trans = pickle.load(pickle_in)
 
-    if load_previous == False:
+
+
+    #We check if the parameter file for this mode exists.
+    parname=Path(mode+'.par')
+    parfile = molecfit_input_folder/parname#Path to molecfit parameter file.
+    ut.check_path(molecfit_input_folder,exists=True)#This should be redundant, but still check.
+    ut.check_path(parfile,exists=True)#Test that the molecfit parameter file
+    #for this mode exists.
+
+
+
+    #If that passes, we proceed with loading the S1D files.
+    with open(s1d_path,"rb") as p:
+        s1dhdr_sorted,s1d_sorted,wave1d_sorted = pickle.load(p)
+        N=len(s1dhdr_sorted)
+        if N==1:
+            wrn_msg=("WARNING in molecfit(): The length of the time series is found to be 1. Are "
+                "you certain that there is only one s1d file to apply Molecfit to?")
+            ut.tprint(wrn_msg)
+            middle_i=0
+        else:
+            middle_i = int(round(0.5*N))#Initialise molecfit on the middle spectrum of the series.
+
+    middle_date = s1dhdr_sorted[middle_i]['DATE-OBS']
+    ut.tprint('Molecfit will first be initialised in GUI mode on the spectrum with the following'
+        f' date: {middle_date}')
+
+    print('\n \n')
+    ut.tprint('Then, it will be executed automatically onto the entire time series, with dates in'
+        'this order:')
+    for x in s1dhdr_sorted:
+        print(x['DATE-OBS'])
+    print('')
+    ut.tprint("If these are not chronologically ordered, there is a problem with the way dates are"
+        "formatted in the header and you are advised to abort this program.")
+    print('\n \n')
+
+
+
+
+    if len(str(save_individual)) > 0:
+        ut.check_path(save_individual,exists=True)
+
+
+
+    #====== ||  START OF PROGRAM   ||======#
+    if load_previous==False:#If it is still false after the above check...
         list_of_wls = []
         list_of_fxc = []
         list_of_trans = []
 
-        middle_i = int(round(0.5*N))#We initialize molecfit on the middle spectrum of the time series.
-        write_file_to_molecfit(molecfit_input_root,temp_specname+'.fits',headers,spectra,middle_i,mode=mode,wave=wave)
-        print(molecfit_input_root)
-        print(temp_specname+'.fits')
-        execute_molecfit(molecfit_prog_root,molecfit_input_root/parname,gui=True)
-        wl,fx,trans = retrieve_output_molecfit(molecfit_input_root/temp_specname)
-        remove_output_molecfit(molecfit_input_root,temp_specname)
+        write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,
+            s1d_sorted,middle_i,mode=mode)
+        execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
+        wl,fx,trans = retrieve_output_molecfit(molecfit_input_folder/mode)
+        remove_output_molecfit(molecfit_input_folder,mode)
+        pdb.set_trace()
         for i in range(N):#range(len(spectra)):
             print('Fitting spectrum %s from %s' % (i+1,len(spectra)))
             t1=ut.start()
-            write_file_to_molecfit(molecfit_input_root,temp_specname+'.fits',headers,spectra,i,mode=mode,wave=wave)
-            execute_molecfit(molecfit_prog_root,molecfit_input_root/parname,gui=False)
-            wl,fx,trans = retrieve_output_molecfit(molecfit_input_root/temp_specname)
-            remove_output_molecfit(molecfit_input_root,temp_specname)
+            write_file_to_molecfit(molecfit_input_root,temp_specname+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,i,mode=mode)
+            execute_molecfit(molecfit_prog_folder,parfile,gui=False)
+            wl,fx,trans = retrieve_output_molecfit(molecfit_input_root/mode)
+            remove_output_molecfit(molecfit_input_folder,mode)
             list_of_wls.append(wl*1000.0)#Convert to nm.
             list_of_fxc.append(fx/trans)
             list_of_trans.append(trans)
             ut.end(t1)
-            if len(save_individual) > 0:
+            if len(str(save_individual)) > 0:
                 indv_outpath=Path(save_individual)/f'tel_{i}.fits'
                 indv_out = np.zeros((2,len(trans)))
                 indv_out[0]=wl*1000.0
@@ -116,19 +172,22 @@ def do_molecfit(headers,spectra,configfile,wave=[],mode='HARPS',load_previous=Fa
         pickle_outpath = molecfit_input_root/'previous_run_of_do_molecfit.pkl'
         with open(pickle_outpath, 'wb') as f: pickle.dump((list_of_wls,list_of_fxc,list_of_trans),f)
 
+
+
+
     to_do_manually = check_fit_gui(list_of_wls,list_of_fxc,list_of_trans)
     if len(to_do_manually) > 0:
-        print('The following spectra were selected to redo manually:')
+        print('The following spectra were selected to be redone manually:')
         print(to_do_manually)
-        #CHECK THAT THIS FUNCIONALITY WORKS:
         for i in to_do_manually:
-            write_file_to_molecfit(molecfit_input_root,temp_specname+'.fits',headers,spectra,int(i),mode=mode,wave=wave)
-            execute_molecfit(molecfit_prog_root,molecfit_input_root/parname,gui=True)
+            write_file_to_molecfit(molecfit_input_folder,mode+'.fits',headers,spectra,int(i),mode=mode,wave=wave)
+            execute_molecfit(molecfit_prog_root,parfile,gui=True,alias=python_alias)
             wl,fx,trans = retrieve_output_molecfit(molecfit_input_root/temp_specname)
             list_of_wls[int(i)] = wl*1000.0#Convert to nm.
             list_of_fxc[int(i)] = fxc
             list_of_trans[int(i)] = trans
-    return(list_of_wls,list_of_trans)
+    write_telluric_transmission_to_file(list_of_wls,list_of_trans,outpath/'telluric_transmission_spectra.pkl')
+    # return(list_of_wls,list_of_trans)
 
 
 def remove_output_molecfit(path,name):
@@ -136,7 +195,9 @@ def remove_output_molecfit(path,name):
     import os
     from pathlib import Path
     root = Path(path)
-    files = ['_out.fits','_out_gui.fits','_out_molecfit_out.txt','_out_fit.par','_out_fit.atm','_out_apply_out.txt','_out_fit.atm.fits','_out_fit.res','_out_tac.asc','_TAC.fits','_out_fit.res.fits','_out_fit.asc','_out_fit.fits']
+    files = ['_out.fits','_out_gui.fits','_out_molecfit_out.txt','_out_fit.par','_out_fit.atm',
+    '_out_apply_out.txt','_out_fit.atm.fits','_out_fit.res','_out_tac.asc','_TAC.fits',
+    '_out_fit.res.fits','_out_fit.asc','_out_fit.fits']
 
     for f in files:
         try:
@@ -147,8 +208,9 @@ def remove_output_molecfit(path,name):
 
 
 def retrieve_output_molecfit(path):
-    """This collects the actual transmission model created after a pass through
-    molecfit is completed"""
+    """
+    This collects the actual transmission model created after a pass through molecfit is completed
+    """
     import astropy.io.fits as fits
     import os.path
     import sys
@@ -163,42 +225,33 @@ def retrieve_output_molecfit(path):
         trans=hdul[1].data['mtrans']
     return(wl,fx,trans)
 
-def execute_molecfit(molecfit_prog_root,molecfit_input_file,gui=False):
+def execute_molecfit(molecfit_prog_root,molecfit_input_file,gui=False,alias='python3'):
     """This actually calls the molecfit command in bash"""
     import os
     from pathlib import Path
+    import warnings
     if gui == False:
         command = str(Path(molecfit_prog_root)/'molecfit')+' '+str(molecfit_input_file)
         command2 = str(Path(molecfit_prog_root)/'calctrans')+' '+str(molecfit_input_file)
         os.system(command)
         os.system(command2)
     if gui == True:
-        command = 'python3 '+str(molecfit_prog_root/'molecfit_gui')+' '+str(molecfit_input_file)
-        os.system(command)
+        command = alias+' '+str(molecfit_prog_root/'molecfit_gui')+' '+str(molecfit_input_file)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            os.system(command)
     #python3 /Users/hoeijmakers/Molecfit/bin/molecfit_gui /Users/hoeijmakers/Molecfit/share/molecfit/spectra/cross_cor/test.par
 
-def write_file_to_molecfit(molecfit_file_root,name,headers,spectra,ii,mode='HARPS',wave=[]):
+def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii,mode='HARPS'):
     """This is a wrapper for writing a spectrum from a list to molecfit format.
     name is the filename of the fits file that is the output.
     headers is the list of astropy header objects associated with the list of spectra
     in the spectra variable. ii is the number from that list that needs to be written (meaning
     that this routine is expected to be called as part of a loop).
 
-    The mode keyword will determine how to handle the spectra provided, notably what to do
-    with the FITS headers and the wavelengths.
-
-    In the case of HARPS and ESPRESSO, s1d spectra are normally in air and in the barycenter.
-    Using the BERV correction in the header, they are shifted back to the Earths frame to put
-    the tellurics back to 0km/s.
-
-    An arbitrary mode can be set, but in that case the user must make sure that their wavelength
-    axes are provided correctly, either encoded in the FITS header in the observatory restframe;
-    or via the wave keyword.
-
-    The wave keyword is used for when the s1d headers do not contain wavelength information like HARPS does.
-    (for instance, ESPRESSO). The wave keyword needs to be set in this case, to the wavelength array as extracted from FITS files or smth.
-    If you do that for HARPS or HARPSN and also set the wave keyword, this code will still
-    grab it from the header and ignore it.
+    The user must make sure that the wavelength axes of these spectra are in air, in the observatory
+    rest frame (meaning not BERV_corrected). Tayphs read_e2ds() function should have done this
+    automatically.
     """
     import astropy.io.fits as fits
     from scipy import stats
@@ -210,23 +263,23 @@ def write_file_to_molecfit(molecfit_file_root,name,headers,spectra,ii,mode='HARP
     from tayph.vartests import typetest
     import tayph.util as ut
     import sys
-    typetest(ii,int,'ii write_file_to_molecfit')
-    molecfit_file_root=ut.check_path(molecfit_file_root,exists=True)
+    typetest(ii,int,'ii in write_file_to_molecfit()')
+    molecfit_folder=ut.check_path(molecfit_folder,exists=True)
+    wave = waves[int(ii)]
     spectrum = spectra[int(ii)]
     npx = len(spectrum)
 
-    if mode == 'HARPS':
-        berv = headers[ii]['HIERARCH ESO DRS BERV']#Need to un-correct the s1d spectra to go back to the frame of the Earths atmosphere.
-        wave = (headers[ii]['CDELT1']*fun.findgen(len(spectra[ii]))+headers[ii]['CRVAL1'])*(1.0-(berv*u.km/u.s/const.c).decompose().value)
-    elif mode == 'HARPSN':
-        berv = headers[ii]['HIERARCH TNG DRS BERV']#Need to un-correct the s1d spectra to go back to the frame of the Earths atmosphere.
-        wave = (headers[ii]['CDELT1']*fun.findgen(len(spectra[ii]))+headers[ii]['CRVAL1'])*(1.0-(berv*u.km/u.s/const.c).decompose().value)
-    elif mode in ['ESPRESSO','UVES-red','UVES-blue']:
-        if len(wave) == 0:
-            raise ValueError('in write_file_to_molecfit(): When mode in [ESPRESSO,UVES-red,UVES-blue], the 1D wave axis needs to be provided.')
-        #WAVE VARIABLE NEEDS TO BE PASSED NOW.
-        berv = headers[ii]['HIERARCH ESO QC BERV']#Need to un-correct the s1d spectra to go back to the frame of the Earths atmosphere.
-        wave = copy.deepcopy(wave*(1.0-(berv*u.km/u.s/const.c).decompose().value))
+
+    #Need to un-berv-correct the s1d spectra to go back to the frame of the Earths atmosphere.
+    #This is no longer true as of Feb 17, because read_e2ds now uncorrects HARPS, ESPRESSO and
+    #UVES spectra by default.
+    # if mode == 'HARPS':
+    #     berv = headers[ii]['HIERARCH ESO DRS BERV']
+    # elif mode == 'HARPSN':
+    #     berv = headers[ii]['HIERARCH TNG DRS BERV']
+    # elif mode in ['ESPRESSO','UVES-red','UVES-blue']:
+    #     berv = headers[ii]['HIERARCH ESO QC BERV']
+    # wave = copy.deepcopy(wave*(1.0-(berv*u.km/u.s/const.c).decompose().value))
 
     err = np.sqrt(spectrum)
 
@@ -244,8 +297,8 @@ def write_file_to_molecfit(molecfit_file_root,name,headers,spectra,ii,mode='HARP
     prihdr = copy.deepcopy(headers[ii])
     prihdu = fits.PrimaryHDU(header=prihdr)
     thdulist = fits.HDUList([prihdu, tbhdu])
-    thdulist.writeto(molecfit_file_root/name,overwrite=True)
-    print(f'Spectrum {ii} written to {str(molecfit_file_root/name)}')
+    thdulist.writeto(molecfit_folder/name,overwrite=True)
+    ut.tprint(f'Spectrum {ii} written to {str(molecfit_folder/name)}')
     return(0)
 
 
@@ -543,15 +596,18 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
     x = fun.findgen(No)
 
     if No != len(list_of_orders):
-        raise Exception('Runtime error in telluric correction: List of data wls and List of orders do not have the same length.')
+        raise Exception('Runtime error in telluric correction: List of data wls and List of orders '
+        'do not have the same length.')
 
     Nexp = len(wlT)
 
     if Nexp != len(fxT):
-        raise Exception('Runtime error in telluric correction: List of telluric wls and telluric spectra read from file do not have the same length.')
+        raise Exception('Runtime error in telluric correction: List of telluric wls and telluric '
+        'spectra read from file do not have the same length.')
 
     if Nexp !=len(list_of_orders[0]):
-        raise Exception(f'Runtime error in telluric correction: List of telluric spectra and data spectra read from file do not have the same length ({Nexp} vs {len(list_of_orders[0])}).')
+        raise Exception(f'Runtime error in telluric correction: List of telluric spectra and data'
+        f'spectra read from file do not have the same length ({Nexp} vs {len(list_of_orders[0])}).')
     list_of_orders_cor = []
     list_of_sigmas_cor = []
     # ut.save_stack('test.fits',list_of_orders)
@@ -576,3 +632,136 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
         list_of_sigmas_cor.append(error_cor)
         ut.statusbar(i,x)
     return(list_of_orders_cor,list_of_sigmas_cor)
+
+
+def set_molecfit_config():
+    import pkg_resources
+    from pathlib import Path
+    import os
+    import subprocess
+    import tayph.system_parameters as sp
+    import tayph.util as ut
+
+    #Prepare for making formatted output.
+    # terminal_height,terminal_width = subprocess.check_output(['stty', 'size']).split()
+
+    Q1 = 'In what folder are parameter files defined and should (intermediate) molecfit output be written to?'
+    Q2 = 'In what folder is the molecfit binary located?'
+    Q3 = 'What is your python 3.x alias?'
+
+    configpath=get_molecfit_config()
+
+    if configpath.exists():
+        ut.tprint(f'Molecfit configuration file already exists at {configpath}.')
+        print('Overwriting existing values.')
+        current_molecfit_input_folder = sp.paramget('molecfit_input_folder',configpath,full_path=True)
+        current_molecfit_prog_folder = sp.paramget('molecfit_prog_folder',configpath,full_path=True)
+        current_python_alias = sp.paramget('python_alias',configpath,full_path=True)
+
+        ut.tprint(Q1)
+        ut.tprint(f'Currently: {current_molecfit_input_folder}')
+        new_molecfit_input_folder = ut.check_path(input(),exists=True)
+        print('')
+        ut.tprint(Q2)
+        ut.tprint(f'Currently: {current_molecfit_prog_folder}')
+        new_molecfit_prog_folder = ut.check_path(input(),exists=True)
+        print('')
+        ut.tprint(Q3)
+        ut.tprint(f'Currently: {current_python_alias}')
+        new_python_alias = input()
+    else:#This is actually the default mode of using this, because this function is generally
+    #only called when tel.molecfit() is run for the first time and the config file doesn't exist yet.
+        ut.tprint(Q1)
+        new_molecfit_input_folder = ut.check_path(input(),exists=True)
+        print('')
+        ut.tprint(Q2)
+        new_molecfit_prog_folder = ut.check_path(input(),exists=True)
+        print('')
+        ut.tprint(Q3)
+        new_python_alias = input()
+
+
+    with open(configpath, "w") as f:
+        f.write(f'molecfit_input_folder   {str(new_molecfit_input_folder)}\n')
+        f.write(f'molecfit_prog_folder   {str(new_molecfit_prog_folder)}\n')
+        f.write(f'python_alias   {str(new_python_alias)}\n')
+
+    ut.tprint(f'New molecfit configation file successfully written to {configpath}')
+
+
+def test_molecfit_config(molecfit_config):
+    """This tests the existence and integrity of the system-wide molecfit configuration folder."""
+    import tayph.util as ut
+    import tayph.system_parameters as sp
+    from pathlib import Path
+    import sys
+
+    try:
+        molecfit_input_folder = Path(sp.paramget('molecfit_input_folder',molecfit_config,full_path=True))
+        molecfit_prog_folder = Path(sp.paramget('molecfit_prog_folder',molecfit_config,full_path=True))
+        python_alias = sp.paramget('python_alias',molecfit_config,full_path=True)
+    except:
+        err_msg = (f'ERROR in initialising Molecfit. The molecfit configuration file '
+        f'({molecfit_config}) exists, but it does not contain the right keywords. The required '
+        'parameters are molecfit_input_folder, molecfit_prog_folder and python_alias')
+        ut.tprint(err_msg)
+        sys.exit()
+
+    if molecfit_input_folder.exists() == False:
+        err_msg = (f"ERROR in initialising Molecfit. The molecfit configuration file "
+            f"({molecfit_config}) exists and it has the correct parameter keywords "
+            f"(molecfit_input_folder, molecfit_prog_folder and python_alias), but the "
+            f"molecfit_input_folder path ({molecfit_input_folder}) does not exist. Please run "
+            f"tayph.tellurics.set_molecfit_config() to resolve this.")
+        ut.tprint(err_msg)
+        sys.exit()
+
+    if molecfit_prog_folder.exists() == False:
+        err_msg = (f"ERROR in initialising Molecfit. The molecfit configuration file "
+            f"({molecfit_config}) exists and it has the correct parameter keywords "
+            f"(molecfit_input_folder, molecfit_prog_folder and python_alias), but the "
+            f"molecfit_prog_folder path ({molecfit_prog_folder}) does not exist. Please run "
+            f"tayph.tellurics.set_molecfit_config() to resolve this.")
+        ut.tprint(err_msg)
+        sys.exit()
+    binarypath=molecfit_prog_folder/'molecfit'
+    guipath=molecfit_prog_folder/'molecfit_gui'
+
+    if binarypath.exists() == False:
+        err_msg = (f"ERROR in initialising Molecfit. The molecfit configuration file "
+                f"({molecfit_config}) exists and it has the correct parameter keywords "
+                f"(molecfit_input_folder, molecfit_prog_folder and python_alias), but the molecfit "
+                f"binary ({binarypath}) does not exist. Please run "
+                f"tayph.tellurics.set_molecfit_config() to resolve this.")
+        ut.tprint(err_msg)
+        sys.exit()
+
+    if guipath.exists() == False:
+        err_msg = (f"ERROR in initialising Molecfit. The molecfit configuration file "
+                f"({molecfit_config}) exists and it has the correct parameter keywords "
+                f"(molecfit_input_folder, molecfit_prog_folder and python_alias), but the molecfit "
+                f"gui binary ({guipath}) does not exist. Please run "
+                f"tayph.tellurics.set_molecfit_config() to resolve this.")
+        ut.tprint(err_msg)
+        sys.exit()
+
+    if ut.test_alias(python_alias) == False:
+        err_msg = (f'ERROR in initialising Molecfit. The molecfit configuration file '
+                f'({molecfit_config}) exists and it has the correct parameter keywords '
+                f'(molecfit_input_folder, molecfit_prog_folder and python_alias), but the python '
+                f'alias ({python_alias}) does not exist. Please run '
+                f'tayph.tellurics.set_molecfit_config() to resolve this.')
+        ut.tprint(err_msg)
+        sys.exit()
+
+
+
+def get_molecfit_config():
+    """
+    This is the central place where the location of the molecfit configuration file is defined.
+    """
+    import pkg_resources
+    from pathlib import Path
+    configpath=Path(pkg_resources.resource_filename('tayph',str(Path('data')/Path(
+        'molecfit_config.dat'))))
+    return(configpath)

@@ -1,0 +1,3 @@
+molecfit_input_folder   /Users/hoeijmakers/Molecfit/share/molecfit/spectra/cross_cor
+molecfit_prog_folder   /Users/hoeijmakers/Molecfit/bin
+python_alias   python3

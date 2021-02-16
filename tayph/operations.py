@@ -854,13 +854,14 @@ def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True):
         avg_flux=np.nanmean(block,axis=1)
         block = np.transpose(np.transpose(block)/avg_flux)
         block_avg=np.nanmean(block,axis=0)
-        r=block/block_avg
+    r=block/block_avg
 
-        if renorm==False:
-            avg_flux=avg_flux*0.0+1.0
+    if renorm==False:
+        avg_flux=avg_flux*0.0+1.0
 
-        #Outlier rejection in the 2D residuals via a running MAD:
-        MAD=fun.running_MAD_2D(r,w,verbose=verbose)#This can take long.
+    #Outlier rejection in the 2D residuals via a running MAD:
+    MAD=fun.running_MAD_2D(r,w,verbose=verbose)#This can take long.
+    with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         r[np.abs(r-np.nanmean(r))/MAD>nsigma]=np.nan
         block[np.abs(r-np.nanmean(r))/MAD>nsigma]=np.nan

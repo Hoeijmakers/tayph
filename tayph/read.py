@@ -130,18 +130,10 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
 
     """
 
-
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
+    print('\n \n \n')
+    print('\n \n \n')
+    print('\n \n \n')
+    print('\n \n \n')
     print(' = = = = = = = = = = = = = = = = =')
     print(' = = = WELCOME TO READ_E2DS! = = =')
     print(' = = = = = = = = = = = = = = = = =')
@@ -149,9 +141,7 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
     print(f'    Reading {mode} data')
     print('')
     print(' = = = = = = = = = = = = = = = = =')
-    print('')
-    print('')
-    print('')
+    print('\n \n \n')
 
 
     #First check the input:
@@ -305,9 +295,7 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
     if np.max(np.abs(norders-norders[0])) == 0:
         norders=int(norders[0])
     else:
-        print('')
-        print('')
-        print('')
+        print('\n \n \n')
         print("These are the files and their numbers of orders:")
         for i in range(e2ds_count):
             print('   '+framename[i]+'  %s' % norders[i])
@@ -316,9 +304,7 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
     if np.max(np.abs(npx-npx[0])) == 0:
         npx=int(npx[0])
     else:
-        print('')
-        print('')
-        print('')
+        print('\n \n \n')
         print("These are the files and their numbers of pixels:")
         for i in range(len(obstype)):
             print('   '+framename[i]+'  %s' % npx[i])
@@ -403,14 +389,8 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
             list_of_orders.append(order)
             list_of_waves.append(wave_order)
     f.close()
-    print('')
-    print('')
-    print('')
+    print('\n \n \n')
     print(f'---Time-table written to {outpath/"obs_times"}.')
-
-
-
-
 
 
 
@@ -581,7 +561,8 @@ the BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).',
 '- The 1D spectra correlated with the telluric model should peak at 0 km/s.', \
 '- The 2D spectra correlated with PHOENIX should peak the systemic velocity of this star.', \
 '- The 2D spectra correlated with the tellurics should peak at the barycentric velocity.','', \
-'If this is correct, in the config file of this dataset, do_berv_correction should be set to False and air should be True.']
+'If this is correct, in the Tayph runfile of this dataset, do_berv_correction should be set to False and \
+air in the config file of this dataset should be set to True.']
 
 
         if mode in ['HARPS','HARPSN']:
@@ -597,7 +578,8 @@ the BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).',
 f'- The 2D spectra correlated with PHOENIX should peak the systemic velocity minus the \
  BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).', \
 '- The 2D spectra correlated with the tellurics should peak at 0 km/s.','', \
-'If this is correct, in the config file of this dataset, do_berv_correction should be set to True and air should be True.']
+'If this is correct, in the Tayph runfile of this dataset, do_berv_correction should be set to True and air \
+in the config file of this dataset should be set to True.']
 
 
         for s in explanation: print(textwrap.fill(s, width=int(terminal_width)-5))

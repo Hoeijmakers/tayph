@@ -10,6 +10,19 @@ __all__ = [
     "read_binary_kitzmann",
     "read_wave_from_e2ds_header"
 ]
+
+def tprint(msg,margin=5):
+    """This is a wrapper used to print long soft-wrapped messages to the terminal, such as
+    error messages and warnings, or longer explanations. The marin is the margin at the right
+    of the terminal window between the terminal edge and the wrapping limit. This gives a bit of
+    air to the terminal output.
+    """
+
+    import textwrap
+    terminal_width=get_term_width()
+    print(textwrap.fill(msg,width=int(terminal_width)-margin))
+
+
 def get_term_width():
     import subprocess
     terminal_height,terminal_width = subprocess.check_output(['stty', 'size']).split()

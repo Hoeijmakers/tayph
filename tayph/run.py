@@ -300,7 +300,7 @@ def run_instance(p):
                 print("------Setting negative values to NaN.")
                 trigger3 = -1
             n_negative_total+=n_negative
-            order_i[order_i <= 0] = np.nan
+            order_i[order_i <= 0] = np.nan #This is very important for later when we are computing average spectra and the like, to avoid divide-by-zero cases.
             postest(order_i,f'order {i} in run_instance().')#make sure whatever comes out here is strictly positive.
             list_of_orders.append(order_i)
 

@@ -5,7 +5,7 @@ THIS IS A WORK IN PROGRESS AND ONLY SEGMENTS OF THE PROJECT ARE CURRENTLY FUNCTI
 
 [![Astropy](http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat)](http://www.astropy.org)
 [![ReadTheDocs](https://readthedocs.org/projects/tayph/badge/?version=latest)](https://tayph.readthedocs.io/en/latest/?badge=latest)
-[![Travis](https://travis-ci.org/Hoeijmakers/tayph.svg?branch=master)](https://travis-ci.org/Hoeijmakers/tayph)
+![CI Tests](https://github.com/Hoeijmakers/tayph/workflows/CI%20Tests/badge.svg)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/dwyl/esta/issues)
 ![ViewCount](https://views.whatilearened.today/views/github/Hoeijmakers/tayph.svg)
 

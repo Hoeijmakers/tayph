@@ -1,4 +1,6 @@
 __all__ = [
+    "get_term_width",
+    "test_alias",
     "statusbar",
     "start",
     "end",
@@ -8,6 +10,29 @@ __all__ = [
     "read_binary_kitzmann",
     "read_wave_from_e2ds_header"
 ]
+def get_term_width():
+    import subprocess
+    terminal_height,terminal_width = subprocess.check_output(['stty', 'size']).split()
+    return(terminal_width)
+
+
+def test_alias(alias):
+    """This tests whether an alias exists on the system. Introduced for testing whether the
+    user-supplied python alias exists, for calling Molecfit with."""
+    import subprocess
+    import platform
+    import os
+    if platform.system() == "Windows":
+        cmd = "where"
+    else:
+        cmd = "which"
+
+    try:
+        location = str(subprocess.check_output([cmd,alias]),'utf-8')
+    except:
+        # print('The alias does not appear to exist.')
+        return(False)
+    return(True)
 
 def statusbar(i,x):
     """

@@ -7,6 +7,7 @@ import astropy.constants as const
 import astropy.units as u
 import numpy as np
 import matplotlib.pyplot as plt
+
 import sys
 import tayph.util as ut
 from tayph.vartests import typetest,dimtest
@@ -25,6 +26,8 @@ from scipy import interpolate
 import tayph.masking as masking
 import subprocess
 import textwrap
+
+from .phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
 
 
 def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='solar'):
@@ -157,21 +160,20 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         starwavepath=Path(pkg_resources.resource_filename('tayph',str(Path('data')/Path('WAVE_PHOENIX-ACES-AGSS-COND-2011.fits'))))
         telpath = Path(pkg_resources.resource_filename('tayph',str(Path('data')/Path('skycalc_vac.fits'))))
         if star.lower()=='solar' or star.lower() =='medium':
-            starpath=Path(pkg_resources.resource_filename('tayph',str(Path('data')/Path('lte06000-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits'))))
+            T_eff = 6000
         elif star.lower() =='hot' or star.lower() =='warm':
-            starpath=Path(pkg_resources.resource_filename('tayph',str(Path('data')/Path('lte09000-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits'))))
+            T_eff = 9000
         elif star.lower() == 'cool' or star.lower() == 'cold':
-            starpath=Path(pkg_resources.resource_filename('tayph',str(Path('data')/Path('lte04000-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits'))))
+            T_eff = 4000
         else:
             warnings.warn(f"in read_e2ds: The star keyword was set to f{star} but only solar, hot or cold are allowed. Assuming a solar template.",RuntimeWarning)
-            starpath=Path(pkg_resources.resource_filename('tayph',str(Path('data')/Path('lte06000-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits'))))
-        ut.check_path(starpath,exists=True)
-        ut.check_path(starwavepath,exists=True)
+            T_eff = 6000
         ut.check_path(telpath,exists=True)
         print(f'---Reading diagnostic telluric and {star} PHOENIX models (prepackaged).')
         #Load the spectra from FITS files provided along with Tayph
-        fxm=fits.getdata(starpath)
-        wlm=fits.getdata(starwavepath)/10.0#Angstrom to nm.
+        # fxm=fits.getdata(starpath)
+        fxm = get_phoenix_model_spectrum(T_eff=T_eff),
+        wlm = get_phoenix_wavelengths()/10.0#Angstrom to nm.
         ttt=fits.getdata(telpath)
         fxt=ttt[1]
         wlt=ttt[0]

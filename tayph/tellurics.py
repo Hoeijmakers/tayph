@@ -144,17 +144,17 @@ def molecfit(dp,mode='HARPS',load_previous=False,save_individual=''):
         list_of_trans = []
 
         write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,
-            s1d_sorted,middle_i,mode=mode)
+            s1d_sorted,middle_i)
         execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
         wl,fx,trans = retrieve_output_molecfit(molecfit_input_folder/mode)
         remove_output_molecfit(molecfit_input_folder,mode)
-        pdb.set_trace()
+
         for i in range(N):#range(len(spectra)):
-            print('Fitting spectrum %s from %s' % (i+1,len(spectra)))
+            print('Fitting spectrum %s from %s' % (i+1,N))
             t1=ut.start()
-            write_file_to_molecfit(molecfit_input_root,temp_specname+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,i,mode=mode)
+            write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
             execute_molecfit(molecfit_prog_folder,parfile,gui=False)
-            wl,fx,trans = retrieve_output_molecfit(molecfit_input_root/mode)
+            wl,fx,trans = retrieve_output_molecfit(molecfit_input_folder/mode)
             remove_output_molecfit(molecfit_input_folder,mode)
             list_of_wls.append(wl*1000.0)#Convert to nm.
             list_of_fxc.append(fx/trans)
@@ -168,8 +168,7 @@ def molecfit(dp,mode='HARPS',load_previous=False,save_individual=''):
                 fits.writeto(indv_outpath,indv_out)
 
 
-
-        pickle_outpath = molecfit_input_root/'previous_run_of_do_molecfit.pkl'
+        pickle_outpath = molecfit_input_folder/'previous_run_of_do_molecfit.pkl'
         with open(pickle_outpath, 'wb') as f: pickle.dump((list_of_wls,list_of_fxc,list_of_trans),f)
 
 
@@ -180,11 +179,11 @@ def molecfit(dp,mode='HARPS',load_previous=False,save_individual=''):
         print('The following spectra were selected to be redone manually:')
         print(to_do_manually)
         for i in to_do_manually:
-            write_file_to_molecfit(molecfit_input_folder,mode+'.fits',headers,spectra,int(i),mode=mode,wave=wave)
-            execute_molecfit(molecfit_prog_root,parfile,gui=True,alias=python_alias)
-            wl,fx,trans = retrieve_output_molecfit(molecfit_input_root/temp_specname)
+            write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
+            execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
+            wl,fx,trans = retrieve_output_molecfit(molecfit_input_folder/mode)
             list_of_wls[int(i)] = wl*1000.0#Convert to nm.
-            list_of_fxc[int(i)] = fxc
+            list_of_fxc[int(i)] = fx/trans
             list_of_trans[int(i)] = trans
     write_telluric_transmission_to_file(list_of_wls,list_of_trans,outpath/'telluric_transmission_spectra.pkl')
     # return(list_of_wls,list_of_trans)
@@ -242,7 +241,7 @@ def execute_molecfit(molecfit_prog_root,molecfit_input_file,gui=False,alias='pyt
             os.system(command)
     #python3 /Users/hoeijmakers/Molecfit/bin/molecfit_gui /Users/hoeijmakers/Molecfit/share/molecfit/spectra/cross_cor/test.par
 
-def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii,mode='HARPS'):
+def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii):
     """This is a wrapper for writing a spectrum from a list to molecfit format.
     name is the filename of the fits file that is the output.
     headers is the list of astropy header objects associated with the list of spectra

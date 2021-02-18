@@ -26,6 +26,7 @@ from scipy import interpolate
 import tayph.masking as masking
 import subprocess
 import textwrap
+from astropy.utils.data import download_file
 
 from .phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
 
@@ -157,8 +158,7 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         raise ValueError("in read_e2ds: mode needs to be set to HARPS, HARPSN, UVES-red, UVES-blue or ESPRESSO.")
     if measure_RV:
         #Define the paths to the stellar and telluric templates if RV's need to be measured.
-        starwavepath=Path(pkg_resources.resource_filename('tayph',str(Path('data')/Path('WAVE_PHOENIX-ACES-AGSS-COND-2011.fits'))))
-        telpath = Path(pkg_resources.resource_filename('tayph',str(Path('data')/Path('skycalc_vac.fits'))))
+
         if star.lower()=='solar' or star.lower() =='medium':
             T_eff = 6000
         elif star.lower() =='hot' or star.lower() =='warm':
@@ -168,16 +168,20 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         else:
             warnings.warn(f"in read_e2ds: The star keyword was set to f{star} but only solar, hot or cold are allowed. Assuming a solar template.",RuntimeWarning)
             T_eff = 6000
-        ut.check_path(telpath,exists=True)
-        print(f'---Reading diagnostic telluric and {star} PHOENIX models (prepackaged).')
-        #Load the spectra from FITS files provided along with Tayph
-        # fxm=fits.getdata(starpath)
-        fxm = get_phoenix_model_spectrum(T_eff=T_eff),
+
+        print(f'---Downloading / reading diagnostic telluric and {star} PHOENIX models.')
+
+        #Load the PHOENIX spectra from the Goettingen server:
+        fxm = get_phoenix_model_spectrum(T_eff=T_eff)
         wlm = get_phoenix_wavelengths()/10.0#Angstrom to nm.
+
+        #Load the telluric spectrum from my Google Drive:
+        telluric_link = 'https://drive.google.com/uc?export=download&id=1yAtoLwI3h9nvZK0IpuhLvIpNc_1kjxha'
+        telpath = download_file(telluric_link)
         ttt=fits.getdata(telpath)
+        os.remove(telpath)#Free up the drive again.
         fxt=ttt[1]
         wlt=ttt[0]
-
 
         #Continuum-subtract the telluric model
         wlte,fxte=ops.envelope(wlt,fxt,2.0,selfrac=0.05,threshold=0.8)
@@ -420,15 +424,12 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         print(f'---Cleaning 1D spectra for cross-correlation.')
 
         if mode in ['HARPS','HARPSN','ESPRESSO']:
-            gamma = (1.0-(berv[0]*u.km/u.s/const.c).decompose().value)
-            wave_1d = wave1d[0]/10.0*gamma#Universal berv-corrected wavelength axis in nm in air.
+            #gamma = (1.0-(berv[0]*u.km/u.s/const.c).decompose().value)
+            wave_1d = wave1d[0]/10.0#*gamma#Universal berv-un-corrected wavelength axis in nm in air.
             s1d_block=np.zeros((len(s1d),len(wave_1d)))
-            s1d_mjd=[]
-            s1d_berv=[]
             for i in range(0,len(s1d)):
-                gamma = (1.0-(berv[i]*u.km/u.s/const.c).decompose().value)
                 # wave = wave1d[i]#(s1dhdr[i]['CDELT1']*fun.findgen(len(s1d[i]))+s1dhdr[i]['CRVAL1'])
-                s1d_block[i]=interp.interp1d(wave1d[i]/10.0*gamma,s1d[i],bounds_error=False,fill_value='extrapolate')(wave_1d)
+                s1d_block[i]=interp.interp1d(wave1d[i]/10.0,s1d[i],bounds_error=False,fill_value='extrapolate')(wave_1d)
         #
         # plt.plot(wave_1d,s1d[0]/np.mean(s1d[0]),linewidth=0.5,label='Berv-un-corrected in nm.')
         # plt.plot(wave1d[1]/10.0,s1d[1]/np.mean(s1d[1]),linewidth=0.5,label='Original (bervcorrected) from A to nm.')
@@ -498,7 +499,7 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         plt.xlabel('Wavelength (nm)')
         plt.ylabel('Flux (normalised to order average)')
         plt.plot(wlm,fxmn,color='green',linewidth=0.7,label='PHOENIX template (air, used in ccf)',alpha=0.5)
-        plt.plot(ops.airtovac(wlm),fxmn,color='olive',linewidth=0.7,label='PHOENIX template (vaccuum)',alpha=0.3)
+        plt.plot(wlt,fxtn,color='blue',linewidth=0.7,label='Skycalc telluric model',alpha=0.6)
         plt.xlim(minwl-5,maxwl+5)#Always nm.
         plt.legend(loc='upper right',fontsize=8)
         plt.show()
@@ -507,6 +508,9 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         centroids1d=[]
         centroidsT2d=[]
         centroidsT1d=[]
+
+
+
         plt.figure(figsize=(13,5))
         for n,i in enumerate(ccf):
             if n == 0:
@@ -700,7 +704,13 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                 # npx1d.append(len(data_1d))
                     s1dhdr.append(hdr1d)
                     s1dmjd=np.append(s1dmjd,hdr1d['MJD-OBS'])
-                    wave1d.append(hdr1d['CDELT1']*fun.findgen(len(data_1d))+hdr1d['CRVAL1'])
+                    berv1d = hdr1d[bervkeyword]
+                    if berv1d != hdr[bervkeyword]:
+                        wrn_msg = ('WARNING in read_harpslike(): BERV correction of s1d file is not'
+                        f'equal to that of the e2ds file. {berv1d} vs {hdr[bervkeyword]}')
+                        ut.tprint(wrn_msg)
+                    gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)#Doppler factor BERV.
+                    wave1d.append((hdr1d['CDELT1']*fun.findgen(len(data_1d))+hdr1d['CRVAL1'])*gamma)
     if mode == 'HARPSN': #In the case of HARPS-N we need to convert the units of the elevation and provide a UTC keyword.
         for i in range(len(header)):
             s1dhdr[i]['TELALT'] = np.degrees(float(s1dhdr[i]['EL']))
@@ -943,7 +953,14 @@ def read_espresso(inpath,filelist,read_s1d=True):
                     hdul.close()
                     del hdul
                     s1d.append(data_table.field(2))
-                    wave1d.append(data_table.field(1))#This is in angstroms.
+
+                    berv1d = hdr1d[bervkeyword]
+                    if berv1d != hdr[bervkeyword]:
+                        wrn_msg = ('WARNING in read_espresso(): BERV correction of S1D file is not'
+                        f'equal to that of the S2D file. {berv1d} vs {hdr[bervkeyword]}')
+                        ut.tprint(wrn_msg)
+                    gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)
+                    wave1d.append(data_table.field(1)*gamma)#This is in angstroms.
                     #We need to check to which UT ESPRESSO was connected, so that we can read
                     #the weather information (which is UT-specific) and parse them into the
                     #header using UT-agnostic keywords that are in the ESPRESSO.par file.

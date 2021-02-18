@@ -491,7 +491,7 @@ def run_instance(p):
             print(f'---Reading CCFs with template {templatename} from {str(outpath)}.')
             if os.path.isfile(outpath/'ccf.fits') == False:
                 raise FileNotFoundError(f'CCF output not located at {outpath}. Rerun with do_xcor=True to create these files?')
-        rv=fits.getdata(outpath/'rv.fits')
+        rv=fits.getdata(outpath/'RV.fits')
         ccf = fits.getdata(outpath/'ccf.fits')
         ccf_e = fits.getdata(outpath/'ccf_e.fits')
         Tsums = fits.getdata(outpath/'Tsum.fits')

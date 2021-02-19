@@ -177,7 +177,7 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
 
         #Load the telluric spectrum from my Google Drive:
         telluric_link = 'https://drive.google.com/uc?export=download&id=1yAtoLwI3h9nvZK0IpuhLvIpNc_1kjxha'
-        telpath = download_file(telluric_link)
+        telpath = download_file(telluric_link,cache=True)
         ttt=fits.getdata(telpath)
         os.remove(telpath)#Free up the drive again.
         fxt=ttt[1]
@@ -620,7 +620,10 @@ run Tayph from this point on would probably make it very difficult to obtain mea
 
 
 def read_harpslike(inpath,filelist,mode,read_s1d=True):
-    """This reads a folder of HARPS or HARPSN data. Input is a list of filepaths and the mode (HARPS or HARPSN)."""
+    """
+    This reads a folder of HARPS or HARPSN data. Input is a list of filepaths and the mode (HARPS
+    or HARPSN).
+    """
 
     if mode=='HARPS':
         catkeyword = 'HIERARCH ESO DPR CATG'
@@ -723,9 +726,14 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
     #         wave1d[i]=wave1d[i][0:min_npx1d]
     #         s1d[i]=s1d[i][0:min_npx1d]
     #         npx1d[i]=min_npx1d
-    output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
+    output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
+    'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+    'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
     return(output)
 
+def read_carmenes(inpath,filelist):
+    """Placeholder for reading CARMENES data"""
+    return
 
 
 

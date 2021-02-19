@@ -220,7 +220,7 @@ def running_MAD_2D(z,w,verbose=False):
     nx = size[1]
     s = np.arange(0,nx,dtype=float)*0.0
     dx1=int(0.5*w)
-    dx2=int(0.5*w)+(w%2)#To deal with odd windows.
+    dx2=int(int(0.5*w)+(w%2))#To deal with odd windows.
     for i in range(nx):
         minx = max([0,i-dx1])#This here is only a 3% slowdown.
         maxx = min([nx,i+dx2])
@@ -241,7 +241,7 @@ def running_MAD(z,w):
     nx = len(z)
     s = np.arange(0,nx,dtype=float)*0.0
     dx1=int(0.5*w)
-    dx2=int(0.5*w)+(w%2)#To deal with odd windows.
+    dx2=int(int(0.5*w)+(w%2))#To deal with odd windows.
     for i in range(nx):
         minx = max([0,i-dx1])
         maxx = min([nx,i+dx2])

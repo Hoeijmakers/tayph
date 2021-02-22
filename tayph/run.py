@@ -22,7 +22,8 @@ def make_project_folder(pwd='.'):
         try:
             root.mkdir(exist_ok=False)
         except FileExistsError:
-            print('cross_correlation subfolder already exists. Please provide an empty project folder to start.')
+            print('cross_correlation subfolder already exists. Please provide an empty project '
+            'folder to start.')
             sys.exit()
 
 
@@ -40,8 +41,8 @@ def start_run(configfile):
     It parses a configuration file located at configfile which should contain predefined keywords.
     These keywords are passed on to the run_instance routine, which executes the analysis cascade.
     A call to this function is called a "run" of Tayph. A run has this configuration file as input,
-    as well as a dataset, a (list of) cross-correlation template(s) and a (list of) models for injection
-    purposes.
+    as well as a dataset, a (list of) cross-correlation template(s) and a (list of) models for
+    injection purposes.
     """
     import tayph.system_parameters as sp
     cf = configfile
@@ -130,24 +131,38 @@ def run_instance(p):
     from tayph.ccf import xcor,clean_ccf,filter_ccf,construct_KpVsys
     from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest
     import tayph.shadow as shadow
-    # from lib import analysis
-    # from lib import cleaning
-    # from lib import masking as masking
-    # from lib import shadow as shadow
-    # from lib import molecfit as telcor
 
 
-#First parse the parameter dictionary into required variables and test them.
+    #First parse the parameter dictionary into required variables and test the datapath.
     typetest(p,dict,'params in run_instance()')
-
     dp = Path(p['dp'])
     ut.check_path(dp,exists=True)
 
-
+    #Read all the parameters.
     modellist = p['modellist']
     templatelist = p['templatelist']
     model_library = p['model_library']
     template_library = p['template_library']
+    shadowname = p['shadowname']
+    maskname = p['maskname']
+    RVrange = p['RVrange']
+    drv = p['drv']
+    f_w = p['f_w']
+    do_colour_correction=p['do_colour_correction']
+    do_telluric_correction=p['do_telluric_correction']
+    do_xcor=p['do_xcor']
+    plot_xcor=p['plot_xcor']
+    make_mask=p['make_mask']
+    apply_mask=p['apply_mask']
+    c_subtract=p['c_subtract']
+    do_berv_correction=p['do_berv_correction']
+    do_keplerian_correction=p['do_keplerian_correction']
+    make_doppler_model=p['make_doppler_model']
+    skip_doppler_model=p['skip_doppler_model']
+    resolution = sp.paramget('resolution',dp)
+    air = sp.paramget('air',dp)#Are wavelengths in air or not?
+
+    #All the checks
     typetest(modellist,[str,list],'modellist in run_instance()')
     typetest(templatelist,[str,list],'templatelist in run_instance()')
     typetest(model_library,str,'model_library in run_instance()')
@@ -160,18 +175,8 @@ def run_instance(p):
         templatelist = [templatelist]#Force this to be a list
     typetest_array(modellist,str,'modellist in run_instance()')
     typetest_array(templatelist,str,'modellist in run_instance()')
-
-
-    shadowname = p['shadowname']
-    maskname = p['maskname']
     typetest(shadowname,str,'shadowname in run_instance()')
     typetest(maskname,str,'shadowname in run_instance()')
-
-
-    RVrange = p['RVrange']
-    drv = p['drv']
-    f_w = p['f_w']
-    resolution = sp.paramget('resolution',dp)
     typetest(RVrange,[int,float],'RVrange in run_instance()')
     typetest(drv,[int,float],'drv in run_instance()')
     typetest(f_w,[int,float],'f_w in run_instance()')
@@ -184,19 +189,6 @@ def run_instance(p):
     postest(drv,'drv in run_instance()')
     postest(resolution,'resolution in run_instance()')
     notnegativetest(f_w,'f_w in run_instance()')
-
-
-    do_colour_correction=p['do_colour_correction']
-    do_telluric_correction=p['do_telluric_correction']
-    do_xcor=p['do_xcor']
-    plot_xcor=p['plot_xcor']
-    make_mask=p['make_mask']
-    apply_mask=p['apply_mask']
-    c_subtract=p['c_subtract']
-    do_berv_correction=p['do_berv_correction']
-    do_keplerian_correction=p['do_keplerian_correction']
-    make_doppler_model=p['make_doppler_model']
-    skip_doppler_model=p['skip_doppler_model']
     typetest(do_colour_correction,bool, 'do_colour_correction in run_instance()')
     typetest(do_telluric_correction,bool,'do_telluric_correction in run_instance()')
     typetest(do_xcor,bool,              'do_xcor in run_instance()')
@@ -208,49 +200,52 @@ def run_instance(p):
     typetest(do_keplerian_correction,bool,'do_keplerian_correction in run_instance()')
     typetest(make_doppler_model,bool,   'make_doppler_model in run_instance()')
     typetest(skip_doppler_model,bool,   'skip_doppler_model in run_instance()')
+    typetest(air,bool,'air in run_instance()')
 
 
 
-
-
-
-#We start by defining constants and preparing for generating output.
+    #We start by defining constants and preparing for generating output.
     c=const.c.value/1000.0#in km/s
-    colourdeg = 3#A fitting degree for the colour correction.
+    colourdeg = 3#A fitting degree for the colour correction. #should be set in the config file?
 
 
-    print(f'---Passed parameter input tests. Initiating output folder tree in {Path("output")/dp}.')
+    ut.tprint('---Passed parameter input tests. Initiating output folder tree in '
+    'f{Path("output")/dp}.')
     libraryname=str(template_library).split('/')[-1]
     if str(dp).split('/')[0] == 'data':
         dataname=str(dp).replace('data/','')
-        print(f'------Data is located in data/ folder. Assuming output name for this dataset as {dataname}')
+        ut.tprint('------Data is located in data/ folder. Assuming output name for this dataset as '
+        f'{dataname}')
     else:
         dataname=dp
-        print(f'------Data is NOT located in data/ folder. Assuming output name for this dataset as {dataname}')
+        ut.tprint('------Data is NOT located in data/ folder. Assuming output name for this '
+        f'dataset as {dataname}')
 
 
 
     list_of_wls=[]#This will store all the data.
-    list_of_orders=[]#All of it needs to be loaded into your memory.
-    list_of_sigmas=[]
+    list_of_orders=[]#All of it needs to be loaded into your memory, more than once.
+    list_of_sigmas=[]#Hope that's ok...
 
     trigger2 = 0#These triggers are used to limit the generation of output in the forloop.
     trigger3 = 0
-    n_negative_total = 0#This will hold the total number of pixels that were set to NaN because they were zero when reading in the data.
-    air = sp.paramget('air',dp)#Read bool from str in config file.
-    typetest(air,bool,'air in run_instance()')
+    n_negative_total = 0#This will hold the total number of pixels that were set to NaN because
+    #they were zero when reading in the data.
 
+
+    #Read in the file names from the datafolder.
     filelist_orders= [str(i) for i in Path(dp).glob('order_*.fits')]
-    if len(filelist_orders) == 0:
+    if len(filelist_orders) == 0:#If no order FITS files are found:
         raise Exception(f'Runtime error: No orders_*.fits files were found in {dp}.')
     try:
         order_numbers = [int(i.split('order_')[1].split('.')[0]) for i in filelist_orders]
     except:
-        raise Exception('Runtime error: Failed casting fits filename numerals to ints. Are the filenames of the spectral orders correctly formatted?')
+        raise Exception('Runtime error: Failed casting fits filename numerals to ints. Are the '
+        'filenames of the spectral orders correctly formatted?')
     order_numbers.sort()#This is the ordered list of numerical order IDs.
     n_orders = len(order_numbers)
     if n_orders == 0:
-        raise Exception(f'Runtime error: n_orders may not have ended up as zero. ({n_orders})')
+        raise Exception(f'Runtime error: n_orders may never have ended up as zero? ({n_orders})')
 
 
 
@@ -259,14 +254,11 @@ def run_instance(p):
 
 
 
-
-
-
-#Loading the data from the datafolder.
+    #Loading the data according to the file names identified.
     if do_xcor == True or plot_xcor == True or make_mask == True:
-        print(f'---Loading orders from {dp}.')
+        ut.tprint(f'---Loading orders from {dp}.')
 
-        # for i in range(startorder,endorder+1):
+
         for i in order_numbers:
             wavepath = dp/f'wave_{i}.fits'
             orderpath= dp/f'order_{i}.fits'
@@ -274,25 +266,48 @@ def run_instance(p):
             ut.check_path(wavepath,exists=True)
             ut.check_path(orderpath,exists=True)
             ut.check_path(sigmapath,exists=False)
-            wave_axis = fits.getdata(wavepath)
-            dimtest(wave_axis,[0],'wavelength grid in run_instance()')
-            n_px = len(wave_axis)#Pixel width of the spectral order.
-            if air == False:
-                if i == np.min(order_numbers):
-                    print("------Assuming wavelengths are in vaccuum.")
-                list_of_wls.append(1.0*wave_axis)
-            else:
-                if i == np.min(order_numbers):
-                    print("------Applying airtovac correction.")
-                list_of_wls.append(ops.airtovac(wave_axis))
-
+            wave_order = fits.getdata(wavepath)#2D or 1D?
             order_i = fits.getdata(orderpath)
+
+
+
+            #Check dimensionality of wave axis and order. Either 2D or 1D.
+            if wave_order.ndim == 2:
+                if i == np.min(order_numbers):
+                    ut.tprint('------Wavelength axes provided are 2-dimensional.')
+                n_px = np.shape(wave_order)[1]#Pixel width of the spectral order.
+                dimtest(wave_order,np.shape(order_i),'wave_order in tayph.run_instance()')
+                #Need to have same shape.
+            elif wave_order.ndim == 1:
+                if i == np.min(order_numbers):
+                    ut.tprint('------Wavelength axes provided are 1-dimensional.')
+                n_px = len(wave_order)
+                dimtest(order_i,[0,n_px],f'order {i} in run_instance()')
+            else:
+                raise Exception(f'Wavelength axis of order {i} is neither 1D nor 2D.')
+
             if i == np.min(order_numbers):
-                dimtest(order_i,[0,n_px],f'order {i} in run_instance()')#For the first order, check that it is 2D and that is has a width equal to n_px.
-                n_exp = np.shape(order_i)[0]#then fix n_exp. All other orders should have the same n_exp.
-                print(f'------{n_exp} exposures recognised.')
+                n_exp = np.shape(order_i)[0]#For the first order, we fix n_exp.
+                #All other orders should have the same n_exp.
+                ut.tprint(f'------{n_exp} exposures recognised.')
             else:
                 dimtest(order_i,[n_exp,n_px],f'order {i} in run_instance()')
+
+
+
+
+            #Deal with air or vaccuum wavelengths:
+            if air == False:
+                if i == np.min(order_numbers):
+                    ut.tprint("------Assuming wavelengths are in vaccuum.")
+                list_of_wls.append(copy.deepcopy(wave_order))
+            else:
+                if i == np.min(order_numbers):
+                    ut.tprint("------Applying airtovac correction.")
+                list_of_wls.append(ops.airtovac(wave_order))
+
+
+
 
             #Now test for negatives, set them to NaN and track them.
             n_negative = len(order_i[order_i <= 0])
@@ -304,19 +319,36 @@ def run_instance(p):
             postest(order_i,f'order {i} in run_instance().')#make sure whatever comes out here is strictly positive.
             list_of_orders.append(order_i)
 
-            try:#Try to get a sigma file. If it doesn't exist, we raise a warning. If it does, we test its dimensions and append it.
+
+
+
+            #Try to get a sigma file. If it doesn't exist, we raise a warning. If it does, we test
+            #its dimensions and append it.
+            try:
                 sigma_i = fits.getdata(sigmapath)
                 dimtest(sigma_i,[n_exp,n_px],f'order {i} in run_instance().')
                 list_of_sigmas.append(sigma_i)
             except FileNotFoundError:
                 if trigger2 == 0:
-                    print('------WARNING: Sigma (flux error) files not provided. Assuming sigma = sqrt(flux). This is standard practise for HARPS data, but e.g. ESPRESSO has a pipeline that computes standard errors on each pixel for you.')
+                    ut.tprint('------WARNING: Sigma (flux error) files not provided. '
+                    'Assuming sigma = sqrt(flux). This is standard practise for HARPS data, but '
+                    'e.g. ESPRESSO has a pipeline that computes standard errors on each pixel for you.')
                     trigger2=-1
                 list_of_sigmas.append(np.sqrt(order_i))
-        print(f"------{n_negative_total} negative values set to NaN ({np.round(100.0*n_negative_total/n_exp/n_px/len(order_numbers),2)}% of total spectral pixels in dataset.)")
 
+
+
+        #This ends the loop in which the data are read in. Print the final number of pixels that
+        #was vetted because they were negative.
+        ut.tprint(f'------{n_negative_total} negative values set to NaN in total'
+        f'({np.round(100.0*n_negative_total/n_exp/n_px/len(order_numbers),2)}% of total spectral '
+        'pixels in dataset.)')
+
+
+    #Test integrity just to be sure.
     if len(list_of_orders) != n_orders:
-        raise Exception('Runtime error: n_orders is not equal to the length of list_of_orders. Something went wrong when reading them in?')
+        raise Exception('Runtime error: n_orders is not equal to the length of list_of_orders. '
+        'Something went wrong when reading them in?')
 
     print('---Finished loading dataset to memory.')
 
@@ -342,9 +374,13 @@ def run_instance(p):
     # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',alpha=0.5) #plot SNR
     # plt.show()
     # pdb.set_trace()
-        
 
 
+    #NEED TO ADD IN READ_E2DS TO DEAL WITH CASES WHERE ALL WL AXES ARE THE SAME. SAVE THEM IN 1D.
+            #NEED TO ADD MIXED 1D&2D FUNCTIONALITY TO APPLY-TEL-CORR
+    #NEED TO MOVE MOLECFIT AND READ_E2DS TO RUNFILE SO THAT THE USER INPUT IS CENTRALISED.
+    #NEED TO ADD MODEL INJECTION
+    #NEED TO ADD CARMENES
 
 
 
@@ -353,49 +389,67 @@ def run_instance(p):
 #but before masking. Because the cross-correlation relies on columns being masked.
 #Then if you start to move the spectra around before removing the time-average,
 #each masked column becomes slanted. Bad deal.
-    rv_cor = 0
+    rv_cor = 0#This initialises as an int. If any of the following is true, it becomes a float.
     if do_berv_correction == True:
         rv_cor += sp.berv(dp)
     if do_keplerian_correction == True:
         rv_cor-=sp.RV_star(dp)*(1.0)
 
-    if type(rv_cor) != int and len(list_of_orders) > 0:
+    gamma = 1.0+(rv_cor*u.km/u.s/const.c)#Doppler factor.
+    if type(rv_cor) != int:
         print('---Reinterpolating data to correct velocities')
-        list_of_orders_cor = []
-        list_of_sigmas_cor = []
-        for i in range(len(list_of_wls)):
-            order = list_of_orders[i]
-            sigma = list_of_sigmas[i]
-            order_cor = order*0.0
-            sigma_cor = sigma*0.0
-            for j in range(len(list_of_orders[0])):
-                wl_i = interp.interp1d(list_of_wls[i],order[j],bounds_error=False)
-                si_i = interp.interp1d(list_of_wls[i],sigma[j],bounds_error=False)
-                wl_cor = list_of_wls[i]*(1.0-(rv_cor[j]*u.km/u.s/const.c))#The minus sign was tested on a slow-rotator.
-                order_cor[j] = wl_i(wl_cor)
-                sigma_cor[j] = si_i(wl_cor)#I checked that this works because it doesn't affect the SNR, apart from wavelength-shifting it.
-            list_of_orders_cor.append(order_cor)
-            list_of_sigmas_cor.append(sigma_cor)
-            ut.statusbar(i,fun.findgen(len(list_of_wls)))
-        # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue')
-        # plt.plot(list_of_wls[60],list_of_orders_cor[60][10]/list_of_sigmas_cor[60][10],color='red')
-        # plt.show()
-        # sys.exit()
-        list_of_orders = list_of_orders_cor
-        list_of_sigmas = list_of_sigmas_cor
+    else:
+        print('---Reinterpolating data to equalize wavelength axes')
+    list_of_orders_cor = []
+    list_of_sigmas_cor = []
+    list_of_wls_cor = []
+    for i in range(len(list_of_wls)):
+        order = list_of_orders[i]
+        sigma = list_of_sigmas[i]
+        order_cor = order*0.0
+        sigma_cor = sigma*0.0
+        if list_of_wls[i].ndim==2:
+            wl_cor = list_of_wls[i][0]#Interpolate onto the 1st wavelength axis of the series if 2D.
+        elif list_of_wls[i].ndim==1:
+            wl_cor = list_of_wls[i]
+        else:
+            raise Exception(f'Wavelength axis of order {i} is neither 1D nor 2D.')
+
+        for j in range(len(list_of_orders[0])):
+            gamma = 1.0+(rv_cor[j]*u.km/u.s/const.c)#Doppler factor.
+            # wl_cor = list_of_wls[i][j]*(1.0-(rv_cor[j]*u.km/u.s/const.c))#The minus sign was tested on a slow-rotator.
+            if list_of_wls[i].ndim==2:
+                order_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma,order[j],bounds_error=False)(wl_cor)
+                sigma_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma,sigma[j],bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the SNR, apart from wavelength-shifting it.
+            else:
+                order_cor[j] = interp.interp1d(list_of_wls[i]*gamma,order[j],bounds_error=False)(wl_cor)
+                sigma_cor[j] = interp.interp1d(list_of_wls[i]*gamma,sigma[j],bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the SNR, apart from wavelength-shifting it.
+        list_of_orders_cor.append(order_cor)
+        list_of_sigmas_cor.append(sigma_cor)
+        list_of_wls_cor.append(wl_cor)
+        ut.statusbar(i,fun.findgen(len(list_of_wls)))
+    # plt.plot(list_of_wls[60][3],list_of_orders[60][3]/list_of_sigmas[60][3],color='blue')
+    # plt.plot(list_of_wls_cor[60],list_of_orders_cor[60][3]/list_of_sigmas_cor[60][3],color='red')
+    # plt.show()
+
+    list_of_orders = list_of_orders_cor
+    list_of_sigmas = list_of_sigmas_cor
+    list_of_wls = list_of_wls_cor
+    #Now the spectra are telluric corrected and velocity corrected, and the wavelength axes have
+    #been collapsed from 2D to 1D (if they were 2D in the first place, e.g. for ESPRESSO).
+
+
 
     if len(list_of_orders) != n_orders:
-        raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it was before. Something went wrong during telluric correction or velocity correction.')
+        raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
+        'was before. Something went wrong during telluric correction or velocity correction.')
+
+    pdb.set_trace()
 
 
 
 
-
-
-
-
-
-#Compute / create a mask and save it to file (or not)
+    #Compute / create a mask and save it to file (or not)
     if make_mask == True and len(list_of_orders) > 0:
         if do_colour_correction == True:
             print('---Constructing mask with intra-order colour correction applied')
@@ -406,7 +460,7 @@ def run_instance(p):
             masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,40.0,5.0,manual=True)
         if apply_mask == False:
             print('---WARNING in run_instance: Mask was made but is not applied to data (apply_mask == False)')
-
+    pdb.set_trace()
 
 
 

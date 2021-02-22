@@ -177,9 +177,9 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
 
         #Load the telluric spectrum from my Google Drive:
         telluric_link = 'https://drive.google.com/uc?export=download&id=1yAtoLwI3h9nvZK0IpuhLvIpNc_1kjxha'
-        telpath = download_file(telluric_link,cache=True)
+        telpath = download_file(telluric_link)
         ttt=fits.getdata(telpath)
-        os.remove(telpath)#Free up the drive again.
+        os.remove(telpath)#Free up the downloaded diskspace again.
         fxt=ttt[1]
         wlt=ttt[0]
 
@@ -363,7 +363,10 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
     #put these into a new matrix and save them to FITS images:
     f=open(outpath/'obs_times','w',newline='\n')
     headerline = 'MJD'+'\t'+'DATE'+'\t'+'EXPTIME'+'\t'+'MEAN AIRMASS'+'\t'+'BERV (km/s)'+'\t'+'FILE NAME'
-    # pdb.set_trace()
+
+
+    n_1d = 0 #The number of orders for which the wavelength axes are all the same.
+    #This should be equal to norders. If it is not, we will trigger a warning.
     for i in range(norders):
         order = np.zeros((len(sorting),npx))
         wave_order = copy.deepcopy(order)
@@ -389,15 +392,38 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
             order = order[:,leftsize:npx_order-rightsize-1]
             wave_order=wave_order[:,leftsize:npx_order-rightsize-1]
 
-        fits.writeto(outpath/('order_'+str(i)+'.fits'),order,overwrite=True)
-        fits.writeto(outpath/('wave_'+str(i)+'.fits'),wave_order,overwrite=True)
+
+        #Finally, we check whether or not the wavelength axes are in fact all the same. If they are,
+        #we save only the first row:
+        first_wl = np.tile(wave_order[0],(len(sorting),1))
+
         if measure_RV:
             list_of_orders.append(order)
             list_of_waves.append(wave_order)
+
+
+        if np.allclose(wave_order,first_wl,rtol=1e-8):#If the wavelenght differences are smaller
+        #than 1 in 100,000,000, i.e. R = 100 million, i.e delta-v = 3 m/s. Quite stringent here.
+            n_1d+=1
+            wave_order = wave_order[0]
+
+
+
+        fits.writeto(outpath/('order_'+str(i)+'.fits'),order,overwrite=True)
+        fits.writeto(outpath/('wave_'+str(i)+'.fits'),wave_order,overwrite=True)
+
     f.close()
+    if n_1d > 0 and n_1d != norders:
+        ut.tprint('---WARNING: In some orders, the wavelength axes were equal for all exposures, '
+        f'but not for all orders ({n_1d} vs {norders}). For the orders where the wavelength axes '
+        'were the same, the wavelength axis was saved only once. For the others, it was saved as '
+        '2D arrays with shapes equal to the corresponding orders. This is not really a problem for '
+        'tayph or for molecfit, but it may indicate that numerical errors are slipping through, or '
+        'that there is an anomaly with the way the wavelengths are read from the FITS headers. '
+        'You are advised to investigate this.')
     print('\n \n \n')
     print(f'---Time-table written to {outpath/"obs_times"}.')
-
+    pdb.set_trace()
 
 
 

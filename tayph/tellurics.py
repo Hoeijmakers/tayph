@@ -185,7 +185,7 @@ def molecfit(dp,mode='HARPS',load_previous=False,save_individual=''):
             list_of_wls[int(i)] = wl*1000.0#Convert to nm.
             list_of_fxc[int(i)] = fx/trans
             list_of_trans[int(i)] = trans
-    write_telluric_transmission_to_file(list_of_wls,list_of_trans,outpath/'telluric_transmission_spectra.pkl')
+    write_telluric_transmission_to_file(list_of_wls,list_of_trans,dp/'telluric_transmission_spectra.pkl')
     # return(list_of_wls,list_of_trans)
 
 
@@ -583,6 +583,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
     import tayph.util as ut
     import tayph.functions as fun
     from tayph.vartests import dimtest,postest,typetest,nantest
+    import copy
     wlT,fxT = read_telluric_transmission_from_file(inpath)
     typetest(list_of_wls,list,'list_of_wls in apply_telluric_correction()')
     typetest(list_of_orders,list,'list_of_orders in apply_telluric_correction()')
@@ -591,42 +592,48 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
     typetest(fxT,list,'list of telluric transmission spectra in apply_telluric_correction()')
 
 
-    No = len(list_of_wls)
+    No = len(list_of_wls)#Number of orders.
     x = fun.findgen(No)
-
-    if No != len(list_of_orders):
-        raise Exception('Runtime error in telluric correction: List of data wls and List of orders '
-        'do not have the same length.')
-
     Nexp = len(wlT)
 
+
+    #Test dimensions
+    if No != len(list_of_orders):
+        raise Exception('Runtime error in telluric correction: List of wavelength axes and List '
+        'of orders do not have the same length.')
     if Nexp != len(fxT):
         raise Exception('Runtime error in telluric correction: List of telluric wls and telluric '
         'spectra read from file do not have the same length.')
-
     if Nexp !=len(list_of_orders[0]):
         raise Exception(f'Runtime error in telluric correction: List of telluric spectra and data'
         f'spectra read from file do not have the same length ({Nexp} vs {len(list_of_orders[0])}).')
+
+
+    #Corrected orders will be stored here.
     list_of_orders_cor = []
     list_of_sigmas_cor = []
-    # ut.save_stack('test.fits',list_of_orders)
-    # pdb.set_trace()
 
-    for i in range(No):#Do the correction order by order.
+
+    #Do the correction order by order:
+    for i in range(No):
         order = list_of_orders[i]
         order_cor = order*0.0
         error  = list_of_sigmas[i]
         error_cor = error*0.0
-        wl = list_of_wls[i]
-        dimtest(order,[0,len(wl)],f'order {i}/{No} in apply_telluric_correction()')
-        dimtest(error,np.shape(order),f'errors {i}/{No} in apply_telluric_correction()')
+        wl = copy.deepcopy(list_of_wls[i])#input wl axis, either 1D or 2D.
+        #If it is 1D, we make it 2D by tiling it vertically:
+        if wl.ndim == 1: wl=np.tile(wl,(Nexp,1))#Tile it into a 2D thing.
 
+        #If read (2D) or tiled (1D) correctly, wl and order should have the same shape:
+        dimtest(wl,np.shape(order),f'Wl axis of order {i}/{No} in apply_telluric_correction()')
+        dimtest(error,np.shape(order),f'errors {i}/{No} in apply_telluric_correction()')
         for j in range(Nexp):
-            T_i = interp.interp1d(wlT[j],fxT[j],fill_value="extrapolate")(wl)
+            T_i = interp.interp1d(wlT[j],fxT[j],fill_value="extrapolate")(wl[j])
             postest(T_i,f'T-spec of exposure {j} in apply_telluric_correction()')
             nantest(T_i,f'T-spec of exposure {j} in apply_telluric_correction()')
             order_cor[j]=order[j]/T_i
-            error_cor[j]=error[j]/T_i#I checked that this works because the SNR before and after telluric correction is identical.
+            error_cor[j]=error[j]/T_i#I checked that this works because the SNR before and after
+            #telluric correction is identical.
         list_of_orders_cor.append(order_cor)
         list_of_sigmas_cor.append(error_cor)
         ut.statusbar(i,x)
@@ -644,7 +651,8 @@ def set_molecfit_config():
     #Prepare for making formatted output.
     # terminal_height,terminal_width = subprocess.check_output(['stty', 'size']).split()
 
-    Q1 = 'In what folder are parameter files defined and should (intermediate) molecfit output be written to?'
+    Q1 = ('In what folder are parameter files defined and should (intermediate) molecfit output be '
+    'written to?')
     Q2 = 'In what folder is the molecfit binary located?'
     Q3 = 'What is your python 3.x alias?'
 

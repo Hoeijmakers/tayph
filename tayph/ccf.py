@@ -289,7 +289,7 @@ def clean_ccf(rv,ccf,ccf_e,dp):
         meanccf_e=1.0/np.sum(transit==1)*np.sqrt(np.nansum(ccf_ne[transit == 1.0,:]**2.0,axis=0))#I validated that this is approximately equal
         #to sqrt(N)*ccf_ne, where N is the number of out-of-transit exposures.
     if np.min(transit) == 1.0:
-        print('------WARNING in Cleaning: The data is not predicted to contain in-transit exposures.')
+        print('------WARNING in clean_ccf: The data is not predicted to contain in-transit exposures.')
         print('------If you expect to be dealing with transit-data, please check the ephemeris at %s.'%dp)
         sys.exit()
 

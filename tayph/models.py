@@ -101,15 +101,12 @@ def get_model(name,library='models/library',root='models'):
     import errno
     import os
     typetest(name,str,'name in mod.get_model()')
-    check_path(library,exists=True)
+    library=check_path(library,exists=True)
+    root=check_path(root,exists=True)
 
-    check_path(root,exists=True)
-    root = Path(root)
-    library = Path(library)
+
     #First open the library file.
-
     f = open(library, 'r')
-
     x = f.read().splitlines()#Read everything into a big string array.
     f.close()
     n_lines=len(x)#Number of models in the library.

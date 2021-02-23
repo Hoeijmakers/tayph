@@ -824,7 +824,7 @@ def apply_mask_from_file(dp,maskname,list_of_orders):
     inpath_man = Path(dp)/(maskname+'_manual.fits')
 
     if os.path.isfile(inpath_auto) ==  False and os.path.isfile(inpath_man) == False:
-        raise Exception(f'FileNotFoundError in reading mask from file: Both mask files named {maskname} do not exist at {str(dp)}.')
+        raise Exception(f'FileNotFoundError in reading mask from file: Both mask files named {maskname} do not exist at {str(dp)}. Rerun with make_maske = True.')
 
     #At this point either of the mask files is determined to exist.
     #Apply the masks to the orders, by adding. This works because the mask is zero

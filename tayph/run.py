@@ -85,6 +85,7 @@ def start_run(configfile):
             'do_colour_correction':sp.paramget('do_colour_correction',cf,full_path=True),
             'do_telluric_correction':sp.paramget('do_telluric_correction',cf,full_path=True),
             'do_xcor':sp.paramget('do_xcor',cf,full_path=True),
+            'inject_model':sp.paramget('inject_model',cf,full_path=True),
             'plot_xcor':sp.paramget('plot_xcor',cf,full_path=True),
             'make_mask':sp.paramget('make_mask',cf,full_path=True),
             'apply_mask':sp.paramget('apply_mask',cf,full_path=True),
@@ -151,6 +152,7 @@ def run_instance(p):
     do_colour_correction=p['do_colour_correction']
     do_telluric_correction=p['do_telluric_correction']
     do_xcor=p['do_xcor']
+    inject_model=p['inject_model']
     plot_xcor=p['plot_xcor']
     make_mask=p['make_mask']
     apply_mask=p['apply_mask']
@@ -192,6 +194,7 @@ def run_instance(p):
     typetest(do_colour_correction,bool, 'do_colour_correction in run_instance()')
     typetest(do_telluric_correction,bool,'do_telluric_correction in run_instance()')
     typetest(do_xcor,bool,              'do_xcor in run_instance()')
+    typetest(inject_model,bool,         'inject_model in run_instance()')
     typetest(plot_xcor,bool,            'plot_xcor in run_instance()')
     typetest(make_mask,bool,            'make_mask in run_instance()')
     typetest(apply_mask,bool,           'apply_mask in run_instance()')
@@ -315,8 +318,10 @@ def run_instance(p):
                 print("------Setting negative values to NaN.")
                 trigger3 = -1
             n_negative_total+=n_negative
-            order_i[order_i <= 0] = np.nan #This is very important for later when we are computing average spectra and the like, to avoid divide-by-zero cases.
-            postest(order_i,f'order {i} in run_instance().')#make sure whatever comes out here is strictly positive.
+            order_i[order_i <= 0] = np.nan #This is very important for later when we are computing
+            #average spectra and the like, to avoid divide-by-zero cases.
+            postest(order_i,f'order {i} in run_instance().')#make sure whatever comes out here is
+            #strictly positive.
             list_of_orders.append(order_i)
 
 
@@ -332,7 +337,8 @@ def run_instance(p):
                 if trigger2 == 0:
                     ut.tprint('------WARNING: Sigma (flux error) files not provided. '
                     'Assuming sigma = sqrt(flux). This is standard practise for HARPS data, but '
-                    'e.g. ESPRESSO has a pipeline that computes standard errors on each pixel for you.')
+                    'e.g. ESPRESSO has a pipeline that computes standard errors on each pixel for '
+                    'you.')
                     trigger2=-1
                 list_of_sigmas.append(np.sqrt(order_i))
 
@@ -342,7 +348,7 @@ def run_instance(p):
         #was vetted because they were negative.
         ut.tprint(f'------{n_negative_total} negative values set to NaN in total'
         f'({np.round(100.0*n_negative_total/n_exp/n_px/len(order_numbers),2)}% of total spectral '
-        'pixels in dataset.)')
+        'pixels in dataset).')
 
 
     #Test integrity just to be sure.
@@ -361,26 +367,26 @@ def run_instance(p):
 
 #Apply telluric correction file or not.
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='red')
-    # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='red',alpha=0.5)#plot corrected spectra
-    # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='red',alpha=0.5)#plot SNR
+    # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='red',alpha=0.5)
+    ##plot corrected spectra
+    # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='red',alpha=0.5)
+    ##plot SNR
     if do_telluric_correction == True and n_orders > 0:
         print('---Applying telluric correction')
         telpath = dp/'telluric_transmission_spectra.pkl'
-        list_of_orders,list_of_sigmas = telcor.apply_telluric_correction(telpath,list_of_wls,list_of_orders,list_of_sigmas)
+        list_of_orders,list_of_sigmas = telcor.apply_telluric_correction(telpath,list_of_wls,
+        list_of_orders,list_of_sigmas)
 
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='blue')
-    # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='blue',alpha=0.5)#plot corrected spectra
+    # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='blue',alpha=0.5)
+    ##plot corrected spectra
 
-    # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',alpha=0.5) #plot SNR
+    # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',alpha=0.5)
+    ##plot SNR
     # plt.show()
     # pdb.set_trace()
 
 
-            #NEED TO ADD IN READ_E2DS TO DEAL WITH CASES WHERE ALL WL AXES ARE THE SAME. SAVE THEM IN 1D.
-            #NEED TO ADD MIXED 1D&2D FUNCTIONALITY TO APPLY-TEL-CORR
-    #NEED TO MOVE MOLECFIT AND READ_E2DS TO RUNFILE SO THAT THE USER INPUT IS CENTRALISED.
-    #NEED TO ADD MODEL INJECTION
-    #NEED TO ADD CARMENES
 
 
 
@@ -417,13 +423,20 @@ def run_instance(p):
 
         for j in range(len(list_of_orders[0])):
             gamma = 1.0+(rv_cor[j]*u.km/u.s/const.c)#Doppler factor.
-            # wl_cor = list_of_wls[i][j]*(1.0-(rv_cor[j]*u.km/u.s/const.c))#The minus sign was tested on a slow-rotator.
+            # wl_cor = list_of_wls[i][j]*(1.0-(rv_cor[j]*u.km/u.s/const.c))#The minus sign was
+            #tested on a slow-rotator.
             if list_of_wls[i].ndim==2:
-                order_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma,order[j],bounds_error=False)(wl_cor)
-                sigma_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma,sigma[j],bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the SNR, apart from wavelength-shifting it.
+                order_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma,order[j],
+                bounds_error=False)(wl_cor)
+                sigma_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma,sigma[j],
+                bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
+                #SNR, apart from wavelength-shifting it.
             else:
-                order_cor[j] = interp.interp1d(list_of_wls[i]*gamma,order[j],bounds_error=False)(wl_cor)
-                sigma_cor[j] = interp.interp1d(list_of_wls[i]*gamma,sigma[j],bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the SNR, apart from wavelength-shifting it.
+                order_cor[j] = interp.interp1d(list_of_wls[i]*gamma,order[j],
+                bounds_error=False)(wl_cor)
+                sigma_cor[j] = interp.interp1d(list_of_wls[i]*gamma,sigma[j],
+                bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
+                #SNR, apart from wavelength-shifting it.
         list_of_orders_cor.append(order_cor)
         list_of_sigmas_cor.append(sigma_cor)
         list_of_wls_cor.append(wl_cor)
@@ -444,8 +457,6 @@ def run_instance(p):
         raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
         'was before. Something went wrong during telluric correction or velocity correction.')
 
-    pdb.set_trace()
-
 
 
 
@@ -453,15 +464,16 @@ def run_instance(p):
     if make_mask == True and len(list_of_orders) > 0:
         if do_colour_correction == True:
             print('---Constructing mask with intra-order colour correction applied')
-            masking.mask_orders(list_of_wls,ops.normalize_orders(list_of_orders,list_of_sigmas,colourdeg)[0],dp,maskname,40.0,5.0,manual=True)
+            masking.mask_orders(list_of_wls,ops.normalize_orders(list_of_orders,list_of_sigmas,
+            colourdeg)[0],dp,maskname,40.0,5.0,manual=True)
         else:
-            print('---Constructing mask WITHOUT intra-order colour correction applied.')
-            print('---Switch on colour correction if you see colour variations in the 2D spectra.')
+            ut.tprint('---Constructing mask WITHOUT intra-order colour correction applied.')
+            ut.tprint('---Switch on colour correction if you see colour variations in the 2D '
+                'spectra.')
             masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,40.0,5.0,manual=True)
         if apply_mask == False:
-            print('---WARNING in run_instance: Mask was made but is not applied to data (apply_mask == False)')
-    pdb.set_trace()
-
+            ut.print('---WARNING in run_instance: Mask was made but is not applied to data '
+                '(apply_mask == False)')
 
 
 
@@ -474,32 +486,46 @@ def run_instance(p):
 #Interpolate over all isolated NaNs and set bad columns to NaN (so that they are ignored in the CCF)
     if do_xcor == True:
         print('---Healing NaNs')
-        list_of_orders = masking.interpolate_over_NaNs(list_of_orders)#THERE IS AN ISSUE HERE: INTERPOLATION SHOULD ALSO HAPPEN ON THE SIGMAS ARRAY!
+        list_of_orders = masking.interpolate_over_NaNs(list_of_orders)#THERE IS AN ISSUE HERE:
+        #INTERPOLATION SHOULD ALSO HAPPEN ON THE SIGMAS ARRAY!
         list_of_sigmas = masking.interpolate_over_NaNs(list_of_sigmas)
 
 
+        #This is the point from which model injection will also start.
+        #List_of_orders and list_of_wls are taken to inject the models into below,
+        #after first the data is correlated.
 
 
-#Normalize the orders to their average flux in order to effectively apply a broad-band colour correction (colour is typically a function of airmass and seeing).
+
+
+
+    #Normalize the orders to their average flux in order to effectively apply a broad-band colour
+    #correction (colour is typically a function of airmass and seeing).
     if do_colour_correction == True:
         print('---Normalizing orders to common flux level')
         # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',alpha=0.4)
-        list_of_orders_normalised,list_of_sigmas_normalised,meanfluxes = ops.normalize_orders(list_of_orders,list_of_sigmas,colourdeg)#I tested that this works because it doesn't alter the SNR.
+        list_of_orders_normalised,list_of_sigmas_normalised,meanfluxes = (
+        ops.normalize_orders(list_of_orders,list_of_sigmas,colourdeg))#I tested that this works
+        #because it doesn't alter the SNR.
 
         meanfluxes_norm = meanfluxes/np.nanmean(meanfluxes)
     else:
         meanfluxes_norm = fun.findgen(len(list_of_orders[0]))*0.0+1.0#All unity.
-        # plt.plot(list_of_wls[60],list_of_orders_normalised[60][10]/list_of_sigmas[60][10],color='red',alpha=0.4)
+        # plt.plot(list_of_wls[60],list_of_orders_normalised[60][10]/list_of_sigmas[60][10],
+        # color='red',alpha=0.4)
         # plt.show()
         # sys.exit()
 
     if len(list_of_orders) != n_orders:
-        raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it was before. Something went wrong during masking or colour correction.')
+        raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
+            'was before. Something went wrong during masking or colour correction.')
 
 
 
 
-#Construct the cross-correlation templates in case we will be computing or plotting the CCF.
+        #Construct the cross-correlation templates in case we will be computing or plotting the CCF.
+        #These will be saved in lists so that they can be used twice if necessary: once for the
+        #data and once for the injected models.
     if do_xcor == True or plot_xcor == True:
 
         list_of_wlts = []
@@ -507,11 +533,14 @@ def run_instance(p):
         outpaths = []
 
         for templatename in templatelist:
-            print(f'---Building template {templatename}')
-            wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,template_library=template_library,c_subtract=c_subtract)
+            ut.tprint(f'---Building template {templatename}')
+            wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,
+                template_library=template_library,c_subtract=c_subtract)
             T*=(-1.0)
             if np.mean(wlt) < 50.0:#This is likely in microns:
-                print('------WARNING: The loaded template has a mean wavelength less than 50.0, meaning that it is very likely not in nm, but in microns. I have divided by 1,000 now and hope for the best...')
+                ut.tprint('------WARNING: The loaded template has a mean wavelength less than 50.0,'
+                'meaning that it is very likely not in nm, but in microns. I have divided by 1,000'
+                'now and hope for the best...')
                 wlt*=1000.0
             list_of_wlts.append(wlt)
             list_of_templates.append(T)
@@ -519,76 +548,86 @@ def run_instance(p):
             outpath=Path('output')/Path(dataname)/Path(libraryname)/Path(templatename)
 
             if not os.path.exists(outpath):
-                print(f"------The output location ({outpath}) didn't exist, I made it now.")
+                ut.tprint(f"------The output location ({outpath}) didn't exist, I made it now.")
                 os.makedirs(outpath)
             outpaths.append(outpath)
 
 
 
-#Perform the cross-correlation on the entire list of orders.
+    #Perform the cross-correlation on the entire list of orders.
     for i in range(len(list_of_wlts)):
         templatename = templatelist[i]
         wlt = list_of_wlts[i]
         T = list_of_templates[i]
         outpath = outpaths[i]
         if do_xcor == True:
-            print(f'---Cross-correlating spectra with template {templatename}.')
+            ut.tprint(f'---Cross-correlating spectra with template {templatename}.')
             t1=ut.start()
-            rv,ccf,ccf_e,Tsums=xcor(list_of_wls,list_of_orders_normalised,np.flipud(np.flipud(wlt)),T,drv,RVrange,list_of_errors=list_of_sigmas_normalised)
+            rv,ccf,ccf_e,Tsums=xcor(list_of_wls,list_of_orders_normalised,np.flipud(np.flipud(wlt)),
+            T,drv,RVrange,list_of_errors=list_of_sigmas_normalised)
             ut.end(t1)
-            print(f'------Writing CCFs to {str(outpath)}')
+            ut.tprint(f'------Writing CCFs to {str(outpath)}')
             ut.writefits(outpath/'ccf.fits',ccf)
             ut.writefits(outpath/'ccf_e.fits',ccf_e)
             ut.writefits(outpath/'RV.fits',rv)
             ut.writefits(outpath/'Tsum.fits',Tsums)
         else:
-            print(f'---Reading CCFs with template {templatename} from {str(outpath)}.')
+            ut.tprint(f'---Reading CCFs with template {templatename} from {str(outpath)}.')
             if os.path.isfile(outpath/'ccf.fits') == False:
-                raise FileNotFoundError(f'CCF output not located at {outpath}. Rerun with do_xcor=True to create these files?')
+                raise FileNotFoundError(f'CCF output not located at {outpath}. Rerun with '
+                'do_xcor=True to create these files.')
         rv=fits.getdata(outpath/'RV.fits')
         ccf = fits.getdata(outpath/'ccf.fits')
         ccf_e = fits.getdata(outpath/'ccf_e.fits')
         Tsums = fits.getdata(outpath/'Tsum.fits')
 
 
-
-        ccf_cor = ccf*1.0
-        ccf_e_cor = ccf_e*1.0
-
-        print('---Cleaning CCFs')
-        ccf_n,ccf_ne,ccf_nn,ccf_nne= clean_ccf(rv,ccf_cor,ccf_e_cor,dp)
+        ut.tprint('---Cleaning CCFs')
+        ccf_n,ccf_ne,ccf_nn,ccf_nne= clean_ccf(rv,ccf,ccf_e,dp)
 
         if make_doppler_model == True and skip_doppler_model == False:
-            shadow.construct_doppler_model(rv,ccf_nn,dp,shadowname,xrange=[-200,200],Nxticks=20.0,Nyticks=10.0)
-            make_doppler_model = False # This sets it to False after it's been run once, for the first template.
+            shadow.construct_doppler_model(rv,ccf_nn,dp,shadowname,xrange=[-200,200],Nxticks=20.0,
+            Nyticks=10.0)
+            make_doppler_model = False # This sets it to False after it's been run once, for the
+            # first template.
         if skip_doppler_model == False:
-            print('---Reading doppler shadow model from '+shadowname)
-            doppler_model,dsmask = shadow.read_shadow(dp,shadowname,rv,ccf)#This returns both the model evaluated on the rv,ccf grid, as well as the mask that blocks the planet trace.
-            ccf_clean,matched_ds_model = shadow.match_shadow(rv,ccf_nn,dsmask,dp,doppler_model)#THIS IS AN ADDITIVE CORRECTION, SO CCF_NNE DOES NOT NEED TO BE ALTERED AND IS STILL VALID VOOR CCF_CLEAN
+            ut.tprint(f'---Reading doppler shadow model from {shadowname}')
+            doppler_model,dsmask = shadow.read_shadow(dp,shadowname,rv,ccf)#This returns both the
+            #model evaluated on the rv,ccf grid, as well as the mask that blocks the planet trace.
+            ccf_clean,matched_ds_model = shadow.match_shadow(rv,ccf_nn,dsmask,dp,doppler_model)
+            #THIS IS AN ADDITIVE CORRECTION, SO CCF_NNE DOES NOT NEED TO BE ALTERED AND IS STILL V
+            #ALID VOOR CCF_CLEAN
         else:
-            print('---Not performing shadow correction')
+            ut.tprint('---Not performing shadow correction')
             ccf_clean = ccf_nn*1.0
             matched_ds_model = ccf_clean*0.0
 
 
+
+
+        #High-pass filtering
         if f_w > 0.0:
-            print('---Performing high-pass filter on the CCF')
-            ccf_clean_filtered,wiggles = filter_ccf(rv,ccf_clean,v_width = f_w)#THIS IS ALSO AN ADDITIVE CORRECTION, SO CCF_NNE IS STILL VALID.
+            ut.tprint('---Performing high-pass filter on the CCF')
+            ccf_clean_filtered,wiggles = filter_ccf(rv,ccf_clean,v_width = f_w)#THIS IS ALSO AN
+            #ADDITIVE CORRECTION, SO CCF_NNE IS STILL VALID.
         else:
-            print('---Skipping high-pass filter')
+            ut.tprint('---Skipping high-pass filter')
             ccf_clean_filtered = ccf_clean*1.0
             wiggles = ccf_clean*0.0#This filtering is additive so setting to zero is accurate.
 
-        print('---Weighing CCF rows by mean fluxes that were normalised out')
-        ccf_clean_weighted = np.transpose(np.transpose(ccf_clean_filtered)*meanfluxes_norm)#MULTIPLYING THE AVERAGE FLUXES BACK IN! NEED TO CHECK THAT THIS ALSO GOES PROPERLY WITH THE ERRORS!
+        ut.tprint('---Weighing CCF rows by mean fluxes that were normalised out')
+        ccf_clean_weighted = np.transpose(np.transpose(ccf_clean_filtered)*meanfluxes_norm)
+        #MULTIPLYING THE AVERAGE FLUXES BACK IN! NEED TO CHECK THAT THIS ALSO GOES PROPERLY WITH
+        #THE ERRORS!
         ccf_nne = np.transpose(np.transpose(ccf_nne)*meanfluxes_norm)
 
-        ut.save_stack(outpath/'cleaning_steps.fits',[ccf,ccf_cor,ccf_nn,ccf_clean,matched_ds_model,ccf_clean_filtered,wiggles,ccf_clean_weighted])
+        ut.save_stack(outpath/'cleaning_steps.fits',[ccf,ccf_nn,ccf_clean,matched_ds_model,
+        ccf_clean_filtered,wiggles,ccf_clean_weighted])
         ut.writefits(outpath/'ccf_cleaned.fits',ccf_clean_weighted)
         ut.writefits(outpath/'ccf_cleaned_error.fits',ccf_nne)
 
 
-        print('---Constructing KpVsys')
+        ut.tprint('---Constructing KpVsys')
         Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp)
         ut.writefits(outpath/'KpVsys.fits',KpVsys)
         ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
@@ -597,202 +636,105 @@ def run_instance(p):
 
 
 
-    return
-    sys.exit()
-
-
-    if plot_xcor == True and inject_model == False:
-        print('---Plotting KpVsys')
-        analysis.plot_KpVsys(rv,Kp,KpVsys,dp)
-
-
-
-
-
     #Now repeat it all for the model injection.
-    if inject_model == True:
+    if inject_model == True and do_xcor == True:
         for modelname in modellist:
-            outpath_i = outpath+modelname+'/'
             if do_xcor == True:
                 print('---Injecting model '+modelname)
-                list_of_orders_injected=models.inject_model(list_of_wls,list_of_orders,dp,modelname,model_library=model_library)#Start with the unnormalised orders from before.
+                list_of_orders_injected=models.inject_model(list_of_wls,list_of_orders,dp,modelname,
+                model_library=model_library)#Start with the unnormalised orders from before.
                 #Normalize the orders to their average flux in order to effectively apply
                 #a broad-band colour correction (colour is a function of airmass and seeing).
                 if do_colour_correction == True:
                     print('------Normalizing injected orders to common flux level')
-                    list_of_orders_injected,list_of_sigmas_injected,meanfluxes_injected = ops.normalize_orders(list_of_orders_injected,list_of_sigmas,colourdeg)
+                    list_of_orders_injected,list_of_sigmas_injected,meanfluxes_injected = (
+                    ops.normalize_orders(list_of_orders_injected,list_of_sigmas,colourdeg))
                     meanfluxes_norm_injected = meanfluxes_injected/np.mean(meanfluxes_injected)
                 else:
-                    meanfluxes_norm_injected = fun.findgen(len(list_of_orders_injected[0]))*0.0+1.0#All unity.
+                    meanfluxes_norm_injected = fun.findgen(len(list_of_orders_injected[0]))*0.0+1.0
 
-
-                print('------Cross-correlating injected orders')
-                rv_i,ccf_i,ccf_e_i,Tsums_i=analysis.xcor(list_of_wls,list_of_orders_injected,np.flipud(np.flipud(wlt)),T,drv,RVrange,list_of_errors=list_of_sigmas_injected)
-                print('------Writing injected CCFs to '+outpath_i)
-                if not os.path.exists(outpath_i):
-                    print("---------That path didn't exist, I made it now.")
-                    os.makedirs(outpath_i)
-                ut.writefits(outpath_i+'/'+'ccf_i_'+modelname+'.fits',ccf_i)
-                ut.writefits(outpath_i+'/'+'ccf_e_i_'+modelname+'.fits',ccf_e_i)
-            else:
-                print('---Reading injected CCFs from '+outpath_i)
-                if os.path.isfile(outpath_i+'ccf_i_'+modelname+'.fits') == False:
-                    print('------ERROR: Injected CCF not located at '+outpath_i+'ccf_i_'+modelname+'.fits'+'. Set do_xcor and inject_model to True?')
-                    sys.exit()
-                if os.path.isfile(outpath_i+'ccf_e_i_'+modelname+'.fits') == False:
-                    print('------ERROR: Injected CCF error not located at '+outpath_i+'ccf_e_i_'+modelname+'.fits'+'. Set do_xcor and inject_model to True?')
-                    sys.exit()
-                # f.close()
-                # f2.close()
-                ccf_i = fits.getdata(outpath_i+'ccf_i_'+modelname+'.fits')
-                ccf_e_i = fits.getdata(outpath_i+'ccf_e_i_'+modelname+'.fits')
-
-
-
-            print('---Cleaning injected CCFs')
-            ccf_n_i,ccf_ne_i,ccf_nn_i,ccf_nne_i = cleaning.clean_ccf(rv,ccf_i,ccf_e_i,dp)
-            ut.writefits(outpath_i+'ccf_normalized_i.fits',ccf_nn_i)
-            ut.writefits(outpath_i+'ccf_ne_i.fits',ccf_ne_i)
-
-            # if make_doppler_model == True and skip_doppler_model == False:
-                # shadow.construct_doppler_model(rv,ccf_nn,dp,shadowname,xrange=[-200,200],Nxticks=20.0,Nyticks=10.0)
-            if skip_doppler_model == False:
-                # print('---Reading doppler shadow model from '+shadowname)
-                # doppler_model,maskHW = shadow.read_shadow(dp,shadowname,rv,ccf)
-                ccf_clean_i,matched_ds_model_i = shadow.match_shadow(rv,ccf_nn_i,dp,doppler_model,maskHW)
-            else:
-                print('---Not performing shadow correction on injected spectra either.')
-                ccf_clean_i = ccf_nn_i*1.0
-                matched_ds_model_i = ccf_clean_i*0.0
-
-            if f_w > 0.0:
-                ccf_clean_i_filtered,wiggles_i = cleaning.filter_ccf(rv,ccf_clean_i,v_width = f_w)
-            else:
-                ccf_clean_i_filtered = ccf_clean_i*1.0
+            #Perform the cross-correlation on the entire list of orders.
+            for i in range(len(list_of_wlts)):
+                templatename = templatelist[i]
+                wlt = list_of_wlts[i]
+                T = list_of_templates[i]
+                outpath_i = outpaths[i]/modelname
+                #Save the correlation results in subfolders of the template, which was in:
+                    #Path('output')/Path(dataname)/Path(libraryname)/Path(templatename)
+                if do_xcor == True:
+                    ut.tprint('------Cross-correlating injected orders')
+                    rv_i,ccf_i,ccf_e_i,Tsums_i=xcor(list_of_wls,list_of_orders_injected,np.flipud(
+                        np.flipud(wlt)),T,drv,RVrange,list_of_errors=list_of_sigmas_injected)
+                    ut.tprint(f'------Writing injected CCFs to {outpath_i}')
+                    if not os.path.exists(outpath_i):
+                        ut.tprint("---------That path didn't exist, I made it now.")
+                        os.makedirs(outpath_i)
+                    ut.writefits(outpath_i/'ccf_i.fits',ccf_i)
+                    ut.writefits(outpath_i/'ccf_e_i.fits',ccf_e_i)
+                    ut.writefits(outpath_i/'RV.fits',rv_i)
+                    ut.writefits(outpath_i/'Tsum.fits',Tsums_i)
+                else:
+                    ut.tprint(f'---Reading injected CCFs from {outpath_i}')
+                    if os.path.isfile(outpath_i/'ccf_i.fits') == False:
+                        raise FileNotFoundError(f'Injected CCF not located at {str(outpath_i)} '
+                        'Rerun do_xcor=True and inject_model=True to create these files.')
+                    rv_i = fits.getdata(outpath_i/'RV.fits')
+                    ccf_i = fits.getdata(outpath_i/'ccf_i.fits')
+                    ccf_e_i = fits.getdata(outpath_i/'ccf_e_i.fits')
+                    Tsums_i = fits.getdata(outpath_i/'Tsum.fits')
 
 
 
-            ut.writefits(outpath_i+'ccf_cleaned_i.fits',ccf_clean_i_filtered)
-            ut.writefits(outpath+'ccf_cleaned_i_error.fits',ccf_nne)
-
-            print('---Weighing injected CCF rows by mean fluxes that were normalised out')
-            ccf_clean_i_filtered = np.transpose(np.transpose(ccf_clean_i_filtered)*meanfluxes_norm_injected)#MULTIPLYING THE AVERAGE FLUXES BACK IN! NEED TO CHECK THAT THIS ALSO GOES PROPERLY WITH THE ERRORS!
-            ccf_nne_i = np.transpose(np.transpose(ccf_nne_i)*meanfluxes_norm_injected)
-
-            print('---Constructing injected KpVsys')
-            Kp,KpVsys_i,KpVsys_e_i = analysis.construct_KpVsys(rv,ccf_clean_i_filtered,ccf_nne_i,dp)
-            ut.writefits(outpath_i+'KpVsys_i.fits',KpVsys_i)
-            # ut.writefits(outpath+'KpVsys_e_i.fits',KpVsys_e_i)
-            if plot_xcor == True:
-                print('---Plotting KpVsys with '+modelname+' injected.')
-                analysis.plot_KpVsys(rv,Kp,KpVsys,dp,injected=KpVsys_i)
-    # print('OK')
-    # sys.exit()
+                ut.tprint('---Cleaning injected CCFs')
+                ccf_n_i,ccf_ne_i,ccf_nn_i,ccf_nne_i = cleaning.clean_ccf(rv_i,ccf_i,ccf_e_i,dp)
 
 
-
-    # if plot_xcor == True:
-    #     print('---Plotting 2D CCF')
-    #     print("---THIS NEEDS TO BE REVAMPED!")
-        # analysis.plot_ccf(rv,ccf_nn,dp,xrange=[-200,200],Nticks=20.0,doppler_model = doppler_rv)
-        # analysis.plot_ccf(rv,ccf_ds_model,dp,xrange=[-200,200],Nticks=20.0,doppler_model = doppler_rv)
-        # analysis.plot_ccf(rv,ccf_clean,dp,xrange=[-200,200],Nticks=20.0,doppler_model = doppler_rv)
-
-    # ut.save_stack('test.fits',[ccf_n,ccf_nn,ccf_ne,ccf_nne])
-    # pdb.set_trace()
-
-
-
-
-#The following tests XCOR on synthetic orders.
-#wlm = fun.findgen(2e6)/10000.0+650.0
-#fxm = wlm*0.0
-#fxm[[(fun.findgen(400)*4e3+1e3).astype(int)]] = 1.0
-#px_scale=wlm[1]-wlm[0]
-#dldv = np.min(wlm) / c /px_scale
-#T=ops.smooth(fxm,dldv * 5.0)
-#fxm_b=ops.smooth(fxm,dldv * 20.0,mode='gaussian')
-#plt.plot(wlm,T)
-#plt.plot(wlm,fxm_b)
-#plt.show()
-#ii = interpolate.interp1d(wlm,fxm_b)
-#dspec = ii(wl)
-#order = fun.rebinreform(dspec/np.max(dspec),30)
-#fits.writeto('test.fits',order,overwrite=True)
-#ccf=analysis.xcor([wl,wl,wl+0.55555555555],[order,order*3.0,order*5.0],wlm,T,drv,RVrange)
-
-# meanspec=np.mean(order1,axis=0)
-# meanspec-=min(meanspec)
-# meanspec/=np.max(meanspec)
-# T-=np.min(T)
-# T/=np.median(T)
-# T-=np.max(T[(wlt >= min(wl1)) & (wlt <= max(wl1))])
-# plt.plot(wl1,meanspec)
-# plt.plot(wlt*(1.0-200.0/300000.0),T)
-# plt.xlim((min(wl1),max(wl1)))
-# plt.show()
+                if skip_doppler_model == False:
+                    # ut.tprint(f'---Reading doppler shadow model from {shadowname}')
+                    # doppler_model,maskHW = shadow.read_shadow(dp,shadowname,rv,ccf)#This does not
+                    #need to be repeated because it was already done during the correlation with
+                    #the data.
+                    ccf_clean_i,matched_ds_model_i = shadow.match_shadow(rv_i,ccf_nn_i,dp,
+                        doppler_model)
+                else:
+                    ut.tprint('---Not performing shadow correction on injected spectra either.')
+                    ccf_clean_i = ccf_nn_i*1.0
+                    matched_ds_model_i = ccf_clean_i*0.0
 
 
-# plt.plot(wlt,T)
-# plt.show()
+                #High-pass filtering
+                if f_w > 0.0:
+                    ccf_clean_i_filtered,wiggles_i = filter_ccf(rv_i,ccf_clean_i,v_width = f_w)
+                else:
+                    ut.tprint('---Skipping high-pass filter')
+                    ccf_clean_i_filtered = ccf_clean_i*1.0
+                    wiggles_i = ccf_clean*0.0
 
 
-# analysis.plot_RV_star(dp,rv,ccf,RVrange=[-50,100]) #THis entire function is probably obsolete.
+                ut.tprint('---Weighing injected CCF rows by mean fluxes that were normalised out')
+                ccf_clean_i_weighted = np.transpose(np.transpose(ccf_clean_i_filtered) *
+                meanfluxes_norm_injected)
+                ccf_nne_i = np.transpose(np.transpose(ccf_nne_i)*meanfluxes_norm_injected)
 
-# sel = (doppler_rv > -100000.0)
-# ccf_ds = ops.shift_ccf(rv,ccf_nn[sel,:],(-1.0)*doppler_rv[sel])
-# vsys = sp.paramget('vsys',dp)
-# sel = ((rv >= -20) & (rv <= 60))
-#
-# plt.plot(rv[sel],np.nanmean(ccf_ds[:,sel],axis=0))
-# # plt.axvline(x=vsys)
-# plt.show()
-# pdb.set_trace()
-
-#The following reads in a binary mask and plots it to search for the velocity shift
-#by comparing with a Kelt-9 model.
-#start = time.time()
-#wlb,fxb=models.read_binary_mask('models/A0v2.mas')
-#end = time.time()
-#print(end-start)
-#FeIImodel=fits.getdata('models/FeII_4500_c.fits')
-#wlm=FeIImodel[0,:]
-#fxm=FeIImodel[1,:]
-#pylab.plot(wlm,300.0*(fxm-np.median(fxm)))
-#pylab.plot(wlb,fxb)
-#pylab.show()
+                ut.writefits(outpath_i/'ccf_cleaned_i.fits',ccf_clean_i_weighted)
+                ut.writefits(outpath_i/'ccf_cleaned_i_error.fits',ccf_nne)
 
 
+                ut.tprint('---Constructing injected KpVsys')
+                Kp_i,KpVsys_i,KpVsys_e_i = construct_KpVsys(rv_i,ccf_clean_i_weighted,ccf_nne_i,dp)
 
-#The following tests blurring.
-#spec = fun.findgen(len(wl))*0.0
-#spec[500] = 1
-#spec[1000] = 1
-#spec[3000] = 1
-#spec[3012] = 1
-#spec_b=ops.blur_rotate(wl,spec,3.0,1.5,1.5,90.0)
-#spec_b2=ops.blur_rotate(wl,spec,3.0,2.0,1.0,90.0)
-#t1=ut.start()
-#spec_b=ops.blur_spec(wl,spec,20.0,mode='box')
-#spec_b2=ops.blur_spec(wl,spec,20.0,mode='box')
-#dt1=ut.end(t1)
-#pylab.plot(wl,spec)
-#pylab.plot(wl,spec_b)
-#pylab.plot(wl,spec_b2)
-#pylab.show()
+                ut.writefits(outpath_i/'KpVsys_i.fits',KpVsys_i)
+                ut.writefits(outpath_i/'KpVsys_e_i.fits',KpVsys_e_i)
+                ut.writefits(outpath_i/'Kp.fits',Kp)
+                # if plot_xcor == True:
+                #     print('---Plotting KpVsys with '+modelname+' injected.')
+                #     analysis.plot_KpVsys(rv_i,Kp_i,KpVsys,dp,injected=KpVsys_i)
 
 
 
 
-#This times the gaussian function.
-#x=fun.findgen(10000)
-#start = time.time()
-#for i in range(0,10000):
-#    g=fun.gaussian(x,20.0,50000.0,10000.0)
-#end = time.time()
-#print(end - start)
-#plot(x,g)
-#show()
+
+
 
 
 
@@ -948,8 +890,10 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
     typetest(read_s1d,bool,'read_s1d switch in read_e2ds()')
     typetest(mode,str,'mode in read_e2ds()')
 
-    if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue']:
-        raise ValueError("in read_e2ds: mode needs to be set to HARPS, HARPSN, UVES-red, UVES-blue or ESPRESSO.")
+    if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue',
+        'CARMENES-VIS','CARMENES-NIR']:
+        raise ValueError("in read_e2ds: mode needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
+            "CARMENES-VIS, CARMENES-NIR or ESPRESSO.")
     if measure_RV:
         #Define the paths to the stellar and telluric templates if RV's need to be measured.
 
@@ -960,7 +904,8 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         elif star.lower() == 'cool' or star.lower() == 'cold':
             T_eff = 4000
         else:
-            warnings.warn(f"in read_e2ds: The star keyword was set to f{star} but only solar, hot or cold are allowed. Assuming a solar template.",RuntimeWarning)
+            warnings.warn(f"in read_e2ds: The star keyword was set to f{star} but only solar, hot "
+                "or cold are allowed. Assuming a solar template.",RuntimeWarning)
             T_eff = 6000
 
         print(f'---Downloading / reading diagnostic telluric and {star} PHOENIX models.')
@@ -970,7 +915,8 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         wlm = get_phoenix_wavelengths()/10.0#Angstrom to nm.
 
         #Load the telluric spectrum from my Google Drive:
-        telluric_link = 'https://drive.google.com/uc?export=download&id=1yAtoLwI3h9nvZK0IpuhLvIpNc_1kjxha'
+        telluric_link = ('https://drive.google.com/uc?export=download&id=1yAtoLwI3h9nvZK0IpuhLvIp'
+            'Nc_1kjxha')
         telpath = download_file(telluric_link)
         ttt=fits.getdata(telpath)
         os.remove(telpath)#Free up the downloaded diskspace again.
@@ -998,7 +944,8 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         fxmn=fxmn[wlm>300.0]
         wlm=wlm[wlm>300.0]
         wlm=ops.vactoair(wlm)#Everything in the world is in air.
-        #The stellar and telluric templates are now ready for application in cross-correlation at the very end of this script.
+        #The stellar and telluric templates are now ready for application in cross-correlation at
+        #the very end of this script.
 
 
     outpath = Path('data/'+outname)
@@ -1020,13 +967,16 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
     print(f'---Read_e2ds is attempting to read a {mode} datafolder at {str(inpath)}.')
     print('---These are the files encountered:')
     if mode in ['HARPS','HARPSN']:
-        DATA = read_harpslike(inpath,filelist,mode,read_s1d=read_s1d)#This is a dictionary containing all the e2ds files, wavelengths, s1d spectra, etc.
+        DATA = read_harpslike(inpath,filelist,mode,read_s1d=read_s1d)#This is a dictionary
+        #containing all the e2ds files, wavelengths, s1d spectra, etc.
     elif mode in ['UVES-red','UVES-blue']:
         DATA = read_uves(inpath,filelist,mode)
     elif mode == 'ESPRESSO':
         DATA = read_espresso(inpath,filelist,read_s1d=read_s1d)
-    elif mode == 'CARMENES':
-        DATA = read_carmenes(inpath,filelist,construct_s1d=read_s1d)
+    elif mode == 'CARMENES-VIS':
+        DATA = read_carmenes(inpath,filelist,'vis',construct_s1d=read_s1d)
+    elif mode == 'CARMENES-NIR':
+        DATA = read_carmenes(inpath,filelist,'nir',construct_s1d=read_s1d)
     else:
         raise ValueError(f'Error in read_e2ds: {mode} is not a valid instrument mode.')
 
@@ -1040,41 +990,43 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
 
     wave    = DATA['wave']#List of 2D wavelength frames for each echelle order.
     e2ds    = DATA['e2ds']#List of 2D extracted echelle orders.
-    wave1d  = DATA['wave1d']#List of 1D stitched wavelengths.
-    s1d     = DATA['s1d']#List of 1D stiched spectra.
     norders     = DATA['norders']#Vertical size of each e2ds file.
     npx         = DATA['npx']#Horizontal size of each e2ds file.
     framename   = DATA['framename']#Name of file read.
     mjd     = DATA['mjd']#MJD of observation.
-    s1dmjd  = DATA['s1dmjd']#MJD of 1D stitched spectrum (should be the same as MJD).
     header     = DATA['header']#List of header objects.
-    s1dhdr  = DATA['s1dhdr']#List of S1D headers. Used for passing weather information to Molecfit.
     berv    = DATA['berv']#Radial velocity of the Earth w.r.t. the solar system barycenter.
     airmass = DATA['airmass']#The average airmass of the observation ((end-start)/2)
     texp = DATA['texp']#The exposure time of each exposure in seconds.
     date = DATA['date']#The date of observation in yyyymmddThhmmss.s format.
     obstype = DATA['obstype']#Observation type, should be SCIENCE.
+    if read_s1d:
+        wave1d  = DATA['wave1d']#List of 1D stitched wavelengths.
+        s1d     = DATA['s1d']#List of 1D stiched spectra.
+        s1dmjd  = DATA['s1dmjd']#MJD of 1D stitched spectrum (should be the same as MJD).
+        s1dhdr  = DATA['s1dhdr']#List of S1D headers. Used for passing weather information to Molecfit.
     del DATA#Free memory.
 
     #Typetest all of these:
     typetest(wave,list,'wave in read_e2ds()')
     typetest(e2ds,list,'e2ds in read_e2ds()')
-    typetest(wave1d,list,'wave1d in read_e2ds()')
-    typetest(s1d,list,'s1d in read_e2ds()')
     typetest(date,list,'date in read_e2ds()')
     typetest(norders,np.ndarray,'norders in read_e2ds()')
     typetest(npx,np.ndarray,'npx in read_e2ds()')
     typetest(mjd,np.ndarray,'mjd in read_e2ds()')
-    typetest(s1dmjd,np.ndarray,'s1dmjd in read_e2ds()')
     typetest(berv,np.ndarray,'berv in read_e2ds()')
     typetest(airmass,np.ndarray,'airmass in read_e2ds()')
     typetest(texp,np.ndarray,'texp in read_e2ds()')
+    if read_s1d:
+        typetest(wave1d,list,'wave1d in read_e2ds()')
+        typetest(s1d,list,'s1d in read_e2ds()')
+        typetest(s1dmjd,np.ndarray,'s1dmjd in read_e2ds()')
     e2ds_count  = len(e2ds)
 
 
 
     #Now we catch some things that could be wrong with the data read:
-    #1-The above should have read a certain number of e2ds files that are classified as SCIENCE frames.
+    #1-The above should have read a certain nr of e2ds files that are classified as SCIENCE frames.
     #2-There should be equal numbers of wave and e2ds frames and wave1d as s1d frames.
     #3-The number of s1d files should be the same as the number of e2ds files.
     #4-All exposures should have the same number of spectral orders.
@@ -1083,14 +1035,23 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
 
     #Test 1
     if e2ds_count == 0:
-        raise FileNotFoundError(f"in read_e2ds: The input folder {str(inpath)} does not contain files recognised as e2ds-format FITS files with SCIENCE keywords.")
+        raise FileNotFoundError(f"in read_e2ds: The input folder {str(inpath)} does not contain "
+            "files recognised as e2ds-format FITS files with SCIENCE keywords.")
     #Test 2,3
-    if len(wave1d) != len(s1d) and read_s1d == True:
-        raise ValueError(f"in read_e2ds: The number of 1D wavelength axes and S1D files does not match ({len(wave1d)},{len(s1d)}). Between reading and this test, one of them has become corrupted. This should not realisticly happen.")
+    if read_s1d:
+        if len(wave1d) != len(s1d):
+            raise ValueError(f"in read_e2ds: The number of 1D wavelength axes and S1D files does "
+            f"not match ({len(wave1d)},{len(s1d)}). Between reading and this test, one of them has "
+            "become corrupted. This should not realisticly happen.")
+        if len(e2ds) != len(s1d):
+            raise ValueError(f"in read_e2ds: The number of e2ds files and s1d files does not match "
+            f"({len(e2ds)},{len(s1d)}). Make sure that s1d spectra matching the e2ds spectra are "
+            "provided.")
     if len(wave) != len(e2ds):
-        raise ValueError(f"in read_e2ds: The number of 2D wavelength frames and e2ds files does not match ({len(wave)},{len(e2ds)}). Between reading and this test, one of them has become corrupted. This should not realisticly happen.")
-    if len(e2ds) != len(s1d) and read_s1d == True:
-        raise ValueError(f"in read_e2ds: The number of e2ds files and s1d files does not match ({len(e2ds)},{len(s1d)}). Make sure that s1d spectra matching the e2ds spectra are provided.")
+        raise ValueError(f"in read_e2ds: The number of 2D wavelength frames and e2ds files does "
+            f"not match ({len(wave)},{len(e2ds)}). Between reading and this test, one of them has "
+            "become corrupted. This should not realisticly happen.")
+
     #Test 4 - and set norders to its constant value.
     if np.max(np.abs(norders-norders[0])) == 0:
         norders=int(norders[0])
@@ -1099,7 +1060,8 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         print("These are the files and their numbers of orders:")
         for i in range(e2ds_count):
             print('   '+framename[i]+'  %s' % norders[i])
-        raise ValueError("in read_e2ds: Not all e2ds files have the same number of orders. The list of frames is printed above.")
+        raise ValueError("in read_e2ds: Not all e2ds files have the same number of orders. The "
+            "list of frames is printed above.")
     #Test 5 - and set npx to its constant value.
     if np.max(np.abs(npx-npx[0])) == 0:
         npx=int(npx[0])
@@ -1108,15 +1070,21 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         print("These are the files and their numbers of pixels:")
         for i in range(len(obstype)):
             print('   '+framename[i]+'  %s' % npx[i])
-        raise ValueError("in read_e2ds: Not all e2ds files have the same number of pixels. The list of frames is printed above.")
+        raise ValueError("in read_e2ds: Not all e2ds files have the same number of pixels. The "
+            "list of frames is printed above.")
     #Test 6
     for i in range(e2ds_count):
-        if np.shape(wave[i])[0] != np.shape(e2ds[i])[0] or np.shape(wave[i])[1] != np.shape(e2ds[i])[1]:
-            raise ValueError(f"in read_e2ds: wave[{i}] does not have the same dimensions as e2ds[{i}] ({np.shape(wave)},{np.shape(e2ds)}).")
-        if len(wave1d[i]) != len(s1d[i]) and read_s1d == True:
-            raise ValueError(f"in read_e2ds: wave1d[{i}] does not have the same length as s1d[{i}] ({len(wave)},{len(e2ds)}).")
+        if np.shape(wave[i])[0] != np.shape(e2ds[i])[0] or np.shape(wave[i])[1] != np.shape(
+        e2ds[i])[1]:
+            raise ValueError(f"in read_e2ds: wave[{i}] does not have the same dimensions as "
+                f"e2ds[{i}] ({np.shape(wave)},{np.shape(e2ds)}).")
+
         if read_s1d == True:
-            dimtest(wave1d[i],np.shape(s1d[i]),f'wave1d[{i}] and s1d[{i}] in read_e2ds()')#This error should never be triggered, but just in case.
+            if len(wave1d[i]) != len(s1d[i]):
+                raise ValueError(f"in read_e2ds: wave1d[{i}] does not have the same length as "
+                f"s1d[{i}] ({len(wave)},{len(e2ds)}).")
+            dimtest(wave1d[i],np.shape(s1d[i]),f'wave1d[{i}] and s1d[{i}] in read_e2ds()')
+            #This error should never be triggered, but just in case.
 
     #Ok, so now we should have ended up with a number of lists that contain all
     #the relevant science data and associated information.
@@ -1130,7 +1098,9 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         print(f'---Saving S1D files to {str(outpath/"s1ds.pkl")}')
         s1dsorting = np.argsort(s1dmjd)
         if len(sorting) != len(s1dsorting):
-            raise ValueError("in read_e2ds: Sorted science frames and sorted s1d frames are not of the same length. Telluric correction can't proceed. Make sure that the number of files of each type is correct.")
+            raise ValueError("in read_e2ds: Sorted science frames and sorted s1d frames are not of "
+                "the same length. Telluric correction can't proceed. Make sure that the number of "
+                "files of each type is correct.")
         s1dhdr_sorted=[]
         s1d_sorted=[]
         wave1d_sorted=[]
@@ -1139,13 +1109,16 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
             s1d_sorted.append(s1d[s1dsorting[i]])
             wave1d_sorted.append(wave1d[sorting[i]])
             #Sort the s1d files for application of molecfit.
-        #Store the S1Ds in a pickle file. I choose not to use a FITS image because the dimensions of the s1ds can be different from one exposure to another.
-        with open(outpath/'s1ds.pkl', 'wb') as f: pickle.dump([s1dhdr_sorted,s1d_sorted,wave1d_sorted],f)
+        #Store the S1Ds in a pickle file. I choose not to use a FITS image because the dimensions
+        #of the s1ds can be different from one exposure to another.
+        with open(outpath/'s1ds.pkl', 'wb') as f: pickle.dump([s1dhdr_sorted,s1d_sorted,
+            wave1d_sorted],f)
 
     #Provide diagnostic output.
     print('---These are the filetypes and observing date-times recognised.')
     print('---These should all be SCIENCE and in chronological order.')
-    for i in range(len(sorting)): print(f'------{obstype[sorting[i]]}  {date[sorting[i]]}  {mjd[sorting[i]]}')
+    for i in range(len(sorting)): print(f'------{obstype[sorting[i]]}  {date[sorting[i]]}  '
+        f'{mjd[sorting[i]]}')
 
     #CONTINUE HERE! SPLIT OFF MOLECFIT STRAIGHT AND SAVE 2D WAVE FILES!
 
@@ -1156,7 +1129,7 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
     #Now we loop over all exposures and collect the i-th order from each exposure,
     #put these into a new matrix and save them to FITS images:
     f=open(outpath/'obs_times','w',newline='\n')
-    headerline = 'MJD'+'\t'+'DATE'+'\t'+'EXPTIME'+'\t'+'MEAN AIRMASS'+'\t'+'BERV (km/s)'+'\t'+'FILE NAME'
+    headerline = 'MJD \t DATE \t EXPTIME \t MEAN AIRMASS \t BERV (km/s) \t FILE NAME'
 
 
     n_1d = 0 #The number of orders for which the wavelength axes are all the same.
@@ -1173,14 +1146,18 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
             wave_order[j,:] = wave_exposure[i,:]
             #Now I also need to write it to file.
             if i ==0:#Only do it the first time, not for every order.
-                line = str(mjd[sorting[j]])+'\t'+date[sorting[j]]+'\t'+str(texp[sorting[j]])+'\t'+str(np.round(airmass[sorting[j]],3))+'\t'+str(np.round(berv[sorting[j]],5))+'\t'+framename[sorting[j]]+'\n'
+                line = (str(mjd[sorting[j]])+'\t'+date[sorting[j]]+'\t'+str(texp[sorting[j]])+'\t'+
+                str(np.round(airmass[sorting[j]],3))+'\t'+str(np.round(berv[sorting[j]],5))+'\t'
+                +framename[sorting[j]]+'\n')
                 f.write(line)
 
 
-        if mode in ['UVES-red','UVES-blue','ESPRESSO']:#UVES and ESPRESSO pipelines pad with zeroes. We remove these.
+        if mode in ['UVES-red','UVES-blue','ESPRESSO']:#UVES and ESPRESSO pipelines pad with zeroes.
+            #We remove these.
             # order[np.abs(order)<1e-10*np.nanmedian(order)]=0.0#First set very small values to zero.
             npx_order = np.shape(order)[1]
-            sum=np.nansum(np.abs(order),axis=0)#Anything that is zero in this sum (i.e. the edges) will be clipped.
+            sum=np.nansum(np.abs(order),axis=0)#Anything that is zero in this sum (i.e. the edges)
+            #will be clipped.
             leftsize=npx_order-len(np.trim_zeros(sum,'f'))#Size of zero-padding on the left
             rightsize=npx_order-len(np.trim_zeros(sum,'b'))#Size of zero-padding on the right
             order = order[:,leftsize:npx_order-rightsize-1]
@@ -1217,7 +1194,7 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         'You are advised to investigate this.')
     print('\n \n \n')
     print(f'---Time-table written to {outpath/"obs_times"}.')
-    pdb.set_trace()
+
 
 
 
@@ -1233,10 +1210,11 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
 
 
     #The rest is for if diagnostic radial velocity measurements are requested.
-    #We take and plot all the 1D and 2D spectra, do a rudimentary cleaning (de-colour, outlier correction)
-    #and perform cross-correlations with solar and telluric templates.
+    #We take and plot all the 1D and 2D spectra, do a rudimentary cleaning (de-colour, outlier
+    #correction) and perform cross-correlations with solar and telluric templates.
     if measure_RV:
-        #From this moment on, I will start reusing some variable that I named above, i.e. overwriting them.
+        #From this moment on, I will start reusing some variable that I named above, i.e.
+        #overwriting them.
         drv=1.0
         RVrange=160.0
         print(f'---Preparing for diagnostic correlation with a telluric template and a {star} PHOENIX model.')
@@ -1249,15 +1227,18 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
             s1d_block=np.zeros((len(s1d),len(wave_1d)))
             for i in range(0,len(s1d)):
                 # wave = wave1d[i]#(s1dhdr[i]['CDELT1']*fun.findgen(len(s1d[i]))+s1dhdr[i]['CRVAL1'])
-                s1d_block[i]=interp.interp1d(wave1d[i]/10.0,s1d[i],bounds_error=False,fill_value='extrapolate')(wave_1d)
+                s1d_block[i]=interp.interp1d(wave1d[i]/10.0,s1d[i],bounds_error=False,
+                fill_value='extrapolate')(wave_1d)
         #
         # plt.plot(wave_1d,s1d[0]/np.mean(s1d[0]),linewidth=0.5,label='Berv-un-corrected in nm.')
-        # plt.plot(wave1d[1]/10.0,s1d[1]/np.mean(s1d[1]),linewidth=0.5,label='Original (bervcorrected) from A to nm.')
+        # plt.plot(wave1d[1]/10.0,s1d[1]/np.mean(s1d[1]),linewidth=0.5,label=('Original '
+        #'(bervcorrected) from A to nm.'))
         # plt.plot(wlt,fxtn,label='Telluric')
         # plt.legend()
         # plt.show()
         # pdb.set_trace()
-        wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False)#Slow. Needs parallelising.
+        wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False)
+        #Slow. Needs parallelising.
 
         if mode in ['UVES-red','UVES-blue']:
             pdb.set_trace()
@@ -1266,7 +1247,8 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         # plt.plot(s1d_mjd,s1d_berv,'.')
         # plt.show()
         # for i in range(len(s1d)): plt.plot(wave_1d,s1d_block[i],color='blue',alpha=0.2)
-        # for i in range(len(s1d)): plt.plot(wave_1d_berv_corrected,s1d_block_berv_corrected[i],color='red',alpha=0.2)
+        # for i in range(len(s1d)): plt.plot(wave_1d_berv_corrected,s1d_block_berv_corrected[i],
+        # color='red',alpha=0.2)
         # plt.show()
 
         print(f'---Cleaning 2D orders for cross-correlation.')
@@ -1278,24 +1260,29 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
                 w_i = list_of_waves[i][0]
                 o_i = np.zeros((len(list_of_orders[i]),len(w_i)))
                 for j in range(len(list_of_orders[i])):
-                    o_i[j]=interp.interp1d(list_of_waves[i][j],list_of_orders[i][j],bounds_error=False,fill_value='extrapolate')(w_i)
-                w_trimmed,o_trimmed,r1,r2=ops.clean_block(w_i,o_i,w=100,deg=4,renorm=True)#Slow. Needs parallelising.
+                    o_i[j]=interp.interp1d(list_of_waves[i][j],list_of_orders[i][j],
+                    bounds_error=False,fill_value='extrapolate')(w_i)
+                w_trimmed,o_trimmed,r1,r2=ops.clean_block(w_i,o_i,w=100,deg=4,renorm=True)
+                #Slow. Needs parallelising.
                 list_of_waves_trimmed.append(w_trimmed)
                 list_of_orders_trimmed.append(o_trimmed)
                 ut.statusbar(i,len(list_of_orders))
 
 
         print(f"---Interpolating over NaN's")
-        list_of_orders_trimmed = masking.interpolate_over_NaNs(list_of_orders_trimmed)#Slow, also needs parallelising.
+        list_of_orders_trimmed = masking.interpolate_over_NaNs(list_of_orders_trimmed)
+        #Slow, also needs parallelising.
         s1d_block=masking.interpolate_over_NaNs([s1d_block])[0]
         print(f'---Performing cross-correlation and plotting output.')
-        rv,ccf,Tsums=xcor(list_of_waves_trimmed,list_of_orders_trimmed,np.flipud(np.flipud(wlm)),fxmn-1.0,drv,RVrange)
+        rv,ccf,Tsums=xcor(list_of_waves_trimmed,list_of_orders_trimmed,np.flipud(np.flipud(wlm)),
+            fxmn-1.0,drv,RVrange)
         rv1d,ccf1d,Tsums1d=xcor([wave_1d],[s1d_block],np.flipud(np.flipud(wlm)),fxmn-1.0,drv,RVrange)
         rvT,ccfT,TsusmT=xcor([wave_1d],[s1d_block],np.flipud(np.flipud(wlt)),fxtn-1.0,drv,RVrange)
-        rvT2D,ccfT2D,TsusmT2D=xcor(list_of_waves_trimmed,list_of_orders_trimmed,np.flipud(np.flipud(wlt)),fxtn-1.0,drv,RVrange)
+        rvT2D,ccfT2D,TsusmT2D=xcor(list_of_waves_trimmed,list_of_orders_trimmed,
+            np.flipud(np.flipud(wlt)),fxtn-1.0,drv,RVrange)
         #The rest is for plotting.
         plt.figure(figsize=(13,5))
-        minwl=np.inf#For determining in the for-loop what the minimum and maximum wl range of the data is.
+        minwl=np.inf#For determining in the for-loop what the min and max wl range of the data are.
         maxwl=0.0
 
         mean_of_orders = np.nanmean(np.hstack(list_of_orders_trimmed))
@@ -1307,18 +1294,22 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
             maxwl=np.max([np.max(list_of_waves[i]),maxwl])
 
             if i == 0:
-                plt.plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.9,alpha=0.5,label='2D echelle orders to be cross-correlated')
+                plt.plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.9,
+                alpha=0.5,label='2D echelle orders to be cross-correlated')
             else:
-                plt.plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.7,alpha=0.5)
+                plt.plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.7,
+                alpha=0.5)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             s1d_avg=np.nanmean(s1d_block,axis=0)
-        plt.plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',label='1D spectrum to be cross-correlated',linewidth=0.9,alpha=0.5)
+        plt.plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
+            label='1D spectrum to be cross-correlated',linewidth=0.9,alpha=0.5)
 
         plt.title(f'Time-averaged spectral orders and {star} PHOENIX model')
         plt.xlabel('Wavelength (nm)')
         plt.ylabel('Flux (normalised to order average)')
-        plt.plot(wlm,fxmn,color='green',linewidth=0.7,label='PHOENIX template (air, used in ccf)',alpha=0.5)
+        plt.plot(wlm,fxmn,color='green',linewidth=0.7,label='PHOENIX template (air, used in ccf)',
+            alpha=0.5)
         plt.plot(wlt,fxtn,color='blue',linewidth=0.7,label='Skycalc telluric model',alpha=0.6)
         plt.xlim(minwl-5,maxwl+5)#Always nm.
         plt.legend(loc='upper right',fontsize=8)
@@ -1334,25 +1325,29 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         plt.figure(figsize=(13,5))
         for n,i in enumerate(ccf):
             if n == 0:
-                plt.plot(rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='black',label='2D orders-PHOENIX')
+                plt.plot(rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='black',
+                label='2D orders-PHOENIX')
             else:
                 plt.plot(rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='black')
             centroids2d.append(rv[np.argmin(i)])
         for n,i in enumerate(ccf1d):
             if n == 0:
-                plt.plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red',label='1D spectra-PHOENIX')
+                plt.plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red',
+                label='1D spectra-PHOENIX')
             else:
                 plt.plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red')
             centroids1d.append(rv1d[np.argmin(i)])
         for n,i in enumerate(ccfT):
             if n == 0:
-                plt.plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.2,color='blue',label='1D spectra-TELLURIC')
+                plt.plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.2,color='blue',
+                label='1D spectra-TELLURIC')
             else:
                 plt.plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.2,color='blue')
             centroidsT1d.append(rvT[np.argmin(i)])
         for n,i in enumerate(ccfT2D):
             if n == 0:
-                plt.plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.2,color='navy',label='2D orders-TELLURIC')
+                plt.plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.2,color='navy',
+                label='2D orders-TELLURIC')
             else:
                 plt.plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.2,color='navy')
             centroidsT2d.append(rvT2D[np.argmin(i)])
@@ -1360,21 +1355,28 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         plt.axvline(np.nanmean(centroids1d),color='red',alpha=0.5)
         plt.axvline(np.nanmean(centroidsT1d),color='blue',alpha=0.5)
         plt.axvline(np.nanmean(centroidsT2d),color='navy',alpha=1.0)
-        plt.title(f'CCF between {mode} data and {star} PHOENIX and telluric models. See commentary in terminal for details',fontsize=9)
+        plt.title(f'CCF between {mode} data and {star} PHOENIX and telluric models. See commentary '
+        'in terminal for details',fontsize=9)
         plt.xlabel('Radial velocity (km/s)')
         plt.ylabel('Mean flux')
         plt.legend()
         print('\n \n \n')
 
         print('The derived line positions are as follows:')
-        print(f'1D spectra with PHOENIX:  Line center near RV = {np.round(np.nanmean(centroids1d),1)} km/s.')
-        print(f'1D spectra with tellurics:  Line center near RV = {np.round(np.nanmean(centroidsT1d),1)} km/s.')
-        print(f'2D orders with PHOENIX:  Line center near RV ={np.round(np.nanmean(centroids2d),1)} km/s.')
-        print(f'2D orders with tellurics:  Line center near RV ={np.round(np.nanmean(centroidsT2d),1)} km/s.')
+        print(f'1D spectra with PHOENIX:  Line center near RV = '
+        f'{np.round(np.nanmean(centroids1d),1)} km/s.')
+        print(f'1D spectra with tellurics:  Line center near RV = '
+        f'{np.round(np.nanmean(centroidsT1d),1)} km/s.')
+        print(f'2D orders with PHOENIX:  Line center near RV = '
+        f'{np.round(np.nanmean(centroids2d),1)} km/s.')
+        print(f'2D orders with tellurics:  Line center near RV = '
+        f'{np.round(np.nanmean(centroidsT2d),1)} km/s.')
         print('\n \n \n')
 
 
-        terminal_height,terminal_width = subprocess.check_output(['stty', 'size']).split()#Get the window size of the terminal, from https://stackoverflow.com/questions/566746/how-to-get-linux-console-window-width-in-python
+        terminal_height,terminal_width = subprocess.check_output(['stty', 'size']).split()
+        #Get the window size of the terminal, from https://stackoverflow.com/questions/566746/
+        #how-to-get-linux-console-window-width-in-python
         if mode == 'ESPRESSO':
             explanation=[f'For ESPRESSO, the S1D and S2D spectra are typically \
 provided in the barycentric frame, in air. Because the S1D spectra are used for \

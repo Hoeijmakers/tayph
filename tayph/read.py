@@ -122,7 +122,10 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                     del hdul
             # if hdr[catkeyword] == 'SCIENCE':
                     s1d.append(data_1d)
-                # npx1d.append(len(data_1d))
+                    if mode == 'HARPSN':#In the case of HARPS-N we need to convert the units of the
+                        #elevation and provide a UTC keyword.
+                        hdr1d['TELALT'] = np.degrees(float(hdr1d['EL']))
+                        hdr1d['UTC'] = (float(hdr1d['MJD-OBS'])%1.0)*86400.0
                     s1dhdr.append(hdr1d)
                     s1dmjd=np.append(s1dmjd,hdr1d['MJD-OBS'])
                     berv1d = hdr1d[bervkeyword]
@@ -132,10 +135,7 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                         ut.tprint(wrn_msg)
                     gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)#Doppler factor BERV.
                     wave1d.append((hdr1d['CDELT1']*fun.findgen(len(data_1d))+hdr1d['CRVAL1'])*gamma)
-    if mode == 'HARPSN': #In the case of HARPS-N we need to convert the units of the elevation and provide a UTC keyword.
-        for i in range(len(header)):
-            s1dhdr[i]['TELALT'] = np.degrees(float(s1dhdr[i]['EL']))
-            s1dhdr[i]['UTC'] = (float(s1dhdr[i]['MJD-OBS'])%1.0)*86400.0
+
     #Check that all exposures have the same number of pixels, and clip s1ds if needed.
     # min_npx1d = int(np.min(np.array(npx1d)))
     # if np.sum(np.abs(np.array(npx1d)-npx1d[0])) != 0:
@@ -149,9 +149,95 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
     'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
     return(output)
 
-def read_carmenes(inpath,filelist):
-    """Placeholder for reading CARMENES data"""
-    return
+def read_carmenes(inpath,filelist,channel,construct_s1d=True):
+    """
+    This reads a folder of CARMENES visible (VIS) or infra-red (NIR) channel data. Input is a list
+    of filepaths and the mode ('VIS' or 'NIR').
+    """
+
+
+
+    catkeyword = 'HIERARCH CAHA INS ICS IMAGETYP'
+    bervkeyword = 'HIERARCH CARACAL BERV'
+    thfilekeyword = 'HIERARCH CARACAL WAVE FILE'
+    Zstartkeyword = 'AIRMASS'
+    Zendkeyword = 'AIRMASS'#These are the same because CARMENES doesnt have start and end keywords.
+
+    if channel not in ['vis','nir']:
+        raise ValueError(f"Error in read_carmenes: channel should be set to VIS or NIR ({channel})")
+
+    #The following variables define lists in which all the necessary data will be stored.
+    framename=[]
+    header=[]
+    s1dhdr=[]
+    obstype=[]
+    texp=np.array([])
+    date=[]
+    mjd=np.array([])
+    s1dmjd=np.array([])
+    npx=np.array([])
+    norders=np.array([])
+    e2ds=[]
+    s1d=[]
+    wave1d=[]
+    airmass=np.array([])
+    berv=np.array([])
+    wave=[]
+    # wavefile_used = []
+    for i in range(len(filelist)):
+        if filelist[i].endswith('-'+channel.lower()+'_A.fits'):
+            print(f'------{filelist[i]}', end="\r")
+            hdul = fits.open(inpath/filelist[i])
+            data = copy.deepcopy(hdul[1].data)
+            wavedata = copy.deepcopy(hdul[4].data)/10.0
+            hdr = hdul[0].header
+            spechdr = hdul[1].header
+            hdul.close()
+            del hdul[0].data
+            if hdr[catkeyword] == 'SCIENCE':
+                framename.append(filelist[i])
+                header.append(hdr)
+                obstype.append(hdr[catkeyword])
+                texp=np.append(texp,hdr['EXPTIME'])
+                date.append(hdr['DATE-OBS'])
+                mjd=np.append(mjd,hdr['MJD-OBS'])
+                npx=np.append(npx,spechdr['NAXIS1'])
+                norders=np.append(norders,spechdr['NAXIS2'])
+                e2ds.append(data)
+                berv=np.append(berv,hdr[bervkeyword])
+                airmass=np.append(airmass,0.5*(hdr[Zstartkeyword]+hdr[Zendkeyword]))#This is an approximation where we take the mean airmass.
+                wave.append(wavedata)
+
+
+                if construct_s1d:
+                    s1d_path=inpath/Path(str(filelist[i]).replace('e2ds_A.fits','s1d_A.fits'))
+                    ut.check_path(s1d_path,exists=True)#Crash if the S1D doesn't exist.
+        # if filelist[i].endswith('s1d_A.fits'):
+                    hdul = fits.open(s1d_path)
+                    data_1d = copy.deepcopy(hdul[0].data)
+                    hdr1d = hdul[0].header
+                    hdul.close()
+                    del hdul
+            # if hdr[catkeyword] == 'SCIENCE':
+                    s1d.append(data_1d)
+                # npx1d.append(len(data_1d))
+
+                    hdr1d['UTC'] = (float(hdr1d['MJD-OBS'])%1.0)*86400.0
+                    s1dhdr.append(hdr1d)
+                    s1dmjd=np.append(s1dmjd,hdr1d['MJD-OBS'])
+                    berv1d = hdr1d[bervkeyword]
+                    gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)#Doppler factor BERV.
+                    wave1d.append((hdr1d['CDELT1']*fun.findgen(len(data_1d))+hdr1d['CRVAL1'])*gamma)
+
+    if construct_s1d:
+        output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
+        'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+        'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
+    else:
+        output = {'wave':wave,'e2ds':e2ds,'header':header,
+        'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+        'norders':norders,'berv':berv,'airmass':airmass}
+    return(output)
 
 
 
@@ -401,5 +487,12 @@ def read_espresso(inpath,filelist,read_s1d=True):
                         hdr1d['M1TEMP']     = hdr1d[f'ESO TEL{TELESCOP} TH M1 TEMP']
                     s1dhdr.append(hdr1d)
                     s1dmjd=np.append(s1dmjd,hdr1d['MJD-OBS'])
-    output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
+    if read_s1d:
+        output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
+        'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+        'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
+    else:
+        output = {'wave':wave,'e2ds':e2ds,'header':header,
+        'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+        'norders':norders,'berv':berv,'airmass':airmass}
     return(output)

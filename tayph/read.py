@@ -189,11 +189,16 @@ def read_carmenes(inpath,filelist,channel,construct_s1d=True):
             print(f'------{filelist[i]}', end="\r")
             hdul = fits.open(inpath/filelist[i])
             data = copy.deepcopy(hdul[1].data)
+            cont = copy.deepcopy(hdul[2].data)
+            sigma = copy.deepcopy(hdul[3].data)
             wavedata = copy.deepcopy(hdul[4].data)/10.0
             hdr = hdul[0].header
             spechdr = hdul[1].header
             hdul.close()
-            del hdul[0].data
+            del hdul[1].data
+            del hdul[2].data
+            del hdul[3].data
+            del hdul[4].data
             if hdr[catkeyword] == 'SCIENCE':
                 framename.append(filelist[i])
                 header.append(hdr)
@@ -210,24 +215,17 @@ def read_carmenes(inpath,filelist,channel,construct_s1d=True):
 
 
                 if construct_s1d:
-                    s1d_path=inpath/Path(str(filelist[i]).replace('e2ds_A.fits','s1d_A.fits'))
-                    ut.check_path(s1d_path,exists=True)#Crash if the S1D doesn't exist.
-        # if filelist[i].endswith('s1d_A.fits'):
-                    hdul = fits.open(s1d_path)
-                    data_1d = copy.deepcopy(hdul[0].data)
-                    hdr1d = hdul[0].header
-                    hdul.close()
-                    del hdul
-            # if hdr[catkeyword] == 'SCIENCE':
+                    wave_1d, data_1d = spec_stich_n_norm(data,wavedata,cont,sigma)
+                    
                     s1d.append(data_1d)
-                # npx1d.append(len(data_1d))
-
+                    
+                    hdr1d = copy.deepcopy(hdr)
                     hdr1d['UTC'] = (float(hdr1d['MJD-OBS'])%1.0)*86400.0
                     s1dhdr.append(hdr1d)
                     s1dmjd=np.append(s1dmjd,hdr1d['MJD-OBS'])
                     berv1d = hdr1d[bervkeyword]
                     gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)#Doppler factor BERV.
-                    wave1d.append((hdr1d['CDELT1']*fun.findgen(len(data_1d))+hdr1d['CRVAL1'])*gamma)
+                    wave1d.append(wave_1d*gamma)
 
     if construct_s1d:
         output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
@@ -238,6 +236,79 @@ def read_carmenes(inpath,filelist,channel,construct_s1d=True):
         'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
         'norders':norders,'berv':berv,'airmass':airmass}
     return(output)
+
+
+def spec_stich_n_norm(spec, wave, cont, sig, step_size = 0.0001):
+
+    import numpy as np
+    from astropy.io import fits
+    from scipy.interpolate import interp1d
+
+    #These arrays will be filled with the stiched data.
+    Total_Specs = np.array([])
+    Total_Waves = np.array([])
+    Total_Cont = np.array([])
+
+    for i in range(len(spec)-1):
+
+        waves = np.linspace(np.min(wave[i]), np.max(wave[i+1]), 4*wave[i:i+1].size) #Specifiying wavelength grid
+
+        #Interpolating the spectral orders to the new grid for both the current and proceeding order
+        I_spectra_1 = interp1d(wave[i], spec[i], bounds_error = False) #Intep for spectra
+        I_spectra_2 = interp1d(wave[i+1], spec[i+1], bounds_error = False) 
+
+        I_sig_1 = interp1d(wave[i], sig[i], bounds_error = False) #Interp for sig vals
+        I_sig_2 = interp1d(wave[i+1], sig[i+1], bounds_error = False)
+
+        I_cont_1 = interp1d(wave[i], cont[i], bounds_error = False) #Interp for continuum vals
+        I_cont_2 = interp1d(wave[i+1], cont[i+1], bounds_error = False)
+
+        #Using interpolator to create a vecotr of the same length for both orders.
+        ## Note: If the order doesn't span the wavelength range it creates a nan
+        I_spectra_1 = I_spectra_1(waves)
+        I_spectra_2 = I_spectra_2(waves)
+
+        I_sig_1 = I_sig_1(waves)
+        I_sig_2 = I_sig_2(waves)
+
+        I_cont_1 = I_cont_1(waves)
+        I_cont_2 = I_cont_2(waves)
+
+        #If a nan value is present, replace the value with the corresponding value of the other interpolated vecotor
+        ## This creates an overlapping vecotr of the same value, which means you can take an average and get the same value
+        I_spectra_1 = np.nan_to_num(I_spectra_1, nan = I_spectra_2)
+        I_spectra_2 = np.nan_to_num(I_spectra_2, nan = I_spectra_1)
+
+        I_sig_1 = np.nan_to_num(I_sig_1, nan = I_sig_2)
+        I_sig_2 = np.nan_to_num(I_sig_2, nan = I_sig_1)
+
+        I_cont_1 = np.nan_to_num(I_cont_1, nan = I_cont_2)
+        I_cont_2 = np.nan_to_num(I_cont_2, nan = I_cont_1)
+
+        Spec_Combo = np.array([I_spectra_1, I_spectra_2]) #Combing spectra as 2d array
+        Spec_Combo = Spec_Combo.T #Take transpose to pair the data values
+
+        #Do the same for the sig values and continuum
+        Sig_Combo = np.array([I_sig_1, I_sig_2])
+        Sig_Combo = Sig_Combo.T
+
+        Cont_Combo = np.array([I_cont_1, I_cont_2])
+        Cont_Combo = Cont_Combo.T
+        
+        #Money is made here, a weighted average is taken using the sig values than normalise by dividing by the continuu,
+        Ave_Spec = np.average(Spec_Combo, weights = 1/(Sig_Combo**2), axis = 1)/np.average(Cont_Combo, axis = 1)
+        Ave_Spec = Ave_Spec.T
+        
+        #Averages are append with their corresponding wavlength
+        Total_Specs = np.append(Total_Specs, Ave_Spec)
+        Total_Waves = np.append(Total_Waves, waves)
+        #Total_Cont = np.append(Total_Cont, np.average(Cont_Combo, axis = 1))
+
+    #Reaorder values to a new grid to create the final stiched spectra
+    waves = np.arange(np.min(Total_Waves), np.max(Total_Waves), step_size)
+    I_T_Spectra = interp1d(Total_Waves, Total_Specs)
+
+    return waves, I_T_Spectra(waves) #returns wavelength grid and the normalised flux values
 
 
 

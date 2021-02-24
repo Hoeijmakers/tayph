@@ -488,7 +488,7 @@ def run_instance(p):
         print('---Healing NaNs')
         list_of_orders = masking.interpolate_over_NaNs(list_of_orders)#THERE IS AN ISSUE HERE:
         #INTERPOLATION SHOULD ALSO HAPPEN ON THE SIGMAS ARRAY!
-        list_of_sigmas = masking.interpolate_over_NaNs(list_of_sigmas)
+        list_of_sigmas = masking.interpolate_over_NaNs(list_of_sigmas,quiet=True)
 
 
         #This is the point from which model injection will also start.

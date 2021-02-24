@@ -22,7 +22,7 @@ __all__ = [
 
 
 
-def interpolate_over_NaNs(list_of_orders,cutoff=0.2):
+def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False):
     #This is a helper function I had to dump here that is mostly unrelated to the GUI,
     #but with healing NaNs. If there are too many NaNs in a column, instead of
     #interpolating, just set the entire column to NaN. If an entire column is set to NaN,
@@ -30,6 +30,7 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2):
     #never contributes. It becomes like the column is beyond the edge of the wavelength range of the data.
     import numpy as np
     import tayph.functions as fun
+    import tayph.util as ut
     from tayph.vartests import typetest
     import astropy.io.fits as fits
     """
@@ -107,10 +108,11 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2):
             for l in list_of_masked_columns:
                 order[:,l]+=np.nan#Set the ones that were erroneously healed back to nan.
         list_of_healed_orders.append(order)
-    print(f'------Total number of pixels in {N} orders: {N_pixels}')
-    print(f'------Number of NaNs in columns identified as bad (or previously masked): {N_nans_columns} ({np.round(N_nans_columns/N_pixels*100,2)}% of total)')
-    print(f'------Number of NaNs in isolated pixels: {N_nans_isolated} ({np.round(N_nans_isolated/N_pixels*100,2)}% of total)')
-    print(f'------Number of bad pixels identified: {N_nans_isolated+N_nans_columns} ({np.round((N_nans_isolated+N_nans_columns)/N_pixels*100,2)}% of total)')
+    if quiet == False:
+        ut.tprint(f'------Total number of pixels in {N} orders: {N_pixels}')
+        ut.tprint(f'------Number of NaNs in columns identified as bad (or previously masked): {N_nans_columns} ({np.round(N_nans_columns/N_pixels*100,2)}% of total)')
+        ut.tprint(f'------Number of NaNs in isolated pixels: {N_nans_isolated} ({np.round(N_nans_isolated/N_pixels*100,2)}% of total)')
+        ut.tprint(f'------Number of bad pixels identified: {N_nans_isolated+N_nans_columns} ({np.round((N_nans_isolated+N_nans_columns)/N_pixels*100,2)}% of total)')
     return(list_of_healed_orders)
 
 

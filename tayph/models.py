@@ -133,36 +133,12 @@ def get_model(name,library='models/library',root='models'):
 
 
 def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/models'):
-    """This function wraps the inject_model_into_order function below, which
-    I had written first, and works on an individual order."""
-    import tayph.util as ut
-    N = len(list_of_wls)
-    if N != len(list_of_orders):
-        raise RuntimeError(f'in models.inject_model: List_of_wls and list_of_orders are not of the '
-        f'same length ({N} vs {len(list_of_orders)})')
-    list_of_orders_injected=[]
-    for i in range(N):
-            list_of_orders_injected.append(inject_model_into_order(list_of_wls[i],list_of_orders[i],dp,modelname,model_library))
-            ut.statusbar(i,N)
-            # ut.writefits('test.fits',list_of_orders_injected[i]/list_of_orders[i])
-            # sys.exit()
-    return(list_of_orders_injected)
+    """This function takes a list of spectral orders and injects a model with library
+    identifier modelname, and system parameters as defined in dp. The model is blurred taking into
+    account spectral resolution and rotation broadening (with an LSF as per Brogi et al.) and
+    finite-exposure broadening (with a box LSF).
 
-
-
-
-
-
-
-
-
-def inject_model_into_order(wld,order,dp,modelname,model_library='library/models'):
-    """This function takes a spectral order and injects a model with library
-    identifier modelname, and system parameters as defined in dp.
-    Maybe it would be more efficient to provide wlm and fxm from outside this
-    function, but so be it. The blurring is the thing that takes long, regardless.
-
-    It returns a copy of order with the model injected."""
+    It returns a copy of the list of orders with the model injected."""
 
     import tayph.util as ut
     import tayph.system_parameters as sp
@@ -176,7 +152,7 @@ def inject_model_into_order(wld,order,dp,modelname,model_library='library/models
     import copy
     import matplotlib.pyplot as plt
 
-    dimtest(order,[0,len(wld)])
+    # dimtest(order,[0,len(wld)])
     dp=ut.check_path(dp)
     typetest(modelname,str,'modelname in models.inject_model()')
     typetest(model_library,str,'model_library in models.inject_model()')
@@ -186,32 +162,10 @@ def inject_model_into_order(wld,order,dp,modelname,model_library='library/models
     planet_radius=sp.paramget('Rp',dp)
     inclination=sp.paramget('inclination',dp)
     P=sp.paramget('P',dp)
-
-    wlm,fxm=get_model(modelname,library=model_library)
-
-    if wlm[-1] <= wlm[0]:#Reverse the wl axis if its sorted the wrong way.
-        wlm=np.flipud(wlm)
-        fxm=np.flipud(fxm)
-
-    #With the model and the revelant parameters in hand, now only select that
-    #part of the model that covers the wavelengths of the order provided.
-    #A larger wavelength range would take much extra time because the convolution
-    #is a slow operation.
-    if np.min(wlm) > np.min(wld)-1.0 or np.max(wlm) < np.max(wld)+1.0:
-        ut.tprint('WARNING in model injection: Data grid falls (partly) outside of model range.')
-        ut.tprint('Setting missing area to 1.0.')
-
-    modelsel=[(wlm >= np.min(wld)-1.0) & (wlm <= np.max(wld)+1.0)]
-
-    wlm=wlm[tuple(modelsel)]
-    fxm=fxm[tuple(modelsel)]
-
-    shape=np.shape(order)
-    n_exp=shape[0]
     transit=sp.transit(dp)
+    n_exp=len(transit)
     vsys=sp.paramget('vsys',dp)
     rv=sp.RV(dp)+vsys
-
     dRV=sp.dRV(dp)
     phi=sp.phase(dp)
     dimtest(transit,[n_exp])
@@ -221,19 +175,44 @@ def inject_model_into_order(wld,order,dp,modelname,model_library='library/models
 
     mask=(transit-1.0)/(np.min(transit-1.0))
 
-    injection=order*0.0
-    # injection_total = order*0.0
-    # injection_pure = order*0.0
-    # injection_rot_only = order*0.0
-    fxm_b=ops.blur_rotate(wlm,fxm,c/Rd,planet_radius,P,inclination)
 
+
+
+    wlm,fxm=get_model(modelname,library=model_library)
+    if wlm[-1] <= wlm[0]:#Reverse the wl axis if its sorted the wrong way.
+        wlm=np.flipud(wlm)
+        fxm=np.flipud(fxm)
+
+    #With the model and the revelant parameters in hand, now only select that
+    #part of the model that covers the wavelengths of the order provided.
+    #A larger wavelength range would take much extra time because the convolution
+    #is a slow operation.
+
+
+    N_orders = len(list_of_wls)
+    if N_orders != len(list_of_orders):
+        raise RuntimeError(f'in models.inject_model: List_of_wls and list_of_orders are not of the '
+        f'same length ({N_orders} vs {len(list_of_orders)})')
+
+
+
+    if np.min(wlm) > np.min(list_of_wls)-1.0 or np.max(wlm) < np.max(list_of_wls)+1.0:
+        ut.tprint('WARNING in model injection: Data grid falls (partly) outside of model range. '
+        'Setting missing area to 1.0. (meaning, no planet absorption.)')
+
+    modelsel=[(wlm >= np.min(list_of_wls)-1.0) & (wlm <= np.max(list_of_wls)+1.0)]
+
+    wlm=wlm[tuple(modelsel)]
+    fxm=fxm[tuple(modelsel)]
+
+    fxm_b=ops.blur_rotate(wlm,fxm,c/Rd,planet_radius,P,inclination)#Only do this once per dataset.
 
     oversampling = 2.5
     wlm_cv,fxm_bcv,vstep=ops.constant_velocity_wl_grid(wlm,fxm_b,oversampling=oversampling)
 
 
     if np.min(dRV) < c/Rd/10.0:
-        # print('----')
+
         dRV_min = c/Rd/10.0#If the minimum dRV is less than 10% of the spectral
         #resolution, we introduce a lower limit to when we are going to blur, because the effect
         #becomes insignificant.
@@ -252,10 +231,9 @@ def inject_model_into_order(wld,order,dp,modelname,model_library='library/models
 
 
 
-    # print('v_step is %s km/s' % vstep)
-    # print('So the exp-time blurkernel has an avg width of %s px.' % (np.mean(dRV)/vstep))
+    list_of_orders_injected=copy.deepcopy(list_of_orders)
 
-    for i in range(0,n_exp):
+    for i in range(n_exp):
         if dRV[i] >= c/Rd/10.0:
             fxm_b2=ops.smooth(fxm_bcv,dRV[i]/vstep,mode='box')
         else:
@@ -264,9 +242,9 @@ def inject_model_into_order(wld,order,dp,modelname,model_library='library/models
         fxm_i=scipy.interpolate.interp1d(wlm_cv*shift,fxm_b2,fill_value=1.0,bounds_error=False) #This is a class that can be called.
         #Fill_value = 1 because if the model does not fully cover the order, it will be padded with 1.0s,
         #assuming that we are dealing with a model that is in transmission.
-
-        injection[i,:]=1.0+mask[i]*(fxm_i(wld)-1.0)#This assumes that the model is in transit radii.
-        #This can definitely be vectorised!
+        for j in range(len(list_of_orders)):
+            list_of_orders_injected[j][i]*=(1.0+mask[i]*(fxm_i(list_of_wls[j])-1.0))#This assumes
+            #that the model is in transit radii. This can definitely be vectorised!
 
         #These are for checking that the broadening worked as expected:
         # injection_total[i,:]= scipy.interpolate.interp1d(wlm_cv*shift,fxm_b2)(wld)
@@ -277,4 +255,5 @@ def inject_model_into_order(wld,order,dp,modelname,model_library='library/models
     # pdb.set_trace()
     # ut.writefits('test.fits',injection)
     # pdb.set_trace()
-    return(injection*order)
+
+    return(list_of_orders_injected)

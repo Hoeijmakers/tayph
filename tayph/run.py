@@ -452,7 +452,6 @@ def run_instance(p):
     #been collapsed from 2D to 1D (if they were 2D in the first place, e.g. for ESPRESSO).
 
 
-
     if len(list_of_orders) != n_orders:
         raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
         'was before. Something went wrong during telluric correction or velocity correction.')
@@ -626,12 +625,12 @@ def run_instance(p):
         ut.writefits(outpath/'ccf_cleaned.fits',ccf_clean_weighted)
         ut.writefits(outpath/'ccf_cleaned_error.fits',ccf_nne)
 
-
-        ut.tprint('---Constructing KpVsys')
-        Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp)
-        ut.writefits(outpath/'KpVsys.fits',KpVsys)
-        ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
-        ut.writefits(outpath/'Kp.fits',Kp)
+        #Turn off KpVsys for now.
+        # ut.tprint('---Constructing KpVsys')
+        # Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp)
+        # ut.writefits(outpath/'KpVsys.fits',KpVsys)
+        # ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
+        # ut.writefits(outpath/'Kp.fits',Kp)
 
         print('')
 
@@ -641,10 +640,14 @@ def run_instance(p):
         for modelname in modellist:
             if do_xcor == True:
                 print('---Injecting model '+modelname)
+                
                 list_of_orders_injected=models.inject_model(list_of_wls,list_of_orders,dp,modelname,
                 model_library=model_library)#Start with the unnormalised orders from before.
                 #Normalize the orders to their average flux in order to effectively apply
                 #a broad-band colour correction (colour is a function of airmass and seeing).
+
+
+
                 if do_colour_correction == True:
                     print('------Normalizing injected orders to common flux level')
                     list_of_orders_injected,list_of_sigmas_injected,meanfluxes_injected = (
@@ -720,12 +723,12 @@ def run_instance(p):
                 ut.writefits(outpath_i/'ccf_cleaned_i_error.fits',ccf_nne)
 
 
-                ut.tprint('---Constructing injected KpVsys')
-                Kp_i,KpVsys_i,KpVsys_e_i = construct_KpVsys(rv_i,ccf_clean_i_weighted,ccf_nne_i,dp)
-
-                ut.writefits(outpath_i/'KpVsys_i.fits',KpVsys_i)
-                ut.writefits(outpath_i/'KpVsys_e_i.fits',KpVsys_e_i)
-                ut.writefits(outpath_i/'Kp.fits',Kp)
+                #Disable KpVsys diagrams for now.
+                # ut.tprint('---Constructing injected KpVsys')
+                # Kp_i,KpVsys_i,KpVsys_e_i = construct_KpVsys(rv_i,ccf_clean_i_weighted,ccf_nne_i,dp)
+                # ut.writefits(outpath_i/'KpVsys_i.fits',KpVsys_i)
+                # ut.writefits(outpath_i/'KpVsys_e_i.fits',KpVsys_e_i)
+                # ut.writefits(outpath_i/'Kp.fits',Kp)
 
 
                 print('')

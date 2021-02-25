@@ -1,6 +1,8 @@
 __all__ = [
     "build_template",
-    "get_model"
+    "get_model",
+    "inject_model",
+    "inject_model_into_order"
 ]
 
 
@@ -34,8 +36,7 @@ def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0
     postest(binsize,'binsize mod.build_template()')
     postest(maxfrac,'maxfrac mod.build_template()')
     notnegativetest(resolution,'resolution in mod.build_template()')
-    ut.check_path(template_library,exists=True)
-    template_library=Path(template_library)
+    template_library=ut.check_path(template_library,exists=True)
 
     c=const.c.to('km/s').value
 
@@ -128,3 +129,152 @@ def get_model(name,library='models/library',root='models'):
         raise FileNotFoundError(f'Model file {modelpath} from library {str(library)} does not exist.')
     dimtest(modelarray,[2,0])
     return(modelarray[0,:],modelarray[1,:])
+
+
+
+def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/models'):
+    """This function wraps the inject_model_into_order function below, which
+    I had written first, and works on an individual order."""
+    import tayph.util as ut
+    N = len(list_of_wls)
+    if N != len(list_of_orders):
+        raise RuntimeError(f'in models.inject_model: List_of_wls and list_of_orders are not of the '
+        f'same length ({N} vs {len(list_of_orders)})')
+    list_of_orders_injected=[]
+    for i in range(N):
+            list_of_orders_injected.append(inject_model_into_order(list_of_wls[i],list_of_orders[i],dp,modelname,model_library))
+            ut.statusbar(i,N)
+            # ut.writefits('test.fits',list_of_orders_injected[i]/list_of_orders[i])
+            # sys.exit()
+    return(list_of_orders_injected)
+
+
+
+
+
+
+
+
+
+def inject_model_into_order(wld,order,dp,modelname,model_library='library/models'):
+    """This function takes a spectral order and injects a model with library
+    identifier modelname, and system parameters as defined in dp.
+    Maybe it would be more efficient to provide wlm and fxm from outside this
+    function, but so be it. The blurring is the thing that takes long, regardless.
+
+    It returns a copy of order with the model injected."""
+
+    import tayph.util as ut
+    import tayph.system_parameters as sp
+    import tayph.models
+    import astropy.constants as const
+    import numpy as np
+    import scipy
+    import tayph.operations as ops
+    from tayph.vartests import typetest, dimtest
+    import pdb
+    import copy
+    import matplotlib.pyplot as plt
+
+    dimtest(order,[0,len(wld)])
+    dp=ut.check_path(dp)
+    typetest(modelname,str,'modelname in models.inject_model()')
+    typetest(model_library,str,'model_library in models.inject_model()')
+
+    c=const.c.to('km/s').value#In km/s
+    Rd=sp.paramget('resolution',dp)
+    planet_radius=sp.paramget('Rp',dp)
+    inclination=sp.paramget('inclination',dp)
+    P=sp.paramget('P',dp)
+
+    wlm,fxm=get_model(modelname,library=model_library)
+
+    if wlm[-1] <= wlm[0]:#Reverse the wl axis if its sorted the wrong way.
+        wlm=np.flipud(wlm)
+        fxm=np.flipud(fxm)
+
+    #With the model and the revelant parameters in hand, now only select that
+    #part of the model that covers the wavelengths of the order provided.
+    #A larger wavelength range would take much extra time because the convolution
+    #is a slow operation.
+    if np.min(wlm) > np.min(wld)-1.0 or np.max(wlm) < np.max(wld)+1.0:
+        ut.tprint('WARNING in model injection: Data grid falls (partly) outside of model range.')
+        ut.tprint('Setting missing area to 1.0.')
+
+    modelsel=[(wlm >= np.min(wld)-1.0) & (wlm <= np.max(wld)+1.0)]
+
+    wlm=wlm[tuple(modelsel)]
+    fxm=fxm[tuple(modelsel)]
+
+    shape=np.shape(order)
+    n_exp=shape[0]
+    transit=sp.transit(dp)
+    vsys=sp.paramget('vsys',dp)
+    rv=sp.RV(dp)+vsys
+
+    dRV=sp.dRV(dp)
+    phi=sp.phase(dp)
+    dimtest(transit,[n_exp])
+    dimtest(rv,[n_exp])
+    dimtest(phi,[n_exp])
+    dimtest(dRV,[n_exp])
+
+    mask=(transit-1.0)/(np.min(transit-1.0))
+
+    injection=order*0.0
+    # injection_total = order*0.0
+    # injection_pure = order*0.0
+    # injection_rot_only = order*0.0
+    fxm_b=ops.blur_rotate(wlm,fxm,c/Rd,planet_radius,P,inclination)
+
+
+    oversampling = 2.5
+    wlm_cv,fxm_bcv,vstep=ops.constant_velocity_wl_grid(wlm,fxm_b,oversampling=oversampling)
+
+
+    if np.min(dRV) < c/Rd/10.0:
+        # print('----')
+        dRV_min = c/Rd/10.0#If the minimum dRV is less than 10% of the spectral
+        #resolution, we introduce a lower limit to when we are going to blur, because the effect
+        #becomes insignificant.
+    else:
+        dRV_min = np.min(dRV)
+
+    if dRV_min/vstep < 3: #Meaning, if the smoothing is going to be undersampled by this choice
+        #in v_step, it means that the oversampling parameter in ops.constant_velocity_wl_grid was
+        #not high enough. Then we adjust it. I choose a value of 3 here to be safe, even though
+        #ops.smooth below accepts values as low as 2.
+        oversampling_new = 3.0/(dRV_min/vstep)*oversampling#scale up the oversampling factor.
+        wlm_cv,fxm_bcv,vstep=ops.constant_velocity_wl_grid(wlm,fxm_b,oversampling=oversampling_new)
+
+
+
+
+
+
+    # print('v_step is %s km/s' % vstep)
+    # print('So the exp-time blurkernel has an avg width of %s px.' % (np.mean(dRV)/vstep))
+
+    for i in range(0,n_exp):
+        if dRV[i] >= c/Rd/10.0:
+            fxm_b2=ops.smooth(fxm_bcv,dRV[i]/vstep,mode='box')
+        else:
+            fxm_b2=copy.deepcopy(fxm_bcv)
+        shift=1.0+rv[i]/c
+        fxm_i=scipy.interpolate.interp1d(wlm_cv*shift,fxm_b2,fill_value=1.0,bounds_error=False) #This is a class that can be called.
+        #Fill_value = 1 because if the model does not fully cover the order, it will be padded with 1.0s,
+        #assuming that we are dealing with a model that is in transmission.
+
+        injection[i,:]=1.0+mask[i]*(fxm_i(wld)-1.0)#This assumes that the model is in transit radii.
+        #This can definitely be vectorised!
+
+        #These are for checking that the broadening worked as expected:
+        # injection_total[i,:]= scipy.interpolate.interp1d(wlm_cv*shift,fxm_b2)(wld)
+        # injection_rot_only[i,:]=scipy.interpolate.interp1d(wlm*shift,fxm_b)(wld)
+        # injection_pure[i,:]=scipy.interpolate.interp1d(wlm*shift,fxm)(wld)
+
+    # ut.save_stack('test.fits',[injection_pure,injection_rot_only,injection_total])
+    # pdb.set_trace()
+    # ut.writefits('test.fits',injection)
+    # pdb.set_trace()
+    return(injection*order)

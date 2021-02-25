@@ -9,7 +9,8 @@ __all__ = [
     "phase",
     "RV_star",
     "transit",
-    "RV"
+    "RV",
+    "dRV"
 ]
 
 def check_dp(dp):
@@ -381,3 +382,36 @@ def RV(dp,vorb=None,vsys=False):
         vs=paramget('vsys',dp)
         rv+=vs
     return rv#In km/s.
+
+
+def dRV(dp):
+    """This program calculates the change in radial velocity in km/s for the
+    planet in the data sequence provided in dp, the data-path. dp starts in the
+    root folder,i.e. it starts with data/projectname/, and it ends with a slash.
+
+    Example: dv=dRV('data/Kelt-9/night1/')
+    The output is an array with length N, corresponding to N exposures.
+    The change in radial velocity is calculated using the first derivative of the
+    formula for RV, multiplied by the exposure time provided in obs_times.
+    The answer is provided in units of km/s change within each exposure."""
+    from tayph.vartests import typetest
+    import numpy as np
+    import astropy.units as u
+    from astropy.io import ascii
+    import pdb
+    import tayph.util as ut
+    dp=ut.check_path(dp,exists=True)
+    obsp=ut.check_path(dp/'obs_times',exists=True)
+
+    d=ascii.read(obsp,comment="#")
+    #Texp=d['exptime'].astype('float')
+    Texp=d['col3'].data#astype('float')
+    vorb=v_orb(dp)
+    p=phase(dp)
+    P=paramget('P',dp)
+    i=paramget('inclination',dp)
+    typetest(P,float,'P in dRV()')
+    typetest(i,float,'i in dRV()')
+
+    dRV=vorb*np.cos(2.0*np.pi*p)*2.0*np.pi/((P*u.d).to('s').value)*np.sin(np.radians(i))
+    return abs(dRV*Texp)

@@ -633,7 +633,7 @@ def run_instance(p):
         ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
         ut.writefits(outpath/'Kp.fits',Kp)
 
-
+        print('')
 
 
     #Now repeat it all for the model injection.
@@ -686,7 +686,7 @@ def run_instance(p):
 
 
                 ut.tprint('---Cleaning injected CCFs')
-                ccf_n_i,ccf_ne_i,ccf_nn_i,ccf_nne_i = cleaning.clean_ccf(rv_i,ccf_i,ccf_e_i,dp)
+                ccf_n_i,ccf_ne_i,ccf_nn_i,ccf_nne_i = clean_ccf(rv_i,ccf_i,ccf_e_i,dp)
 
 
                 if skip_doppler_model == False:
@@ -726,6 +726,9 @@ def run_instance(p):
                 ut.writefits(outpath_i/'KpVsys_i.fits',KpVsys_i)
                 ut.writefits(outpath_i/'KpVsys_e_i.fits',KpVsys_e_i)
                 ut.writefits(outpath_i/'Kp.fits',Kp)
+
+
+                print('')
                 # if plot_xcor == True:
                 #     print('---Plotting KpVsys with '+modelname+' injected.')
                 #     analysis.plot_KpVsys(rv_i,Kp_i,KpVsys,dp,injected=KpVsys_i)

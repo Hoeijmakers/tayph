@@ -686,7 +686,7 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
 
 
     order_blurred=order*0.0#init the output.
-    truncsize=2.0#The gaussian is truncated at 5 sigma from the extremest points of the RV amplitude.
+    truncsize=5.0#The gaussian is truncated at 5 sigma from the extremest points of the RV amplitude.
     sig_dv = dv / (2*np.sqrt(2.0*np.log(2))) #Transform FWHM to Gaussian sigma. In km/s.
     deriv = derivative(wl)
     if max(deriv) < 0:
@@ -697,6 +697,7 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
     n=1000.0
     a=fun.findgen(n)/(n-1)*np.pi
     rv=np.cos(a)*np.sin(np.radians(inclination))*(2.0*np.pi*1.7*const.R_jup/(1.27*u.day)).to('km/s').value #in km/s
+
 
     trunc_dist=np.round(sig_px*truncsize+np.max(rv)*wl/(const.c.to('km/s').value)/deriv).astype(int)
     # print('Maximum rotational rv: %s' % max(rv))
@@ -712,7 +713,6 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
     #that is the LSF.
     for v in rv:
         lsf+=fun.gaussian(rvgrid,1.0,v,sig_dv)#This defines the LSF on a velocity grid wih high fidelity.
-
     if fast:
         wlt,fxt,dv = constant_velocity_wl_grid(wl,order,4)
         dv_grid = rvgrid[1]-rvgrid[0]
@@ -747,7 +747,11 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
         #print([np.min(wlbin),np.min(wlgrid),np.max(wlbin),np.max(wlgrid)])
 
         i_wl = interpolate.interp1d(wlgrid,lsf) #This is a class that can be called.
-        lsf_wl=i_wl(wlbin)
+        try:
+            lsf_wl=i_wl(wlbin)
+        except:
+            ut.tprint('Error in interpolating LSF onto wlbin. Pausing to debug.')
+            pdb.set_trace()
         k_n=lsf_wl/np.sum(lsf_wl)#Normalize at each instance of the interpolation to make sure flux is conserved exactly.
         order_blurred[i]=np.sum(k_n*order[binstart:binend])
         if status == True:

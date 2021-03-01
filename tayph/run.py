@@ -640,7 +640,7 @@ def run_instance(p):
         for modelname in modellist:
             if do_xcor == True:
                 print('---Injecting model '+modelname)
-                
+
                 list_of_orders_injected=models.inject_model(list_of_wls,list_of_orders,dp,modelname,
                 model_library=model_library)#Start with the unnormalised orders from before.
                 #Normalize the orders to their average flux in order to effectively apply
@@ -698,7 +698,7 @@ def run_instance(p):
                     #need to be repeated because it was already done during the correlation with
                     #the data.
                     ccf_clean_i,matched_ds_model_i = shadow.match_shadow(rv_i,ccf_nn_i,dp,
-                        doppler_model)
+                    doppler_model)
                 else:
                     ut.tprint('---Not performing shadow correction on injected spectra either.')
                     ccf_clean_i = ccf_nn_i*1.0

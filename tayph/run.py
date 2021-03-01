@@ -697,7 +697,7 @@ def run_instance(p):
                     # doppler_model,maskHW = shadow.read_shadow(dp,shadowname,rv,ccf)#This does not
                     #need to be repeated because it was already done during the correlation with
                     #the data.
-                    ccf_clean_i,matched_ds_model_i = shadow.match_shadow(rv_i,ccf_nn_i,dp,
+                    ccf_clean_i,matched_ds_model_i = shadow.match_shadow(rv_i,ccf_nn_i,dp,dsmask,
                     doppler_model)
                 else:
                     ut.tprint('---Not performing shadow correction on injected spectra either.')

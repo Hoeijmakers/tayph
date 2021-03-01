@@ -492,26 +492,40 @@ def set_molecfit_config():
         current_python_alias = sp.paramget('python_alias',configpath,full_path=True)
 
         ut.tprint(Q1)
-        ut.tprint(f'Currently: {current_molecfit_input_folder}')
-        new_molecfit_input_folder = ut.check_path(input(),exists=True)
+        ut.tprint(f'Currently: {current_molecfit_input_folder} (leave empty to keep current '
+        'value).')
+
+        new_input_folder_input=str(input())
+        if len(new_input_folder_input)==0:
+            new_molecfit_input_folder = ut.check_path(current_molecfit_input_folder,exists=True)
+        else:
+            new_molecfit_input_folder = ut.check_path(new_input_folder_input,exists=True)
         print('')
         ut.tprint(Q2)
         ut.tprint(f'Currently: {current_molecfit_prog_folder}')
-        new_molecfit_prog_folder = ut.check_path(input(),exists=True)
+        new_prog_folder_input=str(input())
+        if len(new_prog_folder_input)==0:
+            new_molecfit_prog_folder = ut.check_path(current_molecfit_prog_folder,exists=True)
+        else:
+            new_molecfit_prog_folder = ut.check_path(new_prog_folder_input,exists=True)
         print('')
         ut.tprint(Q3)
         ut.tprint(f'Currently: {current_python_alias}')
-        new_python_alias = input()
+        new_python_alias_input = str(input())
+        if len(new_python_alias_input)==0:
+            new_python_alias = current_python_alias
+        else:
+            new_python_alias = new_python_alias_input
     else:#This is actually the default mode of using this, because this function is generally
     #only called when tel.molecfit() is run for the first time and the config file doesn't exist yet.
         ut.tprint(Q1)
-        new_molecfit_input_folder = ut.check_path(input(),exists=True)
+        new_molecfit_input_folder = ut.check_path(str(input()),exists=True)
         print('')
         ut.tprint(Q2)
-        new_molecfit_prog_folder = ut.check_path(input(),exists=True)
+        new_molecfit_prog_folder = ut.check_path(str(input()),exists=True)
         print('')
         ut.tprint(Q3)
-        new_python_alias = input()
+        new_python_alias = str(input())
 
 
     with open(configpath, "w") as f:

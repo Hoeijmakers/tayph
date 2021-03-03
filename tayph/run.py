@@ -697,7 +697,7 @@ def run_instance(p):
                     # doppler_model,maskHW = shadow.read_shadow(dp,shadowname,rv,ccf)#This does not
                     #need to be repeated because it was already done during the correlation with
                     #the data.
-                    ccf_clean_i,matched_ds_model_i = shadow.match_shadow(rv_i,ccf_nn_i,dp,dsmask,
+                    ccf_clean_i,matched_ds_model_i = shadow.match_shadow(rv_i,ccf_nn_i,dsmask,dp,
                     doppler_model)
                 else:
                     ut.tprint('---Not performing shadow correction on injected spectra either.')
@@ -914,7 +914,7 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
                 "or cold are allowed. Assuming a solar template.",RuntimeWarning)
             T_eff = 6000
 
-        print(f'---Downloading / reading diagnostic telluric and {star} PHOENIX models.')
+        ut.tprint(f'---Downloading / reading diagnostic telluric and {star} PHOENIX models.')
 
         #Load the PHOENIX spectra from the Goettingen server:
         fxm = get_phoenix_model_spectrum(T_eff=T_eff)
@@ -923,11 +923,22 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         #Load the telluric spectrum from my Google Drive:
         telluric_link = ('https://drive.google.com/uc?export=download&id=1yAtoLwI3h9nvZK0IpuhLvIp'
             'Nc_1kjxha')
-        telpath = download_file(telluric_link)
+
+        telpath = Path(download_file(telluric_link,cache=True))
+        if telpath.exists() == False:
+            ut.tprint(f'------Download to {telpath} failed. Is the cache damaged? Rerunning with '
+                'cache="update".')
+            telpath = Path(download_file(telluric_link,cache='update'))#If the cache is damaged.
+            if telpath.exists() == False:#If it still doesn't exist...
+                raise Exception(f'{telpath} does not exist after attempted repair of the astropy '
+            'cache. To continue, run read_e2ds() with measure_RV=False, and troubleshoot your '
+            'astropy cache.')
+            else:
+                ut.tprint(f'------Download to {telpath} was successful. Proceeding.')
         ttt=fits.getdata(telpath)
-        os.remove(telpath)#Free up the downloaded diskspace again.
         fxt=ttt[1]
         wlt=ttt[0]
+
 
         #Continuum-subtract the telluric model
         wlte,fxte=ops.envelope(wlt,fxt,2.0,selfrac=0.05,threshold=0.8)
@@ -1222,7 +1233,11 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         #From this moment on, I will start reusing some variable that I named above, i.e.
         #overwriting them.
         drv=1.0
-        RVrange=160.0
+        if star =='hot':
+            RVrange=500.0
+        else:
+            RVrange=200.0
+
         print(f'---Preparing for diagnostic correlation with a telluric template and a {star} PHOENIX model.')
         print(f'---The wavelength axes of the spectra will be shown here as they were saved by read_e2ds.')
         print(f'---Cleaning 1D spectra for cross-correlation.')
@@ -1286,12 +1301,20 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         rvT,ccfT,TsusmT=xcor([wave_1d],[s1d_block],np.flipud(np.flipud(wlt)),fxtn-1.0,drv,RVrange)
         rvT2D,ccfT2D,TsusmT2D=xcor(list_of_waves_trimmed,list_of_orders_trimmed,
             np.flipud(np.flipud(wlt)),fxtn-1.0,drv,RVrange)
+
+
+
+
+
+
         #The rest is for plotting.
-        plt.figure(figsize=(13,5))
         minwl=np.inf#For determining in the for-loop what the min and max wl range of the data are.
         maxwl=0.0
 
         mean_of_orders = np.nanmean(np.hstack(list_of_orders_trimmed))
+
+
+        fig,ax=plt.subplots(2,1,figsize=(13,7))
         for i in range(len(list_of_orders)):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -1300,26 +1323,25 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
             maxwl=np.max([np.max(list_of_waves[i]),maxwl])
 
             if i == 0:
-                plt.plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.9,
+                ax[0].plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.9,
                 alpha=0.5,label='2D echelle orders to be cross-correlated')
             else:
-                plt.plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.7,
+                ax[0].plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.7,
                 alpha=0.5)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             s1d_avg=np.nanmean(s1d_block,axis=0)
-        plt.plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
+        ax[0].plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
             label='1D spectrum to be cross-correlated',linewidth=0.9,alpha=0.5)
-
-        plt.title(f'Time-averaged spectral orders and {star} PHOENIX model')
-        plt.xlabel('Wavelength (nm)')
-        plt.ylabel('Flux (normalised to order average)')
-        plt.plot(wlm,fxmn,color='green',linewidth=0.7,label='PHOENIX template (air, used in ccf)',
+        ax[0].plot(wlt,fxtn,color='blue',linewidth=0.7,label='Skycalc telluric model',alpha=0.6)
+        ax[0].set_title(f'Time-averaged spectral orders and {star} PHOENIX model')
+        ax[0].set_xlabel('Wavelength (nm)')
+        ax[0].set_ylabel('Flux (normalised to order average)')
+        ax[0].plot(wlm,fxmn,color='green',linewidth=0.7,label='PHOENIX template (air, used in ccf)',
             alpha=0.5)
-        plt.plot(wlt,fxtn,color='blue',linewidth=0.7,label='Skycalc telluric model',alpha=0.6)
-        plt.xlim(minwl-5,maxwl+5)#Always nm.
-        plt.legend(loc='upper right',fontsize=8)
-        plt.show()
+        ax[0].set_xlim(minwl-5,maxwl+5)#Always nm.
+        ax[0].legend(loc='upper right',fontsize=8)
+
 
         centroids2d=[]
         centroids1d=[]
@@ -1328,44 +1350,89 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
 
 
 
-        plt.figure(figsize=(13,5))
+
         for n,i in enumerate(ccf):
             if n == 0:
-                plt.plot(rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='black',
+                ax[1].plot(rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red',
                 label='2D orders-PHOENIX')
             else:
-                plt.plot(rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='black')
+                ax[1].plot(rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red')
             centroids2d.append(rv[np.argmin(i)])
         for n,i in enumerate(ccf1d):
             if n == 0:
-                plt.plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red',
+                ax[1].plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='orange',
                 label='1D spectra-PHOENIX')
             else:
-                plt.plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red')
+                ax[1].plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='orange')
             centroids1d.append(rv1d[np.argmin(i)])
-        for n,i in enumerate(ccfT):
-            if n == 0:
-                plt.plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.2,color='blue',
-                label='1D spectra-TELLURIC')
-            else:
-                plt.plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.2,color='blue')
-            centroidsT1d.append(rvT[np.argmin(i)])
         for n,i in enumerate(ccfT2D):
             if n == 0:
-                plt.plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.2,color='navy',
+                ax[1].plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='navy',
                 label='2D orders-TELLURIC')
             else:
-                plt.plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.2,color='navy')
+                ax[1].plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='navy')
             centroidsT2d.append(rvT2D[np.argmin(i)])
-        plt.axvline(np.nanmean(centroids2d),color='black',alpha=0.5)
-        plt.axvline(np.nanmean(centroids1d),color='red',alpha=0.5)
-        plt.axvline(np.nanmean(centroidsT1d),color='blue',alpha=0.5)
-        plt.axvline(np.nanmean(centroidsT2d),color='navy',alpha=1.0)
-        plt.title(f'CCF between {mode} data and {star} PHOENIX and telluric models. See commentary '
+        for n,i in enumerate(ccfT):
+            if n == 0:
+                ax[1].plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='blue',
+                label='1D spectra-TELLURIC')
+            else:
+                ax[1].plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='blue')
+            centroidsT1d.append(rvT[np.argmin(i)])
+
+        ax[1].axvline(np.nanmean(centroids2d),color='red',alpha=0.5)
+        ax[1].axvline(np.nanmean(centroids1d),color='orange',alpha=0.5)
+        ax[1].axvline(np.nanmean(centroidsT1d),color='blue',alpha=0.5)
+        ax[1].axvline(np.nanmean(centroidsT2d),color='navy',alpha=1.0)
+        ax[1].set_title(f'CCF between {mode} data and {star} PHOENIX and telluric models. See commentary '
         'in terminal for details',fontsize=9)
-        plt.xlabel('Radial velocity (km/s)')
-        plt.ylabel('Mean flux')
-        plt.legend()
+        ax[1].set_xlabel('Radial velocity (km/s)')
+        ax[1].set_ylabel('Mean flux')
+        legend=ax[1].legend()
+        for lh in legend.legendHandles: lh._legmarker.set_alpha(1.0)
+        for lh in legend.get_lines(): lh.set_linewidth(4)
+        print('\n \n \n')
+
+
+
+
+        terminal_height,terminal_width = subprocess.check_output(['stty', 'size']).split()
+        #Get the window size of the terminal, from https://stackoverflow.com/questions/566746/
+        #how-to-get-linux-console-window-width-in-python
+        if mode == 'ESPRESSO':
+            explanation=[(f'For ESPRESSO, the S1D and S2D spectra are typically provided in the '
+            'barycentric frame, in air. Because the S1D spectra are used for telluric correction, '
+            'this code undoes this barycentric correction so that the S1Ds are saved in the '
+            'telluric rest-frame while the S2D spectra remain in the barycentric frame.'),'',
+            ('Therefore, you should see the following values for the the measured line centers:'),
+            ('- The 1D spectra correlated with PHOENIX should peak at the systemic velocity minus '
+            f'the BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).'),
+            '- The 1D spectra correlated with the telluric model should peak at 0 km/s.',
+            ('- The 2D spectra correlated with PHOENIX should peak the systemic velocity of this '
+            'star.'),('- The 2D spectra correlated with the tellurics should peak at the '
+            'barycentric velocity.'),'',('If this is correct, in the Tayph runfile of this dataset,'
+            ' do_berv_correction should be set to False and air in the config file of this dataset '
+            'should be set to True.')]
+
+
+        if mode in ['HARPS','HARPSN']:
+            explanation=[('For HARPS(N), the s1d spectra are typically provided in the barycentric '
+            'restframe, while the e2ds spectra are left in the observatory frame, both in air. '
+            'Because the s1d spectra are used for telluric correction, this code undoes this '
+            'barycentric correction so that the s1ds are saved in the telluric rest-frame so that '
+            'they end up in the same frame as the e2ds spectra.'),'',('Therefore, you should see '
+            'the following values for the the measured line centers:'),('- The 1D spectra '
+            'correlated with PHOENIX should peak at the systemic velocity minus the BERV correction'
+            f' (equal to {np.round(np.nanmean(berv),2)} km/s on average).'),('- The 1D spectra '
+            'correlated with the telluric model should peak at 0 km/s.'),('- The 2D spectra '
+            'correlated with PHOENIX should peak the systemic velocity minus the BERV correction '
+            f'(equal to {np.round(np.nanmean(berv),2)} km/s on average).'),('- The 2D spectra '
+            'correlated with the tellurics should peak at 0 km/s.'),'',('If this is correct, in '
+            'the Tayph runfile of this dataset, do_berv_correction should be set to True and air '
+            'in the config file of this dataset should be set to True.')]
+
+
+        for s in explanation: print(textwrap.fill(s, width=int(terminal_width)-5))
         print('\n \n \n')
 
         print('The derived line positions are as follows:')
@@ -1379,59 +1446,23 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         f'{np.round(np.nanmean(centroidsT2d),1)} km/s.')
         print('\n \n \n')
 
-
-        terminal_height,terminal_width = subprocess.check_output(['stty', 'size']).split()
-        #Get the window size of the terminal, from https://stackoverflow.com/questions/566746/
-        #how-to-get-linux-console-window-width-in-python
-        if mode == 'ESPRESSO':
-            explanation=[f'For ESPRESSO, the S1D and S2D spectra are typically \
-provided in the barycentric frame, in air. Because the S1D spectra are used for \
-telluric correction, this code undoes this barycentric correction so that the \
-S1Ds are saved in the telluric rest-frame while the S2D spectra remain in the \
-barycentric frame.','','Therefore, you should see the following values for the \
-the measured line centers:' ,\
-f'- The 1D spectra correlated with PHOENIX should peak at the systemic velocity minus \
-the BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).', \
-'- The 1D spectra correlated with the telluric model should peak at 0 km/s.', \
-'- The 2D spectra correlated with PHOENIX should peak the systemic velocity of this star.', \
-'- The 2D spectra correlated with the tellurics should peak at the barycentric velocity.','', \
-'If this is correct, in the Tayph runfile of this dataset, do_berv_correction should be set to False and \
-air in the config file of this dataset should be set to True.']
-
-
-        if mode in ['HARPS','HARPSN']:
-            explanation=[f'For HARPS, the s1d spectra are typically \
-provided in the barycentric restframe, while the e2ds spectra are left in the observatory \
-frame, both in air. Because the s1d spectra are used for telluric correction, this code undoes \
-this barycentric correction so that the s1ds are saved in the telluric rest-frame so that they \
-end up in the same frame as the e2ds spectra.','', \
-'Therefore, you should see the following values for the the measured line centers:', \
-f'- The 1D spectra correlated with PHOENIX should peak at the systemic velocity minus \
-the BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).', \
-'- The 1D spectra correlated with the telluric model should peak at 0 km/s.', \
-f'- The 2D spectra correlated with PHOENIX should peak the systemic velocity minus the \
- BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).', \
-'- The 2D spectra correlated with the tellurics should peak at 0 km/s.','', \
-'If this is correct, in the Tayph runfile of this dataset, do_berv_correction should be set to True and air \
-in the config file of this dataset should be set to True.']
-
-
-        for s in explanation: print(textwrap.fill(s, width=int(terminal_width)-5))
-        print('\n \n \n')
-        final_notes = "Large deviations can occur if the wavelength solution from the pipeline is \
-incorretly assumed to be in air, or if for whatever reason, the wavelength solution is \
-provide in the reference frame of the star. In the former case, you need to specify in \
-the CONIG file of the data that the wavelength solution written by this file is in vaccuum. \
-This wil be read by Tayph and Molecfit. \
-In the atter case, barycentric correction (and possibly Keplerian corrections) are likely \
-implicily taken into account in the wavelength solution, meaning that these corrections need \
-to be sitched off when running the Tayph's cascade. Molecfit can't be run in the default way \
-in thiscase, because the systemic velocity is offsetting the telluric spectrum. \
-If no peak is visible at all, the spectral orders are suffering from unknown velocity shifts \
-or contnuum fluctuations that this code was not able to take out. In this case, please inspect \
-your daa carefully to determine whether you can locate the source of the problem. Continuing to \
-run Tayph from this point on would probably make it very difficult to obtain meaningful cross-correlations."
+        final_notes = ('Large deviations can occur if the wavelength solution from the pipeline is '
+        'incorrectly assumed to be in air, or if for whatever reason, the wavelength solution is '
+        'provide in the reference frame of the star. In the former case, you need to specify in '
+        'the config file of the data that the wavelength solution written by this file is in '
+        'vaccuum. This wil be read by Tayph and Molecfit. In the atter case, barycentric '
+        'correction (and possibly Keplerian corrections) are likely implicily taken into account '
+        'in the wavelength solution, meaning that these corrections need to be sitched off when '
+        "running Tayph's cascade. Molecfit can't be run in the default way in this case, because "
+        'the systemic velocity is offsetting the telluric spectrum. If no peak is visible at all, '
+        'the spectral orders are suffering from unknown velocity shifts or contnuum fluctuations '
+        'that this code was not able to take out. In this case, please inspect your daa carefully '
+        'to determine whether you can locate the source of the problem. Continuing to run Tayph '
+        'from this point on would probably make it very difficult to obtain meaningful '
+        'cross-correlations.')
         print(textwrap.fill(final_notes, width=int(terminal_width)-5))
+
+        fig.tight_layout()
         plt.show()
 
     print('\n \n \n')

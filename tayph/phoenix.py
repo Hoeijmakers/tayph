@@ -52,8 +52,11 @@ def get_phoenix_model_spectrum(T_eff, log_g=4.5, cache=True):
     spectrum : `~specutils.Spectrum1D`
         Model spectrum
     """
+    from pathlib import Path
     url = get_url(T_eff=T_eff, log_g=log_g)
-    fluxes_path = download_file(url, cache=cache, timeout=30)
+    fluxes_path = Path(download_file(url, cache=cache, timeout=30))
+    if fluxes_path.exists() == False and cache==True:#Catch damage of astropy cache.
+        fluxes_path = Path(download_file(url, cache='update', timeout=30))
     fluxes = fits.getdata(fluxes_path)
 
     return fluxes
@@ -75,9 +78,12 @@ def get_phoenix_wavelengths(cache=True, vacuum=True):
     wavelengths : `~np.ndarray`
         Wavelength array grid in vacuum wavelengths
     """
+    from pathlib import Path
     wavelength_url = ('ftp://phoenix.astro.physik.uni-goettingen.de/v2.0/HiResFITS/'
                       'WAVE_PHOENIX-ACES-AGSS-COND-2011.fits')
-    wavelength_path = download_file(wavelength_url, cache=cache, timeout=30)
+    wavelength_path = Path(download_file(wavelength_url, cache=cache, timeout=30))
+    if wavelength_path.exists() == False and cache==True:#Catch damage of astropy cache.
+        wavelength_path = Path(download_file(wavelength_url, cache='update', timeout=30))
     wavelengths_vacuum = fits.getdata(wavelength_path)
 
     # Wavelengths are provided at vacuum wavelengths. For ground-based

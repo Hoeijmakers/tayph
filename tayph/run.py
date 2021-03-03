@@ -880,7 +880,25 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         'CARMENES-VIS','CARMENES-NIR']:
         raise ValueError("in read_e2ds: mode needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
             "CARMENES-VIS, CARMENES-NIR or ESPRESSO.")
-        'cross-correlation output is bundled. Please make an empty working directory in e.g. '
+
+
+    if outname[0] in ['/','.']:#Test that this is an absolute path. If so, we trigger a warning.
+        ut.tprint(f'ERROR: The name of the dataset {outname} appears to be set as an absolute path.'
+        ' or a relative path from the current directory. However, Tayph is designed to run in a '
+        'working directory in which datasets, models and cross-correlation output is bundled. To '
+        'that end, this variable is supposed to be set to a name, or a name with a subfolder (like '
+        '"WASP-123" or "WASP-123/night1"), which is to be placed in the data/ subdirectory of the ' 
+        'current folder. To initialise this file structure, please make an empty working directory '
+        'in e.g. /home/user/tayph/xcor_project/, start the python interpreter in this directory and '
+        'create a dummy file structure using the make_project_folder function, e.g. by importing '
+        'tayph.run and calling tayph.run.make_project_folder("/home/user/tayph/xcor_project/").')
+        sys.exit()
+    outpath = Path('data/'+outname)
+    if os.path.exists(outpath) != True:
+        os.makedirs(outpath)
+
+
+
     if measure_RV:
         #Define the paths to the stellar and telluric templates if RV's need to be measured.
 
@@ -944,11 +962,6 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         wlm=ops.vactoair(wlm)#Everything in the world is in air.
         #The stellar and telluric templates are now ready for application in cross-correlation at
         #the very end of this script.
-
-
-    outpath = Path('data/'+outname)
-    if os.path.exists(outpath) != True:
-        os.makedirs(outpath)
 
 
 
@@ -1203,9 +1216,9 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         elif mode=='HARPS':
             keywords+=['long\t-70.7380','lat\t-29.2563','elev\t2387.2','air\tTrue']
         elif mode in ['HARPSN','HARPS-N']:
-            keywords+=['long\t','lat\t','elev\t','air\t']
+            keywords+=['long\t-17.8850','lat\t28.7573','elev\t2396.0','air\tTrue']
         elif mode in ['CARMENES-VIS','CARMENES-NIR']:
-            keywords+=['long\t-2.5468','lat\t37.2208','elev\t2168','air\t']
+            keywords+=['long\t-2.5468','lat\t37.2208','elev\t2168.0','air\t']
         else:
             keywords+=['long\t','lat\t','elev\t','air\t']
 

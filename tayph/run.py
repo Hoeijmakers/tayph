@@ -880,6 +880,7 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         'CARMENES-VIS','CARMENES-NIR']:
         raise ValueError("in read_e2ds: mode needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
             "CARMENES-VIS, CARMENES-NIR or ESPRESSO.")
+        'cross-correlation output is bundled. Please make an empty working directory in e.g. '
     if measure_RV:
         #Define the paths to the stellar and telluric templates if RV's need to be measured.
 

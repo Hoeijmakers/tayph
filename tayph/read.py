@@ -216,9 +216,9 @@ def read_carmenes(inpath,filelist,channel,construct_s1d=True):
 
                 if construct_s1d:
                     wave_1d, data_1d = spec_stich_n_norm(data,wavedata,cont,sigma)
-                    
+
                     s1d.append(data_1d)
-                    
+
                     hdr1d = copy.deepcopy(hdr)
                     hdr1d['UTC'] = (float(hdr1d['MJD-OBS'])%1.0)*86400.0
                     s1dhdr.append(hdr1d)
@@ -239,6 +239,9 @@ def read_carmenes(inpath,filelist,channel,construct_s1d=True):
 
 
 def spec_stich_n_norm(spec, wave, cont, sig, step_size = 0.0001):
+    """This stitches and continuum normalises CARMENES E2DS spectra into 1D spectra for use in
+    molecfit.
+    N. Borsato - 24-02-2021"""
 
     import numpy as np
     from astropy.io import fits
@@ -255,7 +258,7 @@ def spec_stich_n_norm(spec, wave, cont, sig, step_size = 0.0001):
 
         #Interpolating the spectral orders to the new grid for both the current and proceeding order
         I_spectra_1 = interp1d(wave[i], spec[i], bounds_error = False) #Intep for spectra
-        I_spectra_2 = interp1d(wave[i+1], spec[i+1], bounds_error = False) 
+        I_spectra_2 = interp1d(wave[i+1], spec[i+1], bounds_error = False)
 
         I_sig_1 = interp1d(wave[i], sig[i], bounds_error = False) #Interp for sig vals
         I_sig_2 = interp1d(wave[i+1], sig[i+1], bounds_error = False)
@@ -294,11 +297,11 @@ def spec_stich_n_norm(spec, wave, cont, sig, step_size = 0.0001):
 
         Cont_Combo = np.array([I_cont_1, I_cont_2])
         Cont_Combo = Cont_Combo.T
-        
+
         #Money is made here, a weighted average is taken using the sig values than normalise by dividing by the continuu,
         Ave_Spec = np.average(Spec_Combo, weights = 1/(Sig_Combo**2), axis = 1)/np.average(Cont_Combo, axis = 1)
         Ave_Spec = Ave_Spec.T
-        
+
         #Averages are append with their corresponding wavlength
         Total_Specs = np.append(Total_Specs, Ave_Spec)
         Total_Waves = np.append(Total_Waves, waves)
@@ -553,7 +556,8 @@ def read_espresso(inpath,filelist,read_s1d=True):
                     else:
                         hdr1d['TELALT']     = hdr1d[f'ESO TEL{TELESCOP} ALT']
                         hdr1d['RHUM']       = hdr1d[f'ESO TEL{TELESCOP} AMBI RHUM']
-                        hdr1d['PRESSURE']   = hdr1d[f'ESO INS ADC{TELESCOP} SENS1']
+                        hdr1d['PRESSURE']   = (hdr1d[f'ESO TEL{TELESCOP} AMBI PRES START']+
+                                            hdr1d[f'ESO TEL{TELESCOP} AMBI PRES END'])/2.0
                         hdr1d['AMBITEMP']   = hdr1d[f'ESO TEL{TELESCOP} AMBI TEMP']
                         hdr1d['M1TEMP']     = hdr1d[f'ESO TEL{TELESCOP} TH M1 TEMP']
                     s1dhdr.append(hdr1d)

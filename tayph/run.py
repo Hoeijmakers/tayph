@@ -745,7 +745,7 @@ def run_instance(p):
 
 
 
-def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='solar'):
+def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='solar',config=False):
     """This is the workhorse for reading in a time-series of archival 2D echelle
     spectra from a couple of instrument pipelines that produce a standard output,
     and formatting these into the order-wise FITS format that Tayph uses. These
@@ -820,31 +820,11 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
     The blue and red arms are regarded as two different spectrographs (they are), but
     the two red chips (redu and redl) are combined when reading in the data.
 
-    For HARPS, HARPS-N and ESPRESSO, information about the BERV correction is obtained
-    from the FITS headers. For UVES, the BERV-correction is calculated using astropy.
-    For ESPRESSO, the S2D wavelengths are BERV-corrected, leading to a different wavelength
-    solution for each of the exposures. This is not desired, so the BERV-correction is
-    undone at the time of reading. ISSUE: THIS COSTS US AN INTERPOLATION.
 
-    Set the nowave keyword to True if the dataset is HARPS or HARPSN, but it has
-    no wave files associated with it. This may happen if you downloaded ESO
-    Advanced Data Products, which include reduced science e2ds's but not reduced
-    wave e2ds's. The wavelength solution is still encoded in the fits header however,
-    so we take it from there, instead. This keyword is ignored when not dealing with
-    HARPS data.
-
-    Set the ignore_exp keyword to a list of exposures (start counting at 0) that
-    need to be ignored when reading, e.g. because they are bad for some reason.
-    If you have set molecfit to True, this becomes an expensive parameter to
-    play with in terms of computing time, so its better to figure out which
-    exposures you'd wish to ignore first (by doing most of your analysis),
-    before actually running Molecfit, which is icing on the cake in many use-
-    cases in the optical.
-
-    The config parameter points to a configuration file (usually your generic
-    run definition file) that is only used to point the Molecfit wrapper to the
-    Molecfit installation on your system. If you are not using molecfit, you may
-    pass an empty string here.
+    Set the config keyword equal to true, if you want an example config file to be created in the
+    data output folder, named config_empty. You can then fill in this file for your system, and
+    this function will fill in the required keywords for the geographical coordinates and air,
+    based on the instrument mode selected.
 
     """
     import pkg_resources
@@ -1132,8 +1112,8 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
             wave1d_sorted],f)
 
     #Provide diagnostic output.
-    print('---These are the filetypes and observing date-times recognised.')
-    print('---These should all be SCIENCE and in chronological order.')
+    ut.tprint('---These are the filetypes and observing date-times recognised.')
+    ut.tprint('---These should all be SCIENCE and in chronological order.')
     for i in range(len(sorting)): print(f'------{obstype[sorting[i]]}  {date[sorting[i]]}  '
         f'{mjd[sorting[i]]}')
 
@@ -1210,10 +1190,28 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         'that there is an anomaly with the way the wavelengths are read from the FITS headers. '
         'You are advised to investigate this.')
     print('\n \n \n')
-    print(f'---Time-table written to {outpath/"obs_times"}.')
+    ut.tprint(f'---Time-table written to {outpath/"obs_times"}.')
 
 
+    if config:
+        keywords=['P\t','a\t','aRstar\t','Mp\t','Rp\t','K\t','RpRstar\t','vsys\t',
+        'RA\t-00:00:00.0','DEC\t-00:00:00.0','Tc\t','duration\t','resolution\t','inclination\t',
+        'vsini\t']
+        if mode in ['ESPRESSO','UVES-red','UVES-blue']:
+            keywords+=['long\t-70.4039','lat\t-24.6272','elev\t2635.0','air\tTrue']
+        elif mode=='HARPS':
+            keywords+=['long\t-70.7380','lat\t-29.2563','elev\t2387.2','air\tTrue']
+        elif mode in ['HARPSN','HARPS-N']:
+            keywords+=['long\t','lat\t','elev\t','air\t']
+        elif mode in ['CARMENES-VIS','CARMENES-NIR']:
+            keywords+=['long\t-2.5468','lat\t37.2208','elev\t2168','air\t']
+        else:
+            keywords+=['long\t','lat\t','elev\t','air\t']
 
+        with open(outpath/'config_empty','w',newline='\n') as f:
+            for keyword in keywords:
+                f.write(keyword+'\n')
+        ut.tprint(f'---Dummy config file written to {outpath/"config_empty"}.')
 
 
 

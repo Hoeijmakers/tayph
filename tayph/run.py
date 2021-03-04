@@ -1653,6 +1653,7 @@ def check_molecfit(dp):
     import tayph.util as ut
     import tayph.tellurics as tel
     from pathlib import Path
+    dp=ut.check_path(dp,exists=True)
     telpath = ut.check_path(Path(dp)/'telluric_transmission_spectra.pkl',exists=True)
 
     to_do_manually = tel.check_fit_gui(list_of_wls,list_of_fxc,list_of_trans)

@@ -1487,7 +1487,7 @@ save_figure=True):
 
 
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
-def molecfit(dp,mode='HARPS',save_individual='',configfile=None):
+def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False):
 # def do_molecfit(headers,waves,spectra,configfile,mode='HARPS',load_previous=False,save_individual=''):
     """This is the main wrapper for molecfit that pipes a list of s1d spectra and
     executes it. It first launces the molecfit gui on the middle spectrum of the
@@ -1599,7 +1599,7 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None):
     list_of_trans = []
 
     tel.write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,
-        s1d_sorted,middle_i)
+        s1d_sorted,middle_i,plot=plot_spec)
     tel.execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
     wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/mode)
     tel.remove_output_molecfit(molecfit_input_folder,mode)

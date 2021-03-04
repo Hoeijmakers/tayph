@@ -67,7 +67,7 @@ def execute_molecfit(molecfit_prog_root,molecfit_input_file,gui=False,alias='pyt
             os.system(command)
     #python3 /Users/hoeijmakers/Molecfit/bin/molecfit_gui /Users/hoeijmakers/Molecfit/share/molecfit/spectra/cross_cor/test.par
 
-def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii):
+def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii,plot=False):
     """This is a wrapper for writing a spectrum from a list to molecfit format.
     name is the filename of the fits file that is the output.
     headers is the list of astropy header objects associated with the list of spectra
@@ -88,6 +88,7 @@ def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii):
     from tayph.vartests import typetest
     import tayph.util as ut
     import sys
+    import matplotlib.pyplot as plt
     typetest(ii,int,'ii in write_file_to_molecfit()')
     molecfit_folder=ut.check_path(molecfit_folder,exists=True)
     wave = waves[int(ii)]
@@ -107,7 +108,9 @@ def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii):
     # wave = copy.deepcopy(wave*(1.0-(berv*u.km/u.s/const.c).decompose().value))
 
     err = np.sqrt(spectrum)
-
+    if plot:
+        plt.plot(wave,spectrum)
+        plt.show()
     #Write out the s1d spectrum in a format that molecfit eats.
     #This is a fits file with an empty primary extension that contains the header of the original s1d file.
     #Plus an extension that contains a binary table with 3 columns.

@@ -106,8 +106,10 @@ def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii,plot=Fa
     # elif mode in ['ESPRESSO','UVES-red','UVES-blue']:
     #     berv = headers[ii]['HIERARCH ESO QC BERV']
     # wave = copy.deepcopy(wave*(1.0-(berv*u.km/u.s/const.c).decompose().value))
-
+    spectrum[spectrum<=0]=np.nan
     err = np.sqrt(spectrum)
+    # spectrum[np.isnan(spectrum)]=0
+    # err[np.isnan(err)]=0
     if plot:
         plt.plot(wave,spectrum)
         plt.show()

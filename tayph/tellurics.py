@@ -112,12 +112,12 @@ def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii,plot=Fa
     # err[np.isnan(err)]=0
     if plot:
         plt.plot(wave,spectrum)
-        plt.xtitle('Wavelength')
-        plt.ytitle('Flux')
+        plt.xlabel('Wavelength')
+        plt.ylabel('Flux')
         plt.show()
         plt.plot(wave,err)
-        plt.xtitle('Wavelength')
-        plt.ytitle('Error')
+        plt.xlabel('Wavelength')
+        plt.ylabel('Error')
         plt.show()
     #Write out the s1d spectrum in a format that molecfit eats.
     #This is a fits file with an empty primary extension that contains the header of the original s1d file.

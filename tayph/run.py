@@ -745,7 +745,8 @@ def run_instance(p):
 
 
 
-def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='solar',config=False):
+def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='solar',config=False,
+save_figure=True):
     """This is the workhorse for reading in a time-series of archival 2D echelle
     spectra from a couple of instrument pipelines that produce a standard output,
     and formatting these into the order-wise FITS format that Tayph uses. These
@@ -774,16 +775,17 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
     adopted wavelength solution and possible wavelength shifts. the star keyword
     allows the user to switch between 3 stellar PHOENIX templates. A solar type (6000K),
     a hot (9000K) or a cool (4000K) template are available, and accessed by setting the
-    star keyword to 'solar', 'hot' or 'cool' respectively.
+    star keyword to 'solar', 'hot' or 'cool' respectively. Set the save_figure keyword to save the
+    plot of the spectra and the CCF to the data folder as a PDF.
 
     A crucial functionality of Tayph is that it also acts as a wrapper
     for the Molecfit telluric correction software. If installed properly, the
     user can call this script with the read_s1d keyword to extract 1D spectra from
-    the time-series. The tayph.tellurics.molecfit function can then be used to
+    the time-series. The tayph.run.molecfit function can then be used to
     let Molecfit loop ver the entire timeseries. To enable this functionality,
     the current script needs to read the full-width, 1D spectra that are output
     by the instrument pipelines. These are saved along with the 2D data.
-    Tayph.tellurics.molecfit can then be called separately on the output data-folder
+    Tayph.run.molecfit can then be called separately on the output data-folder
     to apply molecfit to this time-series of 1D spectra, creating a
     time-series of models of the telluric absorption spectrum that is saved along
     with the 2D fits files. Tayph later interpolates these models onto the 2D
@@ -819,7 +821,6 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
     red types at any time. If they are mixed, this script will throw an exception.
     The blue and red arms are regarded as two different spectrographs (they are), but
     the two red chips (redu and redl) are combined when reading in the data.
-
 
     Set the config keyword equal to true, if you want an example config file to be created in the
     data output folder, named config_empty. You can then fill in this file for your system, and
@@ -887,7 +888,7 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         ' or a relative path from the current directory. However, Tayph is designed to run in a '
         'working directory in which datasets, models and cross-correlation output is bundled. To '
         'that end, this variable is supposed to be set to a name, or a name with a subfolder (like '
-        '"WASP-123" or "WASP-123/night1"), which is to be placed in the data/ subdirectory of the ' 
+        '"WASP-123" or "WASP-123/night1"), which is to be placed in the data/ subdirectory of the '
         'current folder. To initialise this file structure, please make an empty working directory '
         'in e.g. /home/user/tayph/xcor_project/, start the python interpreter in this directory and '
         'create a dummy file structure using the make_project_folder function, e.g. by importing '
@@ -1184,8 +1185,8 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
             list_of_waves.append(wave_order)
 
 
-        if np.allclose(wave_order,first_wl,rtol=1e-8):#If the wavelenght differences are smaller
-        #than 1 in 100,000,000, i.e. R = 100 million, i.e delta-v = 3 m/s. Quite stringent here.
+        if np.allclose(wave_order,first_wl,rtol=2e-8):#If the wavelenght differences are smaller
+        #than 1 in 50,000,000, i.e. R = 50 million, i.e delta-v = 6 m/s. Quite stringent here.
             n_1d+=1
             wave_order = wave_order[0]
 
@@ -1475,6 +1476,8 @@ def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='so
         print(textwrap.fill(final_notes, width=int(terminal_width)-5))
 
         fig.tight_layout()
+        if save_figure:
+            plt.savefig(outpath/'read_data.pdf', dpi=300)
         plt.show()
 
     print('\n \n \n')

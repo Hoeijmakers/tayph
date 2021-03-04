@@ -119,10 +119,11 @@ def get_model(name,library='models/library',root='models'):
         models[line[0]] = value
 
     try:
-        modelpath=root/models[name]
+        modelpath=Path(models[name])
     except KeyError:
         raise KeyError(f'Model {name} is not present in library at {str(library)}') from None
-
+    if str(modelpath)[0]!='/':#Test if this is an absolute path.
+        modelpath=root/modelpath
     try:
         modelarray=fits.getdata(modelpath)#Two-dimensional array with wl on the first row and flux on the second row.
     except FileNotFoundError:

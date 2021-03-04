@@ -356,14 +356,14 @@ def check_fit_gui(wls,fxc,trans):
 
 
 #The following are not strictly molecfit-specific
-def write_telluric_transmission_to_file(wls,T,outpath):
+def write_telluric_transmission_to_file(wls,T,fxc,outpath):
     """This saves a list of wl arrays and a corresponding list of transmission-spectra
     to a pickle file, to be read by the function below."""
     import pickle
     import tayph.util as ut
     ut.check_path(outpath)
     print(f'------Saving teluric transmission to {outpath}')
-    with open(outpath, 'wb') as f: pickle.dump((wls,T),f)
+    with open(outpath, 'wb') as f: pickle.dump((wls,T,fxc),f)
 
 def read_telluric_transmission_from_file(inpath):
     import pickle
@@ -410,7 +410,11 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
     import tayph.functions as fun
     from tayph.vartests import dimtest,postest,typetest,nantest
     import copy
-    wlT,fxT = read_telluric_transmission_from_file(inpath)
+
+    T = read_telluric_transmission_from_file(inpath)
+    wlT=T[0]
+    fxT=T[1]
+
     typetest(list_of_wls,list,'list_of_wls in apply_telluric_correction()')
     typetest(list_of_orders,list,'list_of_orders in apply_telluric_correction()')
     typetest(list_of_sigmas,list,'list_of_sigmas in apply_telluric_correction()')

@@ -1487,7 +1487,7 @@ save_figure=True):
 
 
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
-def molecfit(dp,mode='HARPS',load_previous=False,save_individual=''):
+def molecfit(dp,mode='HARPS',save_individual=''):
 # def do_molecfit(headers,waves,spectra,configfile,mode='HARPS',load_previous=False,save_individual=''):
     """This is the main wrapper for molecfit that pipes a list of s1d spectra and
     executes it. It first launces the molecfit gui on the middle spectrum of the
@@ -1497,10 +1497,6 @@ def molecfit(dp,mode='HARPS',load_previous=False,save_individual=''):
     Note that the s1d spectra are assumed to be in the barycentric frame in vaccuum,
     but that the output transmission spectrum is in the observers frame, and e2ds files
     are in air wavelengths by default.
-
-    If you have run molecfit before, and want to reuse the output of the previous run
-    for whatever reason (i.e. due to a crash), set the load_previous keyword to True.
-    This will reload the list of transmission spectra created last time, if available.
 
     You can also set save_individual to a path to an existing folder to which the
     transmission spectra of the time-series can be written one by one.
@@ -1549,23 +1545,6 @@ def molecfit(dp,mode='HARPS',load_previous=False,save_individual=''):
 
 
 
-
-
-
-    #Check if we actually want to run molecfit, or if we are loading previously saved output.
-    pickle_outpath = molecfit_input_folder/'previous_run_of_do_molecfit.pkl'#Where to save backup.
-    if load_previous == True:
-        if pickle_outpath.exists() ==  False:
-            warn_msg = ('WARNING in molecfit(): Previously saved run was asked for but is not '
-                'available. The program will proceed to re-fit. That run will then be saved.')
-            ut.tprint(warn_msg)
-            load_previous = False
-        else:
-            pickle_in = open(pickle_outpath,"rb")
-            list_of_wls,list_of_fxc,list_of_trans = pickle.load(pickle_in)
-
-
-
     #We check if the parameter file for this mode exists.
     parname=Path(mode+'.par')
     parfile = molecfit_input_folder/parname#Path to molecfit parameter file.
@@ -1610,41 +1589,39 @@ def molecfit(dp,mode='HARPS',load_previous=False,save_individual=''):
 
 
     #====== ||  START OF PROGRAM   ||======#
-    if load_previous==False:#If it is still false after the above check...
-        list_of_wls = []
-        list_of_fxc = []
-        list_of_trans = []
 
-        tel.write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,
-            s1d_sorted,middle_i)
-        tel.execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
+    list_of_wls = []
+    list_of_fxc = []
+    list_of_trans = []
+
+    tel.write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,
+        s1d_sorted,middle_i)
+    tel.execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
+    wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/mode)
+    tel.remove_output_molecfit(molecfit_input_folder,mode)
+
+    for i in range(N):#range(len(spectra)):
+        print('Fitting spectrum %s from %s' % (i+1,N))
+        t1=ut.start()
+        tel.write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
+        tel.execute_molecfit(molecfit_prog_folder,parfile,gui=False)
         wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/mode)
         tel.remove_output_molecfit(molecfit_input_folder,mode)
-
-        for i in range(N):#range(len(spectra)):
-            print('Fitting spectrum %s from %s' % (i+1,N))
-            t1=ut.start()
-            tel.write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
-            tel.execute_molecfit(molecfit_prog_folder,parfile,gui=False)
-            wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/mode)
-            tel.remove_output_molecfit(molecfit_input_folder,mode)
-            list_of_wls.append(wl*1000.0)#Convert to nm.
-            list_of_fxc.append(fx/trans)
-            list_of_trans.append(trans)
-            ut.end(t1)
-            if len(str(save_individual)) > 0:
-                indv_outpath=Path(save_individual)/f'tel_{i}.fits'
-                indv_out = np.zeros((2,len(trans)))
-                indv_out[0]=wl*1000.0
-                indv_out[1]=trans
-                fits.writeto(indv_outpath,indv_out)
+        list_of_wls.append(wl*1000.0)#Convert to nm.
+        list_of_fxc.append(fx/trans)
+        list_of_trans.append(trans)
+        ut.end(t1)
+        if len(str(save_individual)) > 0:
+            indv_outpath=Path(save_individual)/f'tel_{i}.fits'
+            indv_out = np.zeros((2,len(trans)))
+            indv_out[0]=wl*1000.0
+            indv_out[1]=trans
+            fits.writeto(indv_outpath,indv_out)
 
 
-        pickle_outpath = molecfit_input_folder/'previous_run_of_do_molecfit.pkl'
-        with open(pickle_outpath, 'wb') as f: pickle.dump((list_of_wls,list_of_fxc,list_of_trans),f)
 
-
-    tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,dp/'telluric_transmission_spectra.pkl')
+    tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,list_of_fxc,
+    dp/'telluric_transmission_spectra.pkl')
 
 def check_molecfit(dp):
     """This allows the user to visually inspect the telluric correction performed by Molecfit, and
@@ -1654,8 +1631,8 @@ def check_molecfit(dp):
     import tayph.tellurics as tel
     from pathlib import Path
     dp=ut.check_path(dp,exists=True)
-    telpath = ut.check_path(Path(dp)/'telluric_transmission_spectra.pkl',exists=True)
-
+    telpath = ut.check_path(Path(dp)/'previous_run_of_do_molecfit.pkl',exists=True)
+    list_of_wls,list_of_trans,list_of_fxc=read_telluric_transmission_from_file(telpath)
     to_do_manually = tel.check_fit_gui(list_of_wls,list_of_fxc,list_of_trans)
     if len(to_do_manually) > 0:
         print('The following spectra were selected to be redone manually:')

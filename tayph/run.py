@@ -1498,7 +1498,7 @@ def molecfit(dp,mode='HARPS',load_previous=False,save_individual=''):
     but that the output transmission spectrum is in the observers frame, and e2ds files
     are in air wavelengths by default.
 
-    If you have run do_molecfit before, and want to reuse the output of the previous run
+    If you have run molecfit before, and want to reuse the output of the previous run
     for whatever reason (i.e. due to a crash), set the load_previous keyword to True.
     This will reload the list of transmission spectra created last time, if available.
 
@@ -1644,7 +1644,16 @@ def molecfit(dp,mode='HARPS',load_previous=False,save_individual=''):
         with open(pickle_outpath, 'wb') as f: pickle.dump((list_of_wls,list_of_fxc,list_of_trans),f)
 
 
+    tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,dp/'telluric_transmission_spectra.pkl')
 
+def check_molecfit(dp):
+    """This allows the user to visually inspect the telluric correction performed by Molecfit, and
+    select individual spectra that need to be refit. Each of these spectra will then be fit with
+    molecfit in GUI mode."""
+    import tayph.util as ut
+    import tayph.tellurics as tel
+    from pathlib import Path
+    telpath = ut.check_path(Path(dp)/'telluric_transmission_spectra.pkl',exists=True)
 
     to_do_manually = tel.check_fit_gui(list_of_wls,list_of_fxc,list_of_trans)
     if len(to_do_manually) > 0:

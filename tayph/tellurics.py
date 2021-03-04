@@ -470,7 +470,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
     return(list_of_orders_cor,list_of_sigmas_cor)
 
 
-def set_molecfit_config():
+def set_molecfit_config(configpath):
     import pkg_resources
     from pathlib import Path
     import os
@@ -486,8 +486,8 @@ def set_molecfit_config():
     Q2 = 'In what folder is the molecfit binary located?'
     Q3 = 'What is your python 3.x alias?'
 
-    configpath=get_molecfit_config()
-
+    # configpath=get_molecfit_config()
+    configpath=Path(configpath)
     if configpath.exists():
         ut.tprint(f'Molecfit configuration file already exists at {configpath}.')
         print('Overwriting existing values.')

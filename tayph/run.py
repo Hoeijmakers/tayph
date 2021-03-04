@@ -1487,7 +1487,7 @@ save_figure=True):
 
 
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
-def molecfit(dp,mode='HARPS',save_individual=''):
+def molecfit(dp,mode='HARPS',save_individual='',configfile=None):
 # def do_molecfit(headers,waves,spectra,configfile,mode='HARPS',load_previous=False,save_individual=''):
     """This is the main wrapper for molecfit that pipes a list of s1d spectra and
     executes it. It first launces the molecfit gui on the middle spectrum of the
@@ -1524,9 +1524,11 @@ def molecfit(dp,mode='HARPS',save_individual=''):
     dp = ut.check_path(dp,exists=True)
     config=ut.check_path(dp/'config',exists=True)
     s1d_path=ut.check_path(dp/'s1ds.pkl',exists=True)
-    molecfit_config=tel.get_molecfit_config()#Path at which the system-wide molecfit configuration file
-    #is supposed to be located, packaged within Tayph.
-
+    if not configfile:
+        molecfit_config=tel.get_molecfit_config()#Path at which the system-wide molecfit
+        #configuration file is supposed to be located, packaged within Tayph.
+    else:
+        molecfit_config=ut.check_path(configfile)
 
 
 
@@ -1534,7 +1536,9 @@ def molecfit(dp,mode='HARPS',save_individual=''):
     #If this file doesn't exist (e.g. due to accidental corruption) the user needs to supply these
     #parameters.
     if molecfit_config.exists() == False:
-        tel.set_molecfit_config()
+        ut.tprint('Molecfit configuration file does not exist. Making a new file at '
+        f'{molecfit_config}.')
+        tel.set_molecfit_config(molecfit_config)
     else:        #Otherwise we test its contents.
         tel.test_molecfit_config(molecfit_config)
     molecfit_input_folder = Path(sp.paramget('molecfit_input_folder',molecfit_config,

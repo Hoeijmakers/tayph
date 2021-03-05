@@ -1633,7 +1633,7 @@ def check_molecfit(dp,mode='HARPS',configfile=None):
     from pathlib import Path
     dp=ut.check_path(dp,exists=True)
     telpath = ut.check_path(Path(dp)/'telluric_transmission_spectra.pkl',exists=True)
-    list_of_wls,list_of_trans,list_of_fxc=read_telluric_transmission_from_file(telpath)
+    list_of_wls,list_of_trans,list_of_fxc=tel.read_telluric_transmission_from_file(telpath)
     to_do_manually = tel.check_fit_gui(list_of_wls,list_of_fxc,list_of_trans)
 
 

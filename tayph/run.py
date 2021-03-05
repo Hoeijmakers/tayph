@@ -1522,7 +1522,6 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
 
     #The DP contains the S1D files and the configile of the data (air or vaccuum)
     dp = ut.check_path(dp,exists=True)
-    config=ut.check_path(dp/'config',exists=True)
     s1d_path=ut.check_path(dp/'s1ds.pkl',exists=True)
     if not configfile:
         molecfit_config=tel.get_molecfit_config()#Path at which the system-wide molecfit

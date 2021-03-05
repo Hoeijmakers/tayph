@@ -4,6 +4,9 @@ __all__ = [
     'make_project_folder',
     'start_run',
     'run_instance',
+    'read_e2ds',
+    'molecfit',
+    'check_molecfit'
 ]
 
 
@@ -1637,25 +1640,24 @@ def check_molecfit(dp,mode='HARPS',configfile=None):
     to_do_manually = tel.check_fit_gui(list_of_wls,list_of_fxc,list_of_trans)
 
 
-    if not configfile:
-        molecfit_config=tel.get_molecfit_config()#Path at which the system-wide molecfit
-        #configuration file is supposed to be located, packaged within Tayph.
-    else:
-        molecfit_config=ut.check_path(configfile,exists=True)
-
-
-    tel.test_molecfit_config(molecfit_config)
-    molecfit_input_folder = Path(sp.paramget('molecfit_input_folder',molecfit_config,
-        full_path=True))
-    molecfit_prog_folder = Path(sp.paramget('molecfit_prog_folder',molecfit_config,full_path=True))
-    python_alias = sp.paramget('python_alias',molecfit_config,full_path=True)
-    #If this passes, the molecfit confugration file appears to be set correctly.
-
-    parname=Path(mode+'.par')
-    parfile = molecfit_input_folder/parname#Path to molecfit parameter file.
-
 
     if len(to_do_manually) > 0:
+        if not configfile:
+            molecfit_config=tel.get_molecfit_config()#Path at which the system-wide molecfit
+            #configuration file is supposed to be located, packaged within Tayph.
+        else:
+            molecfit_config=ut.check_path(configfile,exists=True)
+
+        tel.test_molecfit_config(molecfit_config)
+        molecfit_input_folder = Path(sp.paramget('molecfit_input_folder',molecfit_config,
+            full_path=True))
+        molecfit_prog_folder = Path(sp.paramget('molecfit_prog_folder',molecfit_config,full_path=True))
+        python_alias = sp.paramget('python_alias',molecfit_config,full_path=True)
+        #If this passes, the molecfit confugration file appears to be set correctly.
+
+        parname=Path(mode+'.par')
+        parfile = molecfit_input_folder/parname#Path to molecfit parameter file.
+
         print('The following spectra were selected to be redone manually:')
         print(to_do_manually)
         for i in to_do_manually:
@@ -1665,5 +1667,5 @@ def check_molecfit(dp,mode='HARPS',configfile=None):
             list_of_wls[int(i)] = wl*1000.0#Convert to nm.
             list_of_fxc[int(i)] = fx/trans
             list_of_trans[int(i)] = trans
-    tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,dp/'telluric_transmission_spectra.pkl')
+        tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,dp/'telluric_transmission_spectra.pkl')
     # return(list_of_wls,list_of_trans)

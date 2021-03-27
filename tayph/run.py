@@ -1667,5 +1667,5 @@ def check_molecfit(dp,mode='HARPS',configfile=None):
             list_of_wls[int(i)] = wl*1000.0#Convert to nm.
             list_of_fxc[int(i)] = fx/trans
             list_of_trans[int(i)] = trans
-        tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,dp/'telluric_transmission_spectra.pkl')
+        tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,list_of_fxc,dp/'telluric_transmission_spectra.pkl')
     # return(list_of_wls,list_of_trans)

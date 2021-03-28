@@ -4,6 +4,9 @@ __all__ = [
     'make_project_folder',
     'start_run',
     'run_instance',
+    'read_e2ds',
+    'molecfit',
+    'check_molecfit'
 ]
 
 
@@ -1530,8 +1533,6 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
         molecfit_config=ut.check_path(configfile)
 
 
-
-
     #If this file doesn't exist (e.g. due to accidental corruption) the user needs to supply these
     #parameters.
     if molecfit_config.exists() == False:
@@ -1626,7 +1627,7 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
     tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,list_of_fxc,
     dp/'telluric_transmission_spectra.pkl')
 
-def check_molecfit(dp):
+def check_molecfit(dp,mode='HARPS',configfile=None):
     """This allows the user to visually inspect the telluric correction performed by Molecfit, and
     select individual spectra that need to be refit. Each of these spectra will then be fit with
     molecfit in GUI mode."""
@@ -1634,10 +1635,29 @@ def check_molecfit(dp):
     import tayph.tellurics as tel
     from pathlib import Path
     dp=ut.check_path(dp,exists=True)
-    telpath = ut.check_path(Path(dp)/'previous_run_of_do_molecfit.pkl',exists=True)
-    list_of_wls,list_of_trans,list_of_fxc=read_telluric_transmission_from_file(telpath)
+    telpath = ut.check_path(Path(dp)/'telluric_transmission_spectra.pkl',exists=True)
+    list_of_wls,list_of_trans,list_of_fxc=tel.read_telluric_transmission_from_file(telpath)
     to_do_manually = tel.check_fit_gui(list_of_wls,list_of_fxc,list_of_trans)
+
+
+
     if len(to_do_manually) > 0:
+        if not configfile:
+            molecfit_config=tel.get_molecfit_config()#Path at which the system-wide molecfit
+            #configuration file is supposed to be located, packaged within Tayph.
+        else:
+            molecfit_config=ut.check_path(configfile,exists=True)
+
+        tel.test_molecfit_config(molecfit_config)
+        molecfit_input_folder = Path(sp.paramget('molecfit_input_folder',molecfit_config,
+            full_path=True))
+        molecfit_prog_folder = Path(sp.paramget('molecfit_prog_folder',molecfit_config,full_path=True))
+        python_alias = sp.paramget('python_alias',molecfit_config,full_path=True)
+        #If this passes, the molecfit confugration file appears to be set correctly.
+
+        parname=Path(mode+'.par')
+        parfile = molecfit_input_folder/parname#Path to molecfit parameter file.
+
         print('The following spectra were selected to be redone manually:')
         print(to_do_manually)
         for i in to_do_manually:
@@ -1647,5 +1667,5 @@ def check_molecfit(dp):
             list_of_wls[int(i)] = wl*1000.0#Convert to nm.
             list_of_fxc[int(i)] = fx/trans
             list_of_trans[int(i)] = trans
-    tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,dp/'telluric_transmission_spectra.pkl')
+        tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,list_of_fxc,dp/'telluric_transmission_spectra.pkl')
     # return(list_of_wls,list_of_trans)

@@ -532,6 +532,7 @@ def read_espresso(inpath,filelist,read_s1d=True):
 
                 if read_s1d:
                     s1d_path=inpath/Path(str(filelist[i]).replace('_S2D_BLAZE_A.fits','_S1D_A.fits'))
+                    #Need the blazed files. Not the S2D_A's by themselves.
                     ut.check_path(s1d_path,exists=True)#Crash if the S1D doesn't exist.
                     hdul = fits.open(s1d_path)
                     data_table = copy.deepcopy(hdul[1].data)

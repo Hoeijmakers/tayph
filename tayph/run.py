@@ -33,7 +33,7 @@ def make_project_folder(pwd='.'):
     dirs = ['data','models','output']
     for d in dirs:
         (root/d).mkdir(exist_ok=True)
-    (root/'data'/'WASP-12345'/'night1').mkdir(parents=True,exist_ok=True)
+    (root/'data'/'KELT-9'/'night1').mkdir(parents=True,exist_ok=True)
 
 
 
@@ -1213,18 +1213,23 @@ save_figure=True):
 
     if config:
         keywords=['P\t','a\t','aRstar\t','Mp\t','Rp\t','K\t','RpRstar\t','vsys\t',
-        'RA\t-00:00:00.0','DEC\t-00:00:00.0','Tc\t','duration\t','resolution\t','inclination\t',
+        'RA\t-00:00:00.0','DEC\t-00:00:00.0','Tc\t','duration\t','inclination\t',
         'vsini\t']
-        if mode in ['ESPRESSO','UVES-red','UVES-blue']:
-            keywords+=['long\t-70.4039','lat\t-24.6272','elev\t2635.0','air\tTrue']
+        if mode in ['ESPRESSO']:
+            keywords+=['resolution\t120000','long\t-70.4039','lat\t-24.6272','elev\t2635.0',
+            'air\tTrue']
+        if mode in ['UVES-red','UVES-blue']:
+            keywords+=['resolution\t','long\t-70.4039','lat\t-24.6272','elev\t2635.0','air\tTrue']
         elif mode=='HARPS':
-            keywords+=['long\t-70.7380','lat\t-29.2563','elev\t2387.2','air\tTrue']
+            keywords+=['resolution\t115000','long\t-70.7380','lat\t-29.2563','elev\t2387.2',
+            'air\tTrue']
         elif mode in ['HARPSN','HARPS-N']:
-            keywords+=['long\t-17.8850','lat\t28.7573','elev\t2396.0','air\tTrue']
+            keywords+=['resolution\t115000','long\t-17.8850','lat\t28.7573','elev\t2396.0',
+            'air\tTrue']
         elif mode in ['CARMENES-VIS','CARMENES-NIR']:
-            keywords+=['long\t-2.5468','lat\t37.2208','elev\t2168.0','air\t']
+            keywords+=['resolution\t80000','long\t-2.5468','lat\t37.2208','elev\t2168.0','air\t']
         else:
-            keywords+=['long\t','lat\t','elev\t','air\t']
+            keywords+=['resolution\t','long\t','lat\t','elev\t','air\t']
 
         with open(outpath/'config_empty','w',newline='\n') as f:
             for keyword in keywords:

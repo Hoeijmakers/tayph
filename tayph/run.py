@@ -1496,7 +1496,6 @@ save_figure=True):
 
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
 def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False):
-# def do_molecfit(headers,waves,spectra,configfile,mode='HARPS',load_previous=False,save_individual=''):
     """This is the main wrapper for molecfit that pipes a list of s1d spectra and
     executes it. It first launces the molecfit gui on the middle spectrum of the
     sequence, and then loops through the entire list, returning the transmission

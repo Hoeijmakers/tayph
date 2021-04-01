@@ -364,10 +364,6 @@ def run_instance(p):
 
 
 
-
-
-
-
 #Apply telluric correction file or not.
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='red')
     # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='red',alpha=0.5)
@@ -1495,7 +1491,7 @@ save_figure=True):
 
 
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
-def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False):
+def molecfit(dp,mode='GUI',instrument='HARPS',save_individual='',configfile=None,plot_spec=False):
     """This is the main wrapper for molecfit that pipes a list of s1d spectra and
     executes it. It first launces the molecfit gui on the middle spectrum of the
     sequence, and then loops through the entire list, returning the transmission
@@ -1507,6 +1503,11 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
 
     You can also set save_individual to a path to an existing folder to which the
     transmission spectra of the time-series can be written one by one.
+
+    Set the mode keyword to either 'GUI', 'batch' or 'both', to run molecfit in respectively
+    GUI mode (requiring connection to an X-window), batch mode (which can be run in the background
+    without access to a window environment, or both, in which the GUI and the batch are executed
+    in the same call to molecfit.)
     """
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
@@ -1525,10 +1526,14 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
     import astropy.io.fits as fits
     import pkg_resources
     import tayph.tellurics  as tel
+    from tayph.vartests import typetest
 
 
     #The DP contains the S1D files and the configile of the data (air or vaccuum)
     dp = ut.check_path(dp,exists=True)
+    typetest(mode,str,'mode in molecfit()')
+    typetest(instrument,str,'mode in molecfit()')
+
     s1d_path=ut.check_path(dp/'s1ds.pkl',exists=True)
     if not configfile:
         molecfit_config=tel.get_molecfit_config()#Path at which the system-wide molecfit
@@ -1537,6 +1542,13 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
         molecfit_config=ut.check_path(configfile)
 
 
+
+
+    if mode.lower() not in ['gui','batch']:
+        raise ValueError("Molecfit mode should be set to 'GUI', 'batch' or 'both.'")
+
+
+    #Now we know what mode we are in, do the standard molecfit setups:
     #If this file doesn't exist (e.g. due to accidental corruption) the user needs to supply these
     #parameters.
     if molecfit_config.exists() == False:
@@ -1553,12 +1565,12 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
 
 
 
-    #We check if the parameter file for this mode exists.
-    parname=Path(mode+'.par')
+    #We check if the parameter file for this instrument exists.
+    parname=Path(instrument+'.par')
     parfile = molecfit_input_folder/parname#Path to molecfit parameter file.
     ut.check_path(molecfit_input_folder,exists=True)#This should be redundant, but still check.
     ut.check_path(parfile,exists=True)#Test that the molecfit parameter file
-    #for this mode exists.
+    #for this instrument exists.
 
 
 
@@ -1602,36 +1614,37 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
     list_of_fxc = []
     list_of_trans = []
 
-    tel.write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,
-        s1d_sorted,middle_i,plot=plot_spec)
-    tel.execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
-    wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/mode)
-    tel.remove_output_molecfit(molecfit_input_folder,mode)
-
-    for i in range(N):#range(len(spectra)):
-        print('Fitting spectrum %s from %s' % (i+1,N))
-        t1=ut.start()
-        tel.write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
-        tel.execute_molecfit(molecfit_prog_folder,parfile,gui=False)
-        wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/mode)
-        tel.remove_output_molecfit(molecfit_input_folder,mode)
-        list_of_wls.append(wl*1000.0)#Convert to nm.
-        list_of_fxc.append(fx/trans)
-        list_of_trans.append(trans)
-        ut.end(t1)
-        if len(str(save_individual)) > 0:
-            indv_outpath=Path(save_individual)/f'tel_{i}.fits'
-            indv_out = np.zeros((2,len(trans)))
-            indv_out[0]=wl*1000.0
-            indv_out[1]=trans
-            fits.writeto(indv_outpath,indv_out)
+    if mode.lower() == 'gui' or mode.lower()=='both':
+        tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,
+            wave1d_sorted,s1d_sorted,middle_i,plot=plot_spec)
+        tel.execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
+        wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
+        tel.remove_output_molecfit(molecfit_input_folder,instrument)
 
 
 
-    tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,list_of_fxc,
-    dp/'telluric_transmission_spectra.pkl')
+    if mode.lower() == 'batch' or mode.lower()=='both':
+        for i in range(N):#range(len(spectra)):
+            print('Fitting spectrum %s from %s' % (i+1,N))
+            t1=ut.start()
+            tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
+            tel.execute_molecfit(molecfit_prog_folder,parfile,gui=False)
+            wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
+            tel.remove_output_molecfit(molecfit_input_folder,instrument)
+            list_of_wls.append(wl*1000.0)#Convert to nm.
+            list_of_fxc.append(fx/trans)
+            list_of_trans.append(trans)
+            ut.end(t1)
+            if len(str(save_individual)) > 0:
+                indv_outpath=Path(save_individual)/f'tel_{i}.fits'
+                indv_out = np.zeros((2,len(trans)))
+                indv_out[0]=wl*1000.0
+                indv_out[1]=trans
+                fits.writeto(indv_outpath,indv_out)
+        tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,list_of_fxc,
+        dp/'telluric_transmission_spectra.pkl')
 
-def check_molecfit(dp,mode='HARPS',configfile=None):
+def check_molecfit(dp,instrument='HARPS',configfile=None):
     """This allows the user to visually inspect the telluric correction performed by Molecfit, and
     select individual spectra that need to be refit. Each of these spectra will then be fit with
     molecfit in GUI mode."""
@@ -1659,15 +1672,15 @@ def check_molecfit(dp,mode='HARPS',configfile=None):
         python_alias = sp.paramget('python_alias',molecfit_config,full_path=True)
         #If this passes, the molecfit confugration file appears to be set correctly.
 
-        parname=Path(mode+'.par')
+        parname=Path(instrument+'.par')
         parfile = molecfit_input_folder/parname#Path to molecfit parameter file.
 
         print('The following spectra were selected to be redone manually:')
         print(to_do_manually)
         for i in to_do_manually:
-            tel.write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
+            tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
             tel.execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
-            wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/mode)
+            wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
             list_of_wls[int(i)] = wl*1000.0#Convert to nm.
             list_of_fxc[int(i)] = fx/trans
             list_of_trans[int(i)] = trans

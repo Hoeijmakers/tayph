@@ -1118,7 +1118,7 @@ save_figure=True):
         for i in range(len(s1dsorting)):
             s1dhdr_sorted.append(s1dhdr[s1dsorting[i]])
             s1d_sorted.append(s1d[s1dsorting[i]])
-            wave1d_sorted.append(wave1d[sorting[i]])
+            wave1d_sorted.append(wave1d[s1dsorting[i]])
             #Sort the s1d files for application of molecfit.
         #Store the S1Ds in a pickle file. I choose not to use a FITS image because the dimensions
         #of the s1ds can be different from one exposure to another.

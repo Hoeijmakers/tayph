@@ -661,6 +661,7 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
     import astropy.units as u
     import time
     import sys
+    import pdb
     from scipy import interpolate
     typetest(dv,float,'dv in blur_rotate()')
     typetest(wl,[list,np.ndarray],'wl in blur_rotate()')
@@ -697,9 +698,7 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
 
     n=1000.0
     a=fun.findgen(n)/(n-1)*np.pi
-    rv=np.cos(a)*np.sin(np.radians(inclination))*(2.0*np.pi*1.7*const.R_jup/(1.27*u.day)).to('km/s').value #in km/s
-
-
+    rv=np.cos(a)*np.sin(np.radians(inclination))*(2.0*np.pi*Rp*const.R_jup/(P*u.day)).to('km/s').value #in km/s
     trunc_dist=np.round(sig_px*truncsize+np.max(rv)*wl/(const.c.to('km/s').value)/deriv).astype(int)
     # print('Maximum rotational rv: %s' % max(rv))
     # print('Sigma_px: %s' % np.nanmean(np.array(sig_px)))

@@ -746,7 +746,8 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
         wlgrid =   wl[i]*rvgrid/(const.c.to('km/s').value)+wl[i]#This converts the velocity grid to a d-wavelength grid centered on wk[i]
         #print([np.min(wlbin),np.min(wlgrid),np.max(wlbin),np.max(wlgrid)])
 
-        i_wl = interpolate.interp1d(wlgrid,lsf) #This is a class that can be called.
+        i_wl = interpolate.interp1d(wlgrid,lsf,bounds_error=False,fill_value='extrapolate')#Extrapolate should not be necessary but sometimes there is a minute mismatch between the
+        #start and end wavelengths of the constructed grid and the bin.
         try:
             lsf_wl=i_wl(wlbin)
         except:

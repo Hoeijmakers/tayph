@@ -855,7 +855,7 @@ save_figure=True):
     import textwrap
     from astropy.utils.data import download_file
     from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes
-    from .phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
+    from tayph.phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
     print('\n \n \n')
     print('\n \n \n')
     print('\n \n \n')
@@ -1209,8 +1209,7 @@ save_figure=True):
 
     if config:
         keywords=['P\t','a\t','aRstar\t','Mp\t','Rp\t','K\t','RpRstar\t','vsys\t',
-        'RA\t-00:00:00.0','DEC\t-00:00:00.0','Tc\t','duration\t','inclination\t',
-        'vsini\t']
+        'RA\t-00:00:00.0','DEC\t-00:00:00.0','Tc\t','inclination\t','vsini\t']
         if mode in ['ESPRESSO']:
             keywords+=['resolution\t120000','long\t-70.4039','lat\t-24.6272','elev\t2635.0',
             'air\tTrue']

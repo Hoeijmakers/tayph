@@ -59,7 +59,7 @@ This creates the necessary folder structure Tayph uses.
 
 
 Along with the core package of Tayph, a package with demo data is made available containing the
-HARPS spectra that were first used to find iron in the transmission spectrum of the exoplanet
+HARPS-N spectra that were first used to find iron in the transmission spectrum of the exoplanet
 KELT-9 b. This package also contains the necessary configuration files and templates to obtain
 cross-correlations reminiscent of Hoeijmakers et al. (2018), but without the application of
 telluric correction.
@@ -78,7 +78,7 @@ To continue with the demo data, move to your working directory
 (i.e. :code:`'cd /Users/tayph/xcor_project/'`), open a python 3 interpreter and call::
 
     import tayph.run as run
-    run.read_e2ds('/Users/tayph/downloads/demo_data/kelt-9-spectra','KELT-9/night1',mode='HARPS',config=True)
+    run.read_e2ds('/Users/tayph/downloads/demo_data/kelt-9-spectra','KELT-9/night1',mode='HARPSN',config=True)
 
 This converts the pipeline-reduced data to the format used by Tayph, places it in the data
 folder in your working directory, and executes a preliminary cross-correlation to measure the
@@ -88,8 +88,8 @@ data is read properly and how to set Tayph to correctly deal with velocity corre
 wavelength solution.
 
 Read_e2ds is meant to provide you with a quick gateway to handling pipeline reduced echelle spectra,
-and is designed to work on multiple different spectrographs out of the box; explicitly to try to
-protect you against mistakes and confusion regarding wavelength solutions and velocity corrections
+and is designed to work for multiple different spectrographs out of the box; explicitly to try to
+protect you against confusion regarding wavelength solutions and velocity corrections
 (where different pipelines have different conventions). The input parameters of read_e2ds are
 structured in the following way::
 
@@ -103,13 +103,13 @@ structured in the following way::
 - :code:`config=True`: If set, Tayph will create an empty configuration file with some values filled in, depending on the instrument mode.
 
 
-Read_e2ds has produced a new folder :code:`'/Users/tayph/xcor_project/data/KELT-9/night1/'`, in
+Read_e2ds has produced a new folder :code:`'/Users/tayph/xcor_project/data/KELT-9/night1/'` in
 which the various files are located, including a dummy configuration file called
 :code:`'config_empty'`. The user would now need to proceed by filling in this configuration
 and renaming it from :code:`config_empty`: to :code:`config`:. However, a finished configuration
 file has been provided along with the prepackaged demo data (in
-:code:`'/Users/tayph/downloads/demo_data/configuration_files/config'`), so the user should
-proceed by copying this file to the datafolder instead.
+:code:`'/Users/tayph/downloads/demo_data/configuration_files/config'`), so for the purpose of this
+tutorial, you should proceed by copying this file to the datafolder instead.
 
 
 
@@ -132,7 +132,6 @@ this, describing HARPS-N observations of KELT-9 b::
       RA          20:31:26.4
       DEC         +39:56:20
       Tc          2457095.68572
-      duration    235.0
       resolution  110000.0
       inclination	86.79
       vsini	      111.0
@@ -144,11 +143,17 @@ this, describing HARPS-N observations of KELT-9 b::
 which describe the orbital period in days, the semi-major axis in AU, the mass/radius of the planet
 relative to Jupiter, the radial velocity semi-amplitude of the star in km/s, the radius-ratio of
 the planet and star, the systemic velocity in km/s, the RA and DEC coordinates, the transit center
-time, the spectral resolution of the instrument, the transit duration in minutes, the orbital
-inclination in degrees (close to 90 if the planet is transiting), the projected equatorial rotation
-velocity of the stellar disk, the geographical location of the observatory and whether or not the
-wavelength solution is in air. When running supported instruments, instrument-specific information
-will have been filled in automatically.
+time, the spectral resolution of the instrument, the orbital inclination in degrees (close to 90 if
+the planet is transiting), the projected equatorial rotation velocity of the stellar disk, the
+geographical location of the observatory and whether or not the wavelength solution is in air.
+When running supported instruments, instrument-specific information will have been filled in
+automatically.
+
+An important thing to note when setting the configuration file, is that the transit duration is
+derived from the combination of transit parameters (a/Rstar, period and the inclination). This
+duration is used to inject models into the data, but also to select which spectra are to be
+co-added in the rest-frame of the planet. The accuracy of these parameters therefore has an effect
+on how the spectra are treated.
 
 
 
@@ -160,12 +165,12 @@ of model spectra that are going to be used as cross-correlation templates and (o
 injection-comparison. Models may be located in the :code:`'/Users/tayph/xcor_project/models/'`
 directory, with optional subdirectories for different sets of models. In most use-cases, the user
 will have multiple sets of models to choose from, which may or may not be similar in their naming
-or content. To be able to access different sets of models, Tayph assumes that models are organised
-in so-called libraries, which are ASCII tables that act as dictionaries through which the user can
-refer to model files saved in subfolders using short-hand names (i.e. labels).
+or content. To be able to access different sets of similar models, Tayph assumes that models are
+organised in so-called libraries, which are ASCII tables that act as dictionaries through which the
+user can refer to model files saved in subfolders using short-hand names (i.e. labels).
 
 The library files are structured as 2-column ASCII tables in the models/ directory. A library file
-called :code:`'kelt-9-model-library'` is provided along with the demo data, and looks as follows::
+called :code:`'kelt-9-model-library'` is provided along with the demo data, and is as follows::
 
     FeI_4k     KELT-9/4000K_1_Fe.fits
     FeII_4k    KELT-9/4000K_1_Fe_p.fits
@@ -217,11 +222,11 @@ batches.
 The run file
 ************
 
-The final step is to creating a run-file that controls the working parameters of our
+The final step is to create a run-file that controls the working parameters of our
 cross-correlation run. This file is again a 2-column ASCII table with keywords in the first column
 and values in the second. This may look like below. The entries in the second column may be
 followed by commentary that explains keywords or choices that are not self-descriptive or that you
-wish to remember.::
+wish to remember for yourself.::
 
     datapath                  data/KELT-9/night1  #The path to your test data.
     template_library          models/KELT-9-model-library   #The path to your library of models to be used as templates.

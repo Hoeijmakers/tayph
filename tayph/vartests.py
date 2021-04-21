@@ -6,6 +6,7 @@ __all__ = [
     "typetest",
     "typetest_array",
     "dimtest",
+    "lentest"
 ]
 
 def nantest(var,varname=''):
@@ -136,6 +137,33 @@ def typetest_array(var,vartype,varname='var'):
         typetest(var[i],vartype,varname=f'element {i} of {varname}')
 
 
+def lentest(var,length,varname='var'):
+    """
+    This function tests the length of the input list.
+
+    Parameters
+    ----------
+    var : list, np.ndarray, array-like
+        An array with certain dimensions.
+
+    length : int
+        Target length to test var against.
+
+    varname : str, optional
+        Name or description of the variable to assist in debugging.
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> a=[3,5,2.0,np.array([4,3,9]),'abc']
+    >>> lentest(a,5)
+    """
+    import numpy as np
+    typetest(length,[int])
+    typetest(varname,str)
+    typetest(var,list)
+    if len(var) != length:
+        raise ValueError(f"Wrong length of {varname}:  len = {len(var)} but was required to be {ndim}.")
 
 
 

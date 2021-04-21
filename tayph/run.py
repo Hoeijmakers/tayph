@@ -99,6 +99,7 @@ def start_run(configfile):
             'modellist':modellist,
             'templatelist':templatelist,
             'c_subtract':sp.paramget('c_subtract',cf,full_path=True),
+            # 'invert_template':sp.paramget('invert_template',cf,full_path=True),
             'template_library':sp.paramget('template_library',cf,full_path=True),
             'model_library':sp.paramget('model_library',cf,full_path=True),
     }
@@ -160,6 +161,7 @@ def run_instance(p):
     make_mask=p['make_mask']
     apply_mask=p['apply_mask']
     c_subtract=p['c_subtract']
+    # invert_template=p['invert_template']
     do_berv_correction=p['do_berv_correction']
     do_keplerian_correction=p['do_keplerian_correction']
     make_doppler_model=p['make_doppler_model']
@@ -202,6 +204,7 @@ def run_instance(p):
     typetest(make_mask,bool,            'make_mask in run_instance()')
     typetest(apply_mask,bool,           'apply_mask in run_instance()')
     typetest(c_subtract,bool,           'c_subtract in run_instance()')
+    # typetest(invert_template,bool,      'invert_template in run_instance()')
     typetest(do_berv_correction,bool,   'do_berv_correction in run_instance()')
     typetest(do_keplerian_correction,bool,'do_keplerian_correction in run_instance()')
     typetest(make_doppler_model,bool,   'make_doppler_model in run_instance()')
@@ -421,7 +424,7 @@ def run_instance(p):
             raise Exception(f'Wavelength axis of order {i} is neither 1D nor 2D.')
 
         for j in range(len(list_of_orders[0])):
-            gamma = 1.0+(rv_cor[j]*u.km/u.s/const.c)#Doppler factor.
+            # gamma = 1.0+(rv_cor[j]*u.km/u.s/const.c)#Doppler factor.
             # wl_cor = list_of_wls[i][j]*(1.0-(rv_cor[j]*u.km/u.s/const.c))#The minus sign was
             #tested on a slow-rotator.
             if list_of_wls[i].ndim==2:
@@ -430,12 +433,16 @@ def run_instance(p):
                 sigma_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma,sigma[j],
                 bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
                 #SNR, apart from wavelength-shifting it.
-            else:
+            elif type(rv_cor) != int:
                 order_cor[j] = interp.interp1d(list_of_wls[i]*gamma,order[j],
                 bounds_error=False)(wl_cor)
                 sigma_cor[j] = interp.interp1d(list_of_wls[i]*gamma,sigma[j],
                 bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
                 #SNR, apart from wavelength-shifting it.
+            else:
+                #No interpolation at all:
+                order_cor[j]=order[j]
+                sigma_cor[j]=sigma[j]
         list_of_orders_cor.append(order_cor)
         list_of_sigmas_cor.append(sigma_cor)
         list_of_wls_cor.append(wl_cor)
@@ -533,10 +540,10 @@ def run_instance(p):
         for templatename in templatelist:
             ut.tprint(f'---Building template {templatename}')
             wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,
-                template_library=template_library,c_subtract=c_subtract)
+                template_library=template_library,c_subtract=c_subtract)#Top-envelope subtraction.
             T*=(-1.0)
-            if np.mean(wlt) < 50.0:#This is likely in microns:
-                ut.tprint('------WARNING: The loaded template has a mean wavelength less than 50.0,'
+            if np.median(wlt) < 50.0:#This is likely in microns:
+                ut.tprint('------WARNING: The loaded template has a median wavelength less than 50.0,'
                 'meaning that it is very likely not in nm, but in microns. I have divided by 1,000'
                 'now and hope for the best...')
                 wlt*=1000.0

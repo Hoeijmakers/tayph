@@ -194,7 +194,7 @@ class mask_maker(object):
         self.x2,self.y2,self.z,self.wl_sel,self.y_axis_sel,self.xticks,self.yticks,void1,void2= plotting.plotting_scales_2D(self.x_axis,self.y_axis,self.residual,self.xrange,self.yrange,Nxticks=self.Nxticks,Nyticks=self.Nyticks,nsigma=self.nsigma)
         self.fig,self.ax = plt.subplots(3,1,sharex=True,figsize=(14,6))#Initialize the figure and 3 axes.
         plt.subplots_adjust(left=0.05)#Make them more tight, we need all the space we can get.
-        plt.subplots_adjust(right=0.85)
+        plt.subplots_adjust(right=0.75)
 
         self.ax[0].set_title('Spectral order %s  (%s - %s nm)' % (self.N,round(np.min(self.wl),1),round(np.max(self.wl),1)))
         self.ax[1].set_title('Residual of time-average')
@@ -874,7 +874,7 @@ def convert_mask_to_pkl(dp,maskname):
     outpath_auto = Path(dp)/(maskname+'_auto.pkl')
     outpath_man = Path(dp)/(maskname+'_manual.pkl')
     ut.check_path(inpath_auto,exists=True)
-    ut.check_path(inpath_manual,exists=True)
+    ut.check_path(inpath_man,exists=True)
 
     mask_auto = fits.getdata(inpath_auto)
     mask_man = fits.getdata(inpath_man)
@@ -888,11 +888,8 @@ def convert_mask_to_pkl(dp,maskname):
     for i in range(len(mask_man)):
         list_of_mask_man.append(mask_man[i])
 
-    print('SEE WHETHER THIS WORKED DIMENSION-WISE!')
-    pdb.set_trace()
-
-    with open(outpath_auto, 'wb') as f: pickle.dump(list_of_masks_auto,f)
-    with open(outpath_man, 'wb') as f: pickle.dump(list_of_masks_man,f)
+    with open(outpath_auto, 'wb') as f: pickle.dump(list_of_mask_auto,f)
+    with open(outpath_man, 'wb') as f: pickle.dump(list_of_mask_man,f)
 
 
 

@@ -428,15 +428,15 @@ def run_instance(p):
             # wl_cor = list_of_wls[i][j]*(1.0-(rv_cor[j]*u.km/u.s/const.c))#The minus sign was
             #tested on a slow-rotator.
             if list_of_wls[i].ndim==2:
-                order_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma,order[j],
+                order_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma[i],order[j],
                 bounds_error=False)(wl_cor)
-                sigma_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma,sigma[j],
+                sigma_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma[i],sigma[j],
                 bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
                 #SNR, apart from wavelength-shifting it.
             elif type(rv_cor) != int:
-                order_cor[j] = interp.interp1d(list_of_wls[i]*gamma,order[j],
+                order_cor[j] = interp.interp1d(list_of_wls[i]*gamma[i],order[j],
                 bounds_error=False)(wl_cor)
-                sigma_cor[j] = interp.interp1d(list_of_wls[i]*gamma,sigma[j],
+                sigma_cor[j] = interp.interp1d(list_of_wls[i]*gamma[i],sigma[j],
                 bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
                 #SNR, apart from wavelength-shifting it.
             else:

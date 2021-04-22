@@ -64,7 +64,8 @@ KELT-9 b. This package also contains the necessary configuration files and templ
 cross-correlations reminiscent of Hoeijmakers et al. (2018), but without the application of
 telluric correction.
 
-Download the dummy data, located here [URL]. You may also download any other pipeline-reduced HARPS
+Download the dummy data, located `here <https://drive.google.com/file/d/1OMHXvCJ626oecP1j_0BYvHRQA_MCE0ec/view?usp=sharing>`_ .
+You may also download any other pipeline-reduced HARPS
 or HARPS-N dataset from the ESO or TNG archives (Tayph does *not* work on
 raw echelle data). A pipeline-reduced dataset will consist of a number of files for each exposure,
 i.e. e2ds_A/B, s1d_A/B, blaze_A/B files, etc. For the purpose of this walk-through, we will assume
@@ -149,11 +150,11 @@ geographical location of the observatory and whether or not the wavelength solut
 When running supported instruments, instrument-specific information will have been filled in
 automatically.
 
-An important thing to note when setting the configuration file, is that the transit duration is
-derived from the combination of transit parameters (a/Rstar, period and the inclination). This
-duration is used to inject models into the data, but also to select which spectra are to be
-co-added in the rest-frame of the planet. The accuracy of these parameters therefore has an effect
-on how the spectra are treated.
+.. note::
+  When setting the configuration file, the transit duration is derived from the combination of
+  transit parameters (a/Rstar, period and the inclination). This duration is used to inject models
+  into the data, but also to select which spectra are to be co-added in the rest-frame of the
+  planet. The accuracy of these parameters therefore has an effect on how the spectra are treated.
 
 
 
@@ -188,6 +189,12 @@ Each FITS file is a 2-row FITS image, with wavelength (in nm) on the first row, 
 second row. In the case of transit spectra, this flux will typically be the expected transit radius
 of the planet as a function of wavelength. To convert models into cross-correlation templates,
 Tayph (optionally) performs a continuum subtraction (controlled by the c_subtract switch below).
+
+.. note::
+  For Tayph to correctly work, the template needs to have a continuum of zero, either a priori or
+  after application of the continuum subtraction option included in Tayph. In addition, absorption
+  lines need to be in the negative direction. Otherwise, built-in routines that deal with the cross-
+  correlation functions may mis-interpret the results.
 
 In this example, the FITS files of the cross-correlation templates are to be located in the
 :code:`'/Users/tayph/xcor_project/models/KELT-9'` directory, and an example of a library file and

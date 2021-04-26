@@ -171,7 +171,7 @@ organised in so-called libraries, which are ASCII tables that act as dictionarie
 user can refer to model files saved in subfolders using short-hand names (i.e. labels).
 
 The library files are structured as 2-column ASCII tables in the models/ directory. A library file
-called :code:`'kelt-9-model-library'` is provided along with the demo data, and is as follows::
+called :code:`'kelt-9-model-library.dat'` is provided along with the demo data, and is as follows::
 
     FeI_4k     KELT-9/4000K_1_Fe.fits
     FeII_4k    KELT-9/4000K_1_Fe_p.fits
@@ -202,7 +202,7 @@ associated model files are prepackaged along with the dummy data. Create a subfo
 :code:`'KELT-9'` in the :code:`'/Users/tayph/xcor_project/models/'` directory, place the
 template FITS files from the demo package inside (located in
 :code:`'/Users/tayph/downloads/demo_data/templates'`), and finally place the pre-packaged library
-file (:code:`'/Users/tayph/downloads/demo_data/configuration_files/KELT-9-model-library'`) in the
+file (:code:`'/Users/tayph/downloads/demo_data/configuration_files/KELT-9-model-library.dat'`) in the
 the :code:`'/Users/tayph/xcor_project/models/'` directory. The library file and template name/label
 are going to be passed to Tayph at runtime, allowing Tayph to find the model template files.
 
@@ -236,8 +236,8 @@ followed by commentary that explains keywords or choices that are not self-descr
 wish to remember for yourself.::
 
     datapath                  data/KELT-9/night1  #The path to your test data.
-    template_library          models/KELT-9-model-library   #The path to your library of models to be used as templates.
-    model_library             models/KELT-9-model-library   #The path to your library of models to be used as injection models.
+    template_library          models/KELT-9-model-library.dat   #The path to your library of models to be used as templates.
+    model_library             models/KELT-9-model-library.dat   #The path to your library of models to be used as injection models.
     model                     FeI_4k                 #A comma-separated list of templates as defined in your library file.
     template                  FeII_4k,FeI_4k  #A comma-separated list of templates as defined in your library file.
     c_subtract                True    #Set to True if your templates are not already continuum-subtracted. True for demo data.

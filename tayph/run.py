@@ -590,7 +590,7 @@ def run_instance(p):
         ut.tprint('---Cleaning CCFs')
         ccf_n,ccf_ne,ccf_nn,ccf_nne= clean_ccf(rv,ccf,ccf_e,dp)
 
-        if make_doppler_model == True and skip_doppler_model == False:
+        if make_doppler_model == True:
             shadow.construct_doppler_model(rv,ccf_nn,dp,shadowname,xrange=[-200,200],Nxticks=20.0,
             Nyticks=10.0)
             make_doppler_model = False # This sets it to False after it's been run once, for the

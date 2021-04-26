@@ -601,7 +601,7 @@ def run_instance(p):
             #model evaluated on the rv,ccf grid, as well as the mask that blocks the planet trace.
             ccf_clean,matched_ds_model = shadow.match_shadow(rv,ccf_nn,dsmask,dp,doppler_model)
 
-            pdb.set_trace()
+
             #THIS IS AN ADDITIVE CORRECTION, SO CCF_NNE DOES NOT NEED TO BE ALTERED AND IS STILL V
             #ALID VOOR CCF_CLEAN
         else:

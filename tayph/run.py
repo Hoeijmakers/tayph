@@ -434,9 +434,9 @@ def run_instance(p):
                 bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
                 #SNR, apart from wavelength-shifting it.
             elif type(rv_cor) != int:
-                order_cor[j] = interp.interp1d(list_of_wls[i]*gamma[i],order[j],
+                order_cor[j] = interp.interp1d(list_of_wls[j]*gamma[i],order[j],
                 bounds_error=False)(wl_cor)
-                sigma_cor[j] = interp.interp1d(list_of_wls[i]*gamma[i],sigma[j],
+                sigma_cor[j] = interp.interp1d(list_of_wls[j]*gamma[i],sigma[j],
                 bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
                 #SNR, apart from wavelength-shifting it.
             else:
@@ -600,6 +600,8 @@ def run_instance(p):
             doppler_model,dsmask = shadow.read_shadow(dp,shadowname,rv,ccf)#This returns both the
             #model evaluated on the rv,ccf grid, as well as the mask that blocks the planet trace.
             ccf_clean,matched_ds_model = shadow.match_shadow(rv,ccf_nn,dsmask,dp,doppler_model)
+
+            pdb.set_trace()
             #THIS IS AN ADDITIVE CORRECTION, SO CCF_NNE DOES NOT NEED TO BE ALTERED AND IS STILL V
             #ALID VOOR CCF_CLEAN
         else:

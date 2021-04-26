@@ -65,5 +65,5 @@ Contributors
 * Jens Hoeijmakers
 * Bibiana Prinoth
 * Brett Morris
-* Nicolas Borsato
+* Nicholas Borsato
 * Brian Thorsbro

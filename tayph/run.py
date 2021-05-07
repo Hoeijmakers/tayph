@@ -1538,6 +1538,7 @@ def molecfit(dp,mode='GUI',instrument='HARPS',save_individual='',configfile=None
 
 
     #The DP contains the S1D files and the configile of the data (air or vaccuum)
+    if instrument=='HARPS-N': instrument='HARPSN' #Guard against various ways of referring to HARPS-N.
     dp = ut.check_path(dp,exists=True)
     typetest(mode,str,'mode in molecfit()')
     typetest(instrument,str,'mode in molecfit()')

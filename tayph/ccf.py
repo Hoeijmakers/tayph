@@ -377,7 +377,6 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
     import tayph.util as ut
     import sys
     import pdb
-    from pytictoc import TicToc
     from joblib import Parallel, delayed
 
     Kp = fun.findgen((kprange[1]-kprange[0])/dkp+1)*dkp+kprange[0]
@@ -388,7 +387,6 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
     transit /= np.nansum(transit)
     transitblock = fun.rebinreform(transit,len(rv)).T
 
-    t = TicToc()
     def Kp_parallel(i):
         dRV = sp.RV(dp,vorb=i)*(-1.0)
         ccf_shifted = shift_ccf(rv,ccf,dRV)
@@ -396,7 +394,7 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
         return (np.nansum(transitblock * ccf_shifted,axis=0), (np.nansum((transitblock*ccf_e_shifted)**2.0,axis=0))**0.5)
     
     KpVsys, KpVsys_e = zip(*Parallel(n_jobs=-1)(delayed(Kp_parallel)(i) for i in Kp))
-    t.toc()
+
     
     return(Kp,KpVsys,KpVsys_e)
 

@@ -366,7 +366,6 @@ def shift_ccf(RV,CCF,drv):
     return(CCF_new)
 
 
-
 def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
     """The name says it all. Do good tests."""
     import tayph.functions as fun
@@ -378,6 +377,9 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
     import tayph.util as ut
     import sys
     import pdb
+    from pytictoc import TicToc
+    from joblib import Parallel, delayed
+
     Kp = fun.findgen((kprange[1]-kprange[0])/dkp+1)*dkp+kprange[0]
     n_exp = np.shape(ccf)[0]
     KpVsys = np.zeros((len(Kp),len(rv)))
@@ -386,26 +388,17 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
     transit /= np.nansum(transit)
     transitblock = fun.rebinreform(transit,len(rv)).T
 
-    j = 0
-    ccfs = []
-    for i in Kp:
+    t = TicToc()
+    def Kp_parallel(i):
         dRV = sp.RV(dp,vorb=i)*(-1.0)
         ccf_shifted = shift_ccf(rv,ccf,dRV)
         ccf_e_shifted = shift_ccf(rv,ccf_e,dRV)
-        ccfs.append(ccf_shifted)
-        KpVsys[j,:] = np.nansum(transitblock * ccf_shifted,axis=0)
-        KpVsys_e[j,:] = (np.nansum((transitblock*ccf_e_shifted)**2.0,axis=0))**0.5
-        # plt.plot(rv,KpVsys[j,:])
-        # plt.fill_between(rv, KpVsys[j,:]-KpVsys_e[j,:], KpVsys[j,:]+KpVsys_e[j,:],alpha=0.5)
-        # plt.show()
-        # pdb.set_trace()
-        j+=1
-        ut.statusbar(i,Kp)
+        return (np.nansum(transitblock * ccf_shifted,axis=0), (np.nansum((transitblock*ccf_e_shifted)**2.0,axis=0))**0.5)
+    
+    KpVsys, KpVsys_e = zip(*Parallel(n_jobs=-1)(delayed(Kp_parallel)(i) for i in Kp))
+    t.toc()
+    
     return(Kp,KpVsys,KpVsys_e)
-
-
-
-
 
     # CCF_total = np.zeros((n_exp,n_rv))
     #

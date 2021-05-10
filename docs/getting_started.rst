@@ -368,7 +368,7 @@ You will be asked to enter the following information:
 
 
 
-The read call
+The run call
 *************
 
 Now we are almost there. Now you only need to execute molecfit from the terminal before running the cross-correlation. 

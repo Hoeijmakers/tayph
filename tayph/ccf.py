@@ -393,7 +393,7 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
         ccf_e_shifted = shift_ccf(rv,ccf_e,dRV)
         return (np.nansum(transitblock * ccf_shifted,axis=0), (np.nansum((transitblock*ccf_e_shifted)**2.0,axis=0))**0.5)
     
-    KpVsys, KpVsys_e = zip(*Parallel(n_jobs=-1)(delayed(Kp_parallel)(i) for i in Kp))
+    KpVsys, KpVsys_e = zip(*Parallel(n_jobs=-1, verbose=5)(delayed(Kp_parallel)(i) for i in Kp))
 
     
     return(Kp,KpVsys,KpVsys_e)

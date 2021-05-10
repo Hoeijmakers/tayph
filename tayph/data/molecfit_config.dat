@@ -1,3 +1,3 @@
-molecfit_input_folder   /home/bibi/Projects/WASP-189b/input_files/cross_cor
-molecfit_prog_folder   /usr/local/molecfit_1.5.9/bin
+molecfit_input_folder   /Users/hoeijmakers/Molecfit/share/molecfit/spectra/cross_cor
+molecfit_prog_folder   /Users/hoeijmakers/Molecfit/bin
 python_alias   python3

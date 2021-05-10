@@ -385,7 +385,7 @@ Now we want to apply this correction to all obtained spectra, subsequently calli
 If you want to execute the GUI and apply the correction immediately, you can call::
 
     import tayph.run as run
-    run.molecfit('/Users/tayph/xcor_project/data/KELT-9/night1', mode='GUI',instrument='HARPSN')
+    run.molecfit('/Users/tayph/xcor_project/data/KELT-9/night1', mode='both',instrument='HARPSN')
 
 
 .. note::

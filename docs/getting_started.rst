@@ -296,97 +296,101 @@ After having been run once, the mask files and doppler model files are saved in 
 with names as specified by the shadowname and maskname parameters in the run file.
 
 
-
-
-
-Using molecfit for telluric corrections (THIS IS DEFUNCT - DO NOT FOLLOW THIS)
-##############################################################################
-
-So far we have not used molecfit in order to correct for telluric lines.
-If you wish to use molecfit for telluric corrections, these are the necessary steps you have to take:
-
-- You need to install the standalone version of Molecfit on your system.
-- A parameter file for your instrument has to be created. Parameter files for the supported instruments packaged in the demo data package, but you need to modify these to work on your system (see below).
-- You need to use Tayph create a configuration file for molecfit.
-- The paths in your runfile have to be set correctly for molecfit to be executed. An example is shown below.
-
 Using molecfit for telluric corrections
 #######################################
 
 So far we have not used molecfit in order to correct for telluric lines.
-For the scope of this section we assume that you successfully installed molecfit on your laptop / server. 
-For installation on Mac (Catalina), see here (add link).
-
 If you want to use molecfit for telluric corrections, these are the necessary steps you have to take:
 
-- A parameter file for your instrument has to be created. An example of this parameter file is shown below.
-- The molecfit paths have to be set correctly for execution. 
-- Exchange some files in the molecfit program folder.
-- The read-call of tayph has to be executed with the right path indication for the runfile. An example is shown below.
+- You need to install the standalone version of Molecfit on your system.
+- Replace some files within molecfit to make it exectutable.
+- A parameter file for your instrument has to be created. Parameter files for the supported instruments packaged in the demo data package, but you need to modify these to work on your system (see below).
+- You need to use Tayph create a configuration file for molecfit.
+
+
+Install molecfit on your system
+*******************************
+
+You can find the all the required Molecfit files `here <https://drive.google.com/file/d/1GU--4UFYxmWPW1zOHzFT9bnzAhZGUR95/view?usp=sharing>`_ .
+It includes a manual on how to install molecfit on your system. 
+Additional notes for installation on Mac (Catalina) can be found here (add link)
+
+For the rest of theses tutorial, we assume your molecfit installation to be located at i.e. :code:`'/usr/local/src/Molecfit'`.
+
+
+Exchange of molecfit files (this is not done yet)
+*************************************************
+
+In order to correct for an error in a code line of a molecfit python file, as well as making molecfit executable with python3, several changes have to be made.
+The necessary files including the file structure are given here (insert url)
+
+- bin changes 
+.. note::
+    When replacing the file :code:`SM02GUI_Main.py`, it will lose its alias, which is the molecfit_gui in another folder. Make sure to create this alias again, name it molecfit_gui and replace the broken version in the bin folder (i.e. :code:`/usr/local/src/Molecfit/bin/`).
 
 
 The parameter files
 *******************
 
-fix parameter files to be functional for tayph/tayph.
+For each instrument a parameter file has to be created. To work with the given example of KELT-9 b data, the parameter file can be found in your downloaded dummy data.
+For the purpose of this example we assume this file to be located here (:code:`'/Users/tayph/xcor_project/models/molecfit/'`. 
+The following inputs have to be adapted to your system.
 
-CHANGE THE FOLLOWING PATHS IN THE PARAM FILE:
-user_workdir
-filename
-output_dir
-
-For each instrument a parameter file has to be created. To work with the given example of KELT-9 b data, the parameter file can be downloaded here (add URL).
-For the purpose of this example we assume this file to be located in your molecfit-folder (i.e. :code:`'/Users/username/Molecfit/share/molecfit/spectra/cross_cor/'`. The following inputs have to be adapted to your system.
-
-- :code:`user_workdir`: The user directory has to be set to the path of your project in our example case here we use :code:`user_workdir: /Users/tayph/xcor_project`.
-- :code:`filename`: The filename of the fits file that is created during the molecfit run has to be set. This file shall be named after your parameter file. Hence in this example: :code:`'filename: /Users/username/Molecfit/share/molecfit/spectra/cross_cor/HARPS.fits'`.
-
+- :code:`user_workdir`: The user directory has to be set to the path of your project. This is necessary for molecfit to find your files. We use :code:`user_workdir:user_workdir: /Users/tayph/xcor_project/`.
+- :code:`filename`: The filename of the fits file that is created during the molecfit run has to be set. This file shall be named after your parameter file. Hence in this example: :code:`'filename: user_workdir: /Users/tayph/xcor_project/models/molecfit/HARPSN.fits'`.
+- :code:`output_dir`: The output directory for intermediate molecfit output has to be defined. We define it to be the same folder as the input directory where store out parameter file. We use  :code:`'output_dir = user_workdir: /Users/tayph/xcor_project/models/molecfit/'`
 
 
 The molecfit config file
 ************************
 
 For molecfit to successfully run through, a config file has to be adapted. 
-Tayph produces a config file per default, but requires you to set the parameters yourself.
+Tayph produces a config file per default (see :code:`'tayph/tayph/data/molecfit_config.dat'`), but requires you to set the parameters yourself.
 
-To set the parameters, navigate to your project folder and open a python 3 interpreter and call::
+To set the parameters, navigate to your project folder, open a python 3 interpreter and call::
 
     import tayph.tellurics as tellurics
-    tellurics.set_molecfit_config('/usr/local/src/tayph/tayph/data')
+    tellurics.set_molecfit_config('/usr/local/src/tayph/tayph/data/molecfit_config.dat')
 
 You will be asked to enter the following information:
 
     - In what folder are parameter files defined and should (intermediate) molecfit output be written to?
+
+    This is going to be the location of your parameter file, i.e. :code:`'/Users/tayph/xcor_project/models/molecfit/'`.
+
     - In what folder is the molecfit binary located?
+
+    This is within your molecfit installation, i.e. :code:`'/usr/local/src/Molecfit/bin'`
+    
     - What is your python 3.x alias?
 
+    python
 
-Within the run file two paths have to be indicated. One of the paths is supposed to point at the folder where the parameter file is located.
-The other path indicates the position where the :code:`molecfit_gui` is located. These two paths are in the run file as given above. Here as a reminder::
-
-    molecfit_input_folder     /Users/username/Molecfit/share/molecfit/spectra/cross_cor/
-    molecfit_prog_folder      /Users/username/Molecfit/bin/
-
-We are here assuming that molecfit is installed in the directory :code:`/Users/username/`.
-
-
-Exchange of molecfit files
-**************************
-
-In order to correct for an error in a code line of a molecfit python file, as well as making molecfit executable with python3, several changes have to be made.
-The necessary files including the file structure are given here (insert URL).
-
-Be aware that when replacing the file :code:`SM02GUI_Main.py` will lose its alias, which is the molecfit_gui in another folder. Make sure to create this alias again, name it molecfit_gui and replace the broken version in the bin folder (i.e. :code:`/Users/username/Molecfit/bin/`).
 
 
 The read call
 *************
 
-In order to call tayph with molecfit, the following command has to be executed instead of the old read-command::
+Now we are almost there. Now you only need to execute molecfit from the terminal before running the cross-correlation. 
+To do so, you navigate into your project folder, open a python3 interpreter and call::
 
-    tayph.read.read_e2ds('/Users/tayph/downloads/HARPS_data/','KELT-9/night1','/Users/tayph/xcor_project/testrun.dat',nowave=True,molecfit=True,mode='HARPS',ignore_exp=[])
+    import tayph.run as run
+    run.molecfit('/Users/tayph/xcor_project/data/KELT-9/night1', mode='GUI',instrument='HARPSN')
 
-Don't forget to set :code:`molecfit=True`.
+This will open the molecfit GUI for you to choose your fitting regions, continuum normalisation, etc and save the files in the output directory we indicated in the parameter file. 
+Now we want to apply this correction to all obtained spectra, subsequently calling::
+
+    run.molecfit('/Users/tayph/xcor_project/data/KELT-9/night1', mode='batch',instrument='HARPSN')
+
+If you want to execute the GUI and apply the correction immediately, you can call::
+
+    import tayph.run as run
+    run.molecfit('/Users/tayph/xcor_project/data/KELT-9/night1', mode='GUI',instrument='HARPSN')
+
+
+.. note::
+    The GUI requires screen access, so remember to add -X when logging into an external server. The batch process runs through without interaction. 
+    So if you want to run tayph on a server, it is recommended to call those two tasks separately and execute the batch process on a screen, for example over night.
 
 
 

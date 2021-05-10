@@ -477,7 +477,7 @@ def run_instance(p):
                 'spectra.')
             masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,40.0,5.0,manual=True)
         if apply_mask == False:
-            ut.print('---WARNING in run_instance: Mask was made but is not applied to data '
+            ut.tprint('---WARNING in run_instance: Mask was made but is not applied to data '
                 '(apply_mask == False)')
 
 
@@ -1267,7 +1267,7 @@ save_figure=True):
         print(f'---The wavelength axes of the spectra will be shown here as they were saved by read_e2ds.')
         print(f'---Cleaning 1D spectra for cross-correlation.')
 
-        if mode in ['HARPS','HARPSN','ESPRESSO']:
+        if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS']:
             #gamma = (1.0-(berv[0]*u.km/u.s/const.c).decompose().value)
             wave_1d = wave1d[0]/10.0#*gamma#Universal berv-un-corrected wavelength axis in nm in air.
             s1d_block=np.zeros((len(s1d),len(wave_1d)))
@@ -1283,8 +1283,9 @@ save_figure=True):
         # plt.legend()
         # plt.show()
         # pdb.set_trace()
-        wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False)
-        #Slow. Needs parallelising.
+        wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False,
+        w=np.min([800/len(s1d),300])#Make the window dependent on how many exposures there are,
+        #such that the block has a total number of 800 pixels. Don't make the window wider than 300.
 
         if mode in ['UVES-red','UVES-blue']:
             pdb.set_trace()

@@ -6,7 +6,7 @@ Getting started with Tayph
 
 This page provides a tutorial for how to get started with Tayph from scratch, covering installation
 and the application of Tayph's standard workflow to a set of demo data. When finishing this tutorial,
-you should have enough information to use Tayph for the analysis of standard high resolution datasets.
+you should have enough information to use Tayph for the analysis of standard high-resolution datasets.
 
 Requirements
 ############
@@ -20,7 +20,7 @@ Numpy
 Scipy
 Astropy
 lmfit
-
+joblib
 
 Installation
 ############
@@ -37,7 +37,11 @@ python interpreter and importing Tayph::
   import tayph
 
 If no errors are raised, Tayph has been successfully installed on your system.
+For the scope of this tutorial we will assume, Tayph is installed in the following path :code:`'/usr/local/src/tayph/tayph'`.
 
+.. note::
+  You will not have to remember this path for the scope of running through the tutorial without molecfit. 
+  Molecfit will require some path information.
 
 
 Setting up Tayph with demo data
@@ -55,14 +59,13 @@ For the purpose of this walk-through, we will assume that this folder is called
     exit()
 
 where you have set :code:`'p'` to a string describing the filepath of the empty directory you just created.
-This creates the necessary folder structure Tayph uses.
-
+This creates the necessary folder structure Tayph uses. 
 
 Along with the core package of Tayph, a package with demo data is made available containing the
 HARPS-N spectra that were first used to find iron in the transmission spectrum of the exoplanet
 KELT-9 b. This package also contains the necessary configuration files and templates to obtain
 cross-correlations reminiscent of Hoeijmakers et al. (2018), but without the application of
-telluric correction.
+telluric correction (for those see section below).
 
 Download the dummy data, located `here <https://drive.google.com/file/d/1OMHXvCJ626oecP1j_0BYvHRQA_MCE0ec/view?usp=sharing>`_ .
 You may also download any other pipeline-reduced HARPS
@@ -75,7 +78,7 @@ of multiple transits in the same download folder, because Tayph will treat them 
 time-series.  Although certain use-cases may exist where this is desirable, it is non-standard from
 the points of view of present literature and of this demonstration.
 
-To continue with the demo data, move to your working directory
+To continue with the demo data, move to your working directory in the terminal
 (i.e. :code:`'cd /Users/tayph/xcor_project/'`), open a python 3 interpreter and call::
 
     import tayph.run as run
@@ -94,12 +97,14 @@ protect you against confusion regarding wavelength solutions and velocity correc
 (where different pipelines have different conventions). The input parameters of read_e2ds are
 structured in the following way::
 
-    tayph.run.read_e2ds('input_folder','output_name',mode='HARPS',measure_RV=True,star='hot',config=True)
+    tayph.run.read_e2ds('input_folder','output_name',mode='HARPSN',measure_RV=True,star='hot',config=True)
 
 - :code:`'input_folder'`: The first parameter is the location of your downloaded data. This is typically a dedicated folder in your project or even your downloads folder.
 - :code:`'output_name'`: The second is the name of your dataset, as a folder name. Typically, this takes the form of system_name_b, or system_name_b/night_n if multiple transits of the same system are available.
-- :code:`mode='HARPS'`:The mode keyword can be used to switch between HARPS, ESPRESSO, UVES-red,UVES-blue, CARMENES-VIS and CARMENES-NIR modes. In this case, we are dealing with HARPS data.
-- :code:`measure_RV=True`: Set to True if, after reading in the data, let Tayph perform quick cleaning and correlation with a PHOENIX model and an Earth telluric model. At the end, Tayph will plot the 1-dimensional and 2-dimensional spectra as well as the two models, to give you a good sense of whether one or the other are barycentric corrected or not, and whether wavelength solutions are in air or vaccuum. These will influence how you configure Tayph later so it is recommended to run read_e2ds with measure_RV=True when starting out.
+- :code:`mode='HARPS'`:The mode keyword can be used to switch between HARPS, HARPSN (or HAPRS-N), ESPRESSO, UVES-red,UVES-blue, CARMENES-VIS and CARMENES-NIR modes. In this case, we are dealing with HARPS-N data.
+- :code:`measure_RV=True`: Set to True if, after reading in the data, let Tayph perform quick cleaning and correlation with a PHOENIX model and an Earth telluric model. 
+At the end, Tayph will plot the 1-dimensional and 2-dimensional spectra as well as the two models, to give you a good sense of whether one or the other are barycentric corrected or not, 
+and whether wavelength solutions are in air or vaccuum. These will influence how you configure Tayph later so it is recommended to run read_e2ds with measure_RV=True when starting out.
 - :code:`star='solar'`: If measure_RV is set to True, the PHOENIX model used will either match that of the sun (code:`star='solar'`), that of a 9000K A-star (code:`star='hot'`) or a cool 4000K K-dwarf (code:`star='cool'`).
 - :code:`config=True`: If set, Tayph will create an empty configuration file with some values filled in, depending on the instrument mode.
 
@@ -110,7 +115,7 @@ which the various files are located, including a dummy configuration file called
 and renaming it from :code:`config_empty`: to :code:`config`:. However, a finished configuration
 file has been provided along with the prepackaged demo data (in
 :code:`'/Users/tayph/downloads/demo_data/configuration_files/config'`), so for the purpose of this
-tutorial, you should proceed by copying this file to the datafolder instead.
+tutorial, you should proceed by copying this file to the data folder instead.
 
 
 
@@ -143,9 +148,9 @@ this, describing HARPS-N observations of KELT-9 b::
 
 which describe the orbital period in days, the semi-major axis in AU, the mass/radius of the planet
 relative to Jupiter, the radial velocity semi-amplitude of the star in km/s, the radius-ratio of
-the planet and star, the systemic velocity in km/s, the RA and DEC coordinates, the transit center
+the planet and star, the systemic velocity in km/s, the RA and DEC coordinates, the transit centre
 time, the spectral resolution of the instrument, the orbital inclination in degrees (close to 90 if
-the planet is transiting), the projected equatorial rotation velocity of the stellar disk, the
+the planet is transiting), the projected equatorial rotation velocity of the stellar disc, the
 geographical location of the observatory and whether or not the wavelength solution is in air.
 When running supported instruments, instrument-specific information will have been filled in
 automatically.
@@ -202,12 +207,12 @@ associated model files are prepackaged along with the dummy data. Create a subfo
 :code:`'KELT-9'` in the :code:`'/Users/tayph/xcor_project/models/'` directory, place the
 template FITS files from the demo package inside (located in
 :code:`'/Users/tayph/downloads/demo_data/templates'`), and finally place the pre-packaged library
-file (:code:`'/Users/tayph/downloads/demo_data/configuration_files/KELT-9-model-library.dat'`) in the
+file (:code:`'/Users/tayph/downloads/demo_data/configuration_files/KELT-9-model-library'`) in the
 the :code:`'/Users/tayph/xcor_project/models/'` directory. The library file and template name/label
 are going to be passed to Tayph at runtime, allowing Tayph to find the model template files.
 
 Later, when the user wishes to analyse a dataset of a different planet, a second library file
-located at :code:`'/Users/tayph/xcor_project/models/WASP-123456-models.dat'` may be placed in the
+located at :code:`'/Users/tayph/xcor_project/models/WASP-123456-models'` may be placed in the
 :code:`'models/'` directory as well, pointing to different (but perhaps similar) models, e.g. as
 follows::
 
@@ -261,13 +266,12 @@ wish to remember for yourself.::
 
 
 This file is typically saved in the working directory, although it can be placed anywhere in your
-system. The demo package contains a pre-made run file for the KELT-9 dummy data, located at
+system (make sure to adjust the paths correspondingly!). The demo package contains a pre-made run file for the KELT-9 dummy data, located at
 :code:`'/Users/tayph/downloads/demo_data/configuration_files/demorun.dat'`). Place it into your
 working directory, and from the working directory, initialise a cross-correlation run by calling::
 
     import tayph.run
     tayph.run.start_run('demorun.dat')
-
 
 This initialises the processing cascade of Tayph. Cross-correlation output is saved in the
 output directory :code:`'/Users/tayph/xcor_project/output/KELT-9/night1/'`, with a subfolder
@@ -305,12 +309,26 @@ If you wish to use molecfit for telluric corrections, these are the necessary st
 - A parameter file for your instrument has to be created. Parameter files for the supported instruments packaged in the demo data package, but you need to modify these to work on your system (see below).
 - You need to use Tayph create a configuration file for molecfit.
 - The paths in your runfile have to be set correctly for molecfit to be executed. An example is shown below.
+
+Using molecfit for telluric corrections
+#######################################
+
+So far we have not used molecfit in order to correct for telluric lines.
+For the scope of this section we assume that you successfully installed molecfit on your laptop / server. 
+For installation on Mac (Catalina), see here (add link).
+
+If you want to use molecfit for telluric corrections, these are the necessary steps you have to take:
+
+- A parameter file for your instrument has to be created. An example of this parameter file is shown below.
+- The molecfit paths have to be set correctly for execution. 
 - Exchange some files in the molecfit program folder.
 - The read-call of tayph has to be executed with the right path indication for the runfile. An example is shown below.
 
 
-The parameter file
-******************
+The parameter files
+*******************
+
+fix parameter files to be functional for tayph/tayph.
 
 CHANGE THE FOLLOWING PATHS IN THE PARAM FILE:
 user_workdir
@@ -325,8 +343,23 @@ For the purpose of this example we assume this file to be located in your molecf
 
 
 
-The run file
-************
+The molecfit config file
+************************
+
+For molecfit to successfully run through, a config file has to be adapted. 
+Tayph produces a config file per default, but requires you to set the parameters yourself.
+
+To set the parameters, navigate to your project folder and open a python 3 interpreter and call::
+
+    import tayph.tellurics as tellurics
+    tellurics.set_molecfit_config('/usr/local/src/tayph/tayph/data')
+
+You will be asked to enter the following information:
+
+    - In what folder are parameter files defined and should (intermediate) molecfit output be written to?
+    - In what folder is the molecfit binary located?
+    - What is your python 3.x alias?
+
 
 Within the run file two paths have to be indicated. One of the paths is supposed to point at the folder where the parameter file is located.
 The other path indicates the position where the :code:`molecfit_gui` is located. These two paths are in the run file as given above. Here as a reminder::
@@ -354,3 +387,6 @@ In order to call tayph with molecfit, the following command has to be executed i
     tayph.read.read_e2ds('/Users/tayph/downloads/HARPS_data/','KELT-9/night1','/Users/tayph/xcor_project/testrun.dat',nowave=True,molecfit=True,mode='HARPS',ignore_exp=[])
 
 Don't forget to set :code:`molecfit=True`.
+
+
+

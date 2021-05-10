@@ -295,13 +295,15 @@ with names as specified by the shadowname and maskname parameters in the run fil
 
 
 
-Using molecfit for telluric corrections
-#######################################
+Using molecfit for telluric corrections (THIS IS DEFUNCT - DO NOT FOLLOW THIS)
+##############################################################################
 
 So far we have not used molecfit in order to correct for telluric lines.
-If you want to use molecfit for telluric corrections, these are the necessary steps you have to take:
+If you wish to use molecfit for telluric corrections, these are the necessary steps you have to take:
 
-- A parameter file for your instrument has to be created. An example of this parameter file is shown below.
+- You need to install the standalone version of Molecfit on your system.
+- A parameter file for your instrument has to be created. Parameter files for the supported instruments packaged in the demo data package, but you need to modify these to work on your system (see below).
+- You need to use Tayph create a configuration file for molecfit.
 - The paths in your runfile have to be set correctly for molecfit to be executed. An example is shown below.
 - Exchange some files in the molecfit program folder.
 - The read-call of tayph has to be executed with the right path indication for the runfile. An example is shown below.

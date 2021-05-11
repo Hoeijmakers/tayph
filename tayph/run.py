@@ -926,7 +926,7 @@ save_figure=True):
         'Read_e2ds will proceed, assuming that you know what you are doing.')
         outpath = Path(outname)
     else:
-        outpath = Path('data')/outname)
+        outpath = Path('data')/outname
     if os.path.exists(outpath) != True:
         os.makedirs(outpath)
 

@@ -12,15 +12,15 @@ Requirements
 ############
 
 Tayph is written in python 3, and requires multiple packages to function. All of these can be installed
-using standard package managers (e.g. pip or Anaconda).
+using standard package managers (e.g. pip or Anaconda):
 
-Python version 3.x
-Matplotlib
-Numpy
-Scipy
-Astropy
-lmfit
-joblib
+- Python version 3.x
+- Matplotlib
+- Numpy
+- Scipy
+- Astropy
+- lmfit
+- joblib
 
 Installation
 ############
@@ -29,7 +29,7 @@ Installation
 To get started, download or clone Tayph from the `GitHub page <https://github.com/Hoeijmakers/tayph>`_,
 open a terminal in the root folder and run::
 
-    python3 setup.py install.
+    python3 setup.py install
 
 This installs Tayph as a python package on your system. Verify that Tayph can be imported by opening a
 python interpreter and importing Tayph::
@@ -37,12 +37,6 @@ python interpreter and importing Tayph::
   import tayph
 
 If no errors are raised, Tayph has been successfully installed on your system.
-For the scope of this tutorial we will assume, Tayph is installed in the following path :code:`'/usr/local/src/tayph/tayph'`.
-
-.. note::
-  You will not have to remember this path for the scope of running through the tutorial without molecfit. 
-  Molecfit will require some path information.
-
 
 Setting up Tayph with demo data
 ###############################
@@ -51,15 +45,15 @@ Setting up Tayph with demo data
 Tayph works within a folder structure in which your data, models, templates and Tayph output results are
 organised. We call this the 'project folder' or 'working directory'. Create an empty directory somewhere on your system.
 For the purpose of this walk-through, we will assume that this folder is called
-:code:`'/Users/tayph/xcor_project/'`. Open a python 3 interpreter and call::
+:code:`/Users/tayph/xcor_project/`. Open a python 3 interpreter and call::
 
     import tayph.run
     p = '/Users/tayph/xcor_project/'
     tayph.run.make_project_folder(p)
     exit()
 
-where you have set :code:`'p'` to a string describing the filepath of the empty directory you just created.
-This creates the necessary folder structure Tayph uses. 
+where you have set :code:`p` to a string describing the filepath of the empty directory you just created.
+This creates the necessary folder structure Tayph uses.
 
 Along with the core package of Tayph, a package with demo data is made available containing the
 HARPS-N spectra that were first used to find iron in the transmission spectrum of the exoplanet
@@ -67,19 +61,19 @@ KELT-9 b. This package also contains the necessary configuration files and templ
 cross-correlations reminiscent of Hoeijmakers et al. (2018), but without the application of
 telluric correction (for those see section below).
 
-Download the dummy data, located `here <https://drive.google.com/file/d/1OMHXvCJ626oecP1j_0BYvHRQA_MCE0ec/view?usp=sharing>`_ .
+Download the dummy data, located `here <https://drive.google.com/file/d/1A3CxUfQUIsmjmHKmPlc81wD7r97UslMC/view?usp=sharing>`__.
 You may also download any other pipeline-reduced HARPS
 or HARPS-N dataset from the ESO or TNG archives (Tayph does *not* work on
 raw echelle data). A pipeline-reduced dataset will consist of a number of files for each exposure,
 i.e. e2ds_A/B, s1d_A/B, blaze_A/B files, etc. For the purpose of this walk-through, we will assume
-that this folder is located at :code:`'/Users/tayph/downloads/demo_data/'`. If downloading your own
+that this folder is located at :code:`/Users/tayph/downloads/demo_data/`. If downloading your own
 data, take care to download and process only *one* transit at a time. Do not put the observations
 of multiple transits in the same download folder, because Tayph will treat them as a single
 time-series.  Although certain use-cases may exist where this is desirable, it is non-standard from
 the points of view of present literature and of this demonstration.
 
 To continue with the demo data, move to your working directory in the terminal
-(i.e. :code:`'cd /Users/tayph/xcor_project/'`), open a python 3 interpreter and call::
+(i.e. :code:`cd /Users/tayph/xcor_project/`), open a python 3 interpreter and call::
 
     import tayph.run as run
     run.read_e2ds('/Users/tayph/downloads/demo_data/kelt-9-spectra','KELT-9/night1',mode='HARPSN',config=True)
@@ -102,19 +96,17 @@ structured in the following way::
 - :code:`'input_folder'`: The first parameter is the location of your downloaded data. This is typically a dedicated folder in your project or even your downloads folder.
 - :code:`'output_name'`: The second is the name of your dataset, as a folder name. Typically, this takes the form of system_name_b, or system_name_b/night_n if multiple transits of the same system are available.
 - :code:`mode='HARPS'`:The mode keyword can be used to switch between HARPS, HARPSN (or HAPRS-N), ESPRESSO, UVES-red,UVES-blue, CARMENES-VIS and CARMENES-NIR modes. In this case, we are dealing with HARPS-N data.
-- :code:`measure_RV=True`: Set to True if, after reading in the data, let Tayph perform quick cleaning and correlation with a PHOENIX model and an Earth telluric model. 
-At the end, Tayph will plot the 1-dimensional and 2-dimensional spectra as well as the two models, to give you a good sense of whether one or the other are barycentric corrected or not, 
-and whether wavelength solutions are in air or vaccuum. These will influence how you configure Tayph later so it is recommended to run read_e2ds with measure_RV=True when starting out.
+- :code:`measure_RV=True`: Set to True if, after reading in the data, let Tayph perform quick cleaning and correlation with a PHOENIX model and an Earth telluric model. At the end, Tayph will plot the 1-dimensional and 2-dimensional spectra as well as the two models, to give you a good sense of whether one or the other are barycentric corrected or not, and whether wavelength solutions are in air or vaccuum. These will influence how you configure Tayph later so it is recommended to run read_e2ds with measure_RV=True when starting out.
 - :code:`star='solar'`: If measure_RV is set to True, the PHOENIX model used will either match that of the sun (code:`star='solar'`), that of a 9000K A-star (code:`star='hot'`) or a cool 4000K K-dwarf (code:`star='cool'`).
 - :code:`config=True`: If set, Tayph will create an empty configuration file with some values filled in, depending on the instrument mode.
 
 
-Read_e2ds has produced a new folder :code:`'/Users/tayph/xcor_project/data/KELT-9/night1/'` in
+Read_e2ds has produced a new folder :code:`/Users/tayph/xcor_project/data/KELT-9/night1/` in
 which the various files are located, including a dummy configuration file called
-:code:`'config_empty'`. The user would now need to proceed by filling in this configuration
+:code:`config_empty`. The user would now need to proceed by filling in this configuration
 and renaming it from :code:`config_empty`: to :code:`config`:. However, a finished configuration
 file has been provided along with the prepackaged demo data (in
-:code:`'/Users/tayph/downloads/demo_data/configuration_files/config'`), so for the purpose of this
+:code:`/Users/tayph/downloads/demo_data/configuration_files/config`), so for the purpose of this
 tutorial, you should proceed by copying this file to the data folder instead.
 
 
@@ -168,7 +160,7 @@ Model and template library files
 
 After the data is reformatted and a configuration file is created, we need to point Tayph to a set
 of model spectra that are going to be used as cross-correlation templates and (optionally) for model
-injection-comparison. Models may be located in the :code:`'/Users/tayph/xcor_project/models/'`
+injection-comparison. Models may be located in the :code:`/Users/tayph/xcor_project/models/`
 directory, with optional subdirectories for different sets of models. In most use-cases, the user
 will have multiple sets of models to choose from, which may or may not be similar in their naming
 or content. To be able to access different sets of similar models, Tayph assumes that models are
@@ -176,7 +168,7 @@ organised in so-called libraries, which are ASCII tables that act as dictionarie
 user can refer to model files saved in subfolders using short-hand names (i.e. labels).
 
 The library files are structured as 2-column ASCII tables in the models/ directory. A library file
-called :code:`'kelt-9-model-library.dat'` is provided along with the demo data, and is as follows::
+called :code:`kelt-9-model-library.dat` is provided along with the demo data, and is as follows::
 
     FeI_4k     KELT-9/4000K_1_Fe.fits
     FeII_4k    KELT-9/4000K_1_Fe_p.fits
@@ -188,8 +180,8 @@ called :code:`'kelt-9-model-library.dat'` is provided along with the demo data, 
     YII_4k     KELT-9/4000K_1_Y_p.fits
 
 Individual models are to be saved as FITS files, which are assumed to be located in subdirectories
-starting in the :code:`'/Users/tayph/xcor_project/models/'` directory. Absolute paths (e.g.
-:code:`'/Users/tayph/xcor_project/models/KELT-9/4000K_1_Fe.fits'`) may also be provided.
+starting in the :code:`/Users/tayph/xcor_project/models/` directory. Absolute paths (e.g.
+:code:`/Users/tayph/xcor_project/models/KELT-9/4000K_1_Fe.fits`) may also be provided.
 Each FITS file is a 2-row FITS image, with wavelength (in nm) on the first row, and flux on the
 second row. In the case of transit spectra, this flux will typically be the expected transit radius
 of the planet as a function of wavelength. To convert models into cross-correlation templates,
@@ -202,18 +194,18 @@ Tayph (optionally) performs a continuum subtraction (controlled by the c_subtrac
   correlation functions may mis-interpret the results.
 
 In this example, the FITS files of the cross-correlation templates are to be located in the
-:code:`'/Users/tayph/xcor_project/models/KELT-9'` directory, and an example of a library file and
+:code:`/Users/tayph/xcor_project/models/KELT-9` directory, and an example of a library file and
 associated model files are prepackaged along with the dummy data. Create a subfolder
-:code:`'KELT-9'` in the :code:`'/Users/tayph/xcor_project/models/'` directory, place the
+:code:`KELT-9` in the :code:`/Users/tayph/xcor_project/models/` directory, place the
 template FITS files from the demo package inside (located in
-:code:`'/Users/tayph/downloads/demo_data/templates'`), and finally place the pre-packaged library
-file (:code:`'/Users/tayph/downloads/demo_data/configuration_files/KELT-9-model-library'`) in the
-the :code:`'/Users/tayph/xcor_project/models/'` directory. The library file and template name/label
+:code:`/Users/tayph/downloads/demo_data/templates`), and finally place the pre-packaged library
+file (:code:`/Users/tayph/downloads/demo_data/configuration_files/KELT-9-model-library`) in the
+the :code:`/Users/tayph/xcor_project/models/` directory. The library file and template name/label
 are going to be passed to Tayph at runtime, allowing Tayph to find the model template files.
 
 Later, when the user wishes to analyse a dataset of a different planet, a second library file
-located at :code:`'/Users/tayph/xcor_project/models/WASP-123456-models'` may be placed in the
-:code:`'models/'` directory as well, pointing to different (but perhaps similar) models, e.g. as
+located at :code:`/Users/tayph/xcor_project/models/WASP-123456-models` may be placed in the
+:code:`models/` directory as well, pointing to different (but perhaps similar) models, e.g. as
 follows::
 
   FeI_2k      WASP-123456/2000K_FeI.fits
@@ -267,17 +259,17 @@ wish to remember for yourself.::
 
 This file is typically saved in the working directory, although it can be placed anywhere in your
 system (make sure to adjust the paths correspondingly!). The demo package contains a pre-made run file for the KELT-9 dummy data, located at
-:code:`'/Users/tayph/downloads/demo_data/configuration_files/demorun.dat'`). Place it into your
+:code:`/Users/tayph/downloads/demo_data/configuration_files/demorun.dat`). Place it into your
 working directory, and from the working directory, initialise a cross-correlation run by calling::
 
     import tayph.run
     tayph.run.start_run('demorun.dat')
 
 This initialises the processing cascade of Tayph. Cross-correlation output is saved in the
-output directory :code:`'/Users/tayph/xcor_project/output/KELT-9/night1/'`, with a subfolder
+output directory :code:`/Users/tayph/xcor_project/output/KELT-9/night1/`, with a subfolder
 for each template library (a dataset can be cross-correlated with templates of different
 libraries), in which there are subfolders for each template. The CCF data is stored in separate
-FITS files, with the main output being :code:`'ccf_cleaned.fits'`. If this file was successfully
+FITS files, with the main output being :code:`ccf_cleaned.fits`. If this file was successfully
 generated, you should see a slanted dark streak in the CCFs of Fe I and Fe II, which is the
 signature of these atoms in the atmosphere of KELT-9 b.
 
@@ -296,105 +288,226 @@ After having been run once, the mask files and doppler model files are saved in 
 with names as specified by the shadowname and maskname parameters in the run file.
 
 
-Using molecfit for telluric corrections
+Using Molecfit for telluric corrections
 #######################################
 
-So far we have not used molecfit in order to correct for telluric lines.
-If you want to use molecfit for telluric corrections, these are the necessary steps you have to take:
+So far we have not used Molecfit in order to correct for telluric lines.
+If you wish to integrate Molecfit into Tayph for telluric corrections, these are the necessary
+steps that you need to take:
 
-- You need to install the standalone version of Molecfit on your system.
-- Replace some files within molecfit to make it exectutable.
-- A parameter file for your instrument has to be created. Parameter files for the supported instruments packaged in the demo data package, but you need to modify these to work on your system (see below).
-- You need to use Tayph create a configuration file for molecfit.
-
-
-Install molecfit on your system
-*******************************
-
-You can find the all the required Molecfit files `here <https://drive.google.com/file/d/1GU--4UFYxmWPW1zOHzFT9bnzAhZGUR95/view?usp=sharing>`_.
-It includes a manual on how to install molecfit on your system, as well as additional notes for the installation on OSX Catalina.
-Follow these guides for the installation of molecfit on your system. 
-
-For the rest of this tutorial, we assume your molecfit installation to be located at :code:`'/usr/local/src/Molecfit'`.
+- Install standalone version 1.5.9 of Molecfit on your system.
+- Replace some files within Molecfit to make it exectutable, python 3.0 compatible and to fix a line-list error.
+- Create a parameter file for your instrument. Parameter files for the supported instruments packaged in the demo data package, but you need to modify these slightly to make Molecfit work on your system.
+- Use Tayph create a configuration file for Molecfit, which establishes the interface between the two.
 
 
-Exchange of molecfit files
+Where to download Molecfit
 **************************
+Molecfit is developed by ESO and hosted `on the ESO webpages <https://www.eso.org/sci/software/pipelines/skytools/molecfit>`_.
+However in 2020, ESO moved to integrate Molecfit into its data reduction environment, deprecating
+the standalone execution of Molecfit that is needed for use with non-ESO data, and that Tayph uses.
+As of 2021, previous standalone versions are still hosted `on ESO's FTP server <ftp://ftp.eso.org/pub/dfs/pipelines/skytools/molecfit/>`_,
+but these may be removed in the future. We have therefore hosted a copy of Molecfit version 1.5.9
+along with the demo data. Importantly, version 1.5.9 is not pyhon 3.0 compatible and it contains an
+error in the line-list of water, and so we have updated the relevant files in our repackaged version.
 
-In order to correct for an error in a code line of a molecfit python file, as well as making molecfit executable with python3, some files within your molecfit installation have to be changed. 
-The necessary files including the file structure are given in the molecfit files in the zip-folder :code:`'molecfit_replacement.zip'`. 
-Follow the indicated structure to replace the files in your molecfit installation. 
 
-.. note::
-    When replacing the file :code:`SM02GUI_Main.py`, it will lose its alias, which is the molecfit_gui in another folder. 
-    Make sure to create this alias again, name it molecfit_gui and replace the broken version in the bin folder (i.e. :code:`/usr/local/src/Molecfit/bin/`).
+You can find a compressed package of our version of Molecfit `here <https://drive.google.com/file/d/1obc3ZlnoMld7erbg_4URzM8fcYEOeQuu/view?usp=sharing>`__.
+For the rest of this tutorial, we assume that the package contents have been extracted to a folder
+called :code:`molecfit_package`, somewhere on your system.
+
+
+
+Installing Molecfit
+*******************
+
+The Molecfit package comes with installation instructions written by ESO
+(:code:`molecfit_package/install.txt` and the User Manual
+:code:`molecfit_package/1.5.9/VLT-MAN-ESO-19550-5772_Molecfit_User_Manual.pdf`).
+
+We highly recommend following the instructions to use the Binary installation (section 3.2 of the
+User Manual), which automatically installs local versions of crucial (and sometimes old) third-party
+dependencies. For standard Linux distributions, these instructions will suffice.
+
+Installation on OSX (and in particular OSX Catalina) can be slightly more complicated and likely
+requires a downgrade of XCode to version 11.7. We have therefore modified ESO's installation
+instructions for OSX users as follows.
+
+
+
+The installation of the basic molecfit binary package
+requires:
+
+- C99 compatible compiler (e.g. gcc or clang).
+- glibc 2.11 or newer on Linux or OSX 10.7 or newer.
+- common unix utilities (bash, tar, sed, grep).
+- XCode Version 11.7. It is likely that you have a higher version of XCode, which means that you will need to download 11.7 from Apple's `download pages <https://developer.apple.com/download/>`__.
+
+The GUI interface is described by ESO as optional, but we highly recommend its usage and Tayph
+requires it. ESO's version of Molecfit requires python 2.6 or 2.7 and uses MacPorts to install
+dependencies, but we have modified the GUI source code to be 3.x compatible, eliminating the need
+for MacPorts. Our requirements for the GUI are therefore as follows:
+
+- wxPython v2.8 or newer.
+- Python matplotlib v1.0 or newer.
+- Astropy (tested to work on version 4, but older versions may work).
+
+These can be installed with e.g. pip as :code:`pip3 install wxpython matplotlib astropy`.
+
+The command line client also has optional display features which require gnuplot v4.2 patchlevel 3
+ or newer, but these are not used by Tayph.
+
+
+
+We proceed to execute the binary installer. First the downloaded installer needs to be made
+executable. To do this, change into the directory :code:`cd molecfit_package/1.5.9/` and run::
+
+  chmod u+x ./molecfit_installer_macosx_x86_64.run
+
+Now the installer can be executed from the same folder with::
+
+  ./molecfit_installer_macosx_x86_64.run
+
+This will ask for an installation directory where it will extract its contents to.
+It is recommended to choose an empty directory to avoid overwriting existing files. For the purpose
+of this tutorial, we assume that you install Molecfit in the following directory::
+
+  /usr/local/src/Molecfit
+
+
+After the installer has successfully finished, the Molecfit and Molecfit GUI executables are
+installed into :code:`/usr/local/src/Molecfit/bin`. They can be executed by specifying their full or
+relative paths, which is what Tayph will do when fitting telluric models to your spectra.
+
+
+
+Python 3.x compatibility and fixing an error in the water line-list
+*******************************************************************
+
+In order to correct for an error in one line of a GUI python file, as well as making the GUI
+executable with python version 3.x, some files within your Molecfit installation have to be changed
+manually. The necessary files are provided in the Molecfit package, located at
+:code:`molecfit_package/1.5.9/molecfit_replacement.zip`. Extracting this folder reveals the folder
+structure of Molecfit located in :code:`/usr/local/src/Molecfit/`.
+
+Backup and replace the python files in :code:`/usr/local/src/Molecfit/share/molecfit/gui/`, and
+backup and replace the line-list file in :code:`/usr/local/src/Molecfit/share/molecfit/data/hitran/`
+with the files provided in the package.
+
+
+When replacing the file :code:`SM02GUI_Main.py`, its alias located in
+:code:`/usr/local/src/Molecfit/bin/` becomes invalid. Make a new alias to
+:code:`/usr/local/src/Molecfit/share/molecfit/gui/SM02GUI_Main.py` (right-click, Make Alias),
+rename it to :code:`molecfit_gui` and place it back in :code:`/usr/local/src/Molecfit/bin/`.
+
+Molecfit should now be in working order.
 
 
 The parameter files
 *******************
 
-For each instrument a parameter file has to be created. To work with the given example of KELT-9 b data, the parameter file can be found in your downloaded dummy data.
-For the purpose of this example we assume this file to be located here (:code:`'/Users/tayph/xcor_project/models/molecfit/'`. 
-The following inputs have to be adapted to your system.
+Molecfit runs are configured using a parameter file, which specifies the input and output spectra,
+the characteristics of the observatory and importantly, the FITS header keywords that describe
+certain environmental information. When set incorrectly, Molecfit crashes with poorly intelligible
+error logging, making it difficult to spot errors in these parameter files. Therefore, we have
+pre-packaged Molecfit parameter files for the instruments currently supported by Tayph. These are
+the .par files that can be found in your downloaded dummy data package at
+:code:`/Users/tayph/downloads/demo_data/configuration_files/`.
 
-- :code:`user_workdir`: The user directory has to be set to the path of your project. This is necessary for molecfit to find your files. We use :code:`user_workdir:user_workdir: /Users/tayph/xcor_project/`.
-- :code:`filename`: The filename of the fits file that is created during the molecfit run has to be set. This file shall be named after your parameter file. Hence in this example: :code:`'filename: /Users/tayph/xcor_project/models/molecfit/HARPSN.fits'`.
-- :code:`output_dir`: The output directory for intermediate molecfit output has to be defined. We define it to be the same folder as the input directory where store out parameter file. We use  :code:`'output_dir: /Users/tayph/xcor_project/models/molecfit/'`
+Make a new folder called :code:`molecfit` in Tayph's working directory that you created earlier
+(located at :code:`/Users/tayph/xcor_project/`). Place the .par files here.
+
+In each of the .par files (e.g. HARPSN.par), the following three lines have to be changed to match
+the situation on your system:
+
+- :code:`user_workdir`: A directory used by the GUI to save fitting regions and other settings. We use :code:`user_workdir: /Users/tayph/xcor_project/molecfit/`.
+- :code:`filename`: The filename of the fits file that is created during the molecfit run has to be set. This file shall be named after your parameter file for each instrument, and is used by Tayph to write your spectra to. We set it to: :code:`filename: /Users/tayph/xcor_project/molecfit/HARPSN.fits`.
+- :code:`output_dir`: The output directory for intermediate molecfit output (located somewhere further down in the .par files). We define it to be the same folder as the input directory: :code:`output_dir: /Users/tayph/xcor_project/molecfit/`.
+
+Repeat these steps for the other instrument parameter files.
 
 
-The molecfit config file
-************************
 
-For molecfit to successfully run through, a config file has to be adapted. 
-Tayph produces a config file per default (see :code:`'tayph/tayph/data/molecfit_config.dat'`), but requires you to set the parameters yourself.
+Optional: Tayph's Molecfit configuration file
+*********************************************
 
-To set the parameters, navigate to your project folder (i.e. :code:`/Users/tayph/xcor_project/`) , open a python 3 interpreter and call::
+Now we are almost there. For Tayph to be able to find your Molecfit installation, a configuration
+file has to be made. This does not have to be done now, because it will be done implicitly during
+the first time you run Molecfit using Tayph, and it will be placed somewhere in Tayph's internals.
+However, if you are working on a system with multiple users (e.g. a server
+environment), each user will have to set their own Molecfit configuration file or they will end up
+having to use each other's Molecfit input and output folders, parameter files, etc.
+
+We will create a Molecfit configuration file in the project folder. To do
+so, navigate to your project folder (i.e. :code:`cd /Users/tayph/xcor_project/`), open a python 3
+interpreter and call::
 
     import tayph.tellurics as tellurics
-    tellurics.set_molecfit_config('/usr/local/src/tayph/tayph/data/molecfit_config.dat')
+    tellurics.set_molecfit_config('/Users/tayph/xcor_project/molecfit/molecfit_config.dat')
 
 You will be asked to enter the following information:
 
--   **In what folder are parameter files defined and should (intermediate) molecfit output be written to?** 
-    This is going to be the location of your parameter file, i.e. :code:`'/Users/tayph/xcor_project/models/molecfit/'`.
+-   **In what folder are parameter files defined and should (intermediate) molecfit output be written to?**
+    This is to be the location of your parameter files, i.e. :code:`'/Users/tayph/xcor_project/molecfit/'`.
 
--   **In what folder is the molecfit binary located?** 
-    This is within your molecfit installation, i.e. :code:`'/usr/local/src/Molecfit/bin'`
+-   **In what folder is the molecfit binary located?**
+    This is the location of your Molecfit installation, i.e. :code:`'/usr/local/src/Molecfit/bin'`
 
--   **What is your python 3.x alias?** 
-    python
+-   **What is your python 3.x alias?**
+    The alias with which you open python. This could be :code:`'python'` or :code:`'python3'`.
+
+.. note::
+    Users of Catalina and above may not be able to access the GUI environment using their standard
+    python 3 alias. Provide :code:`pythonw` in the Molecfit configuration file instead.
 
 
-The run call
-*************
+You can test that your configuration file is set correctly by calling::
 
-Now we are almost there. Before you run the cross-correlations with Tayph, you want to execute molecfit from the terminal.
-To do so, you navigate into your project folder, open a python3 interpreter and call::
+    import tayph.tellurics as tellurics
+    tellurics.test_molecfit_config('/Users/tayph/xcor_project/molecfit/molecfit_config.dat')
+
+
+Calling Molecfit
+****************
+
+We are now ready to apply Molecfit to our demo data of KELT-9 b. Continuing the above example
+of reading in the data followed by telluric correction, call::
 
     import tayph.run as run
-    run.molecfit('/Users/tayph/xcor_project/data/KELT-9/night1', mode='GUI',instrument='HARPSN')
+    run.read_e2ds('/Users/tayph/downloads/demo_data/kelt-9-spectra','KELT-9/night1',mode='HARPSN',measure_RV=False)
+    run.molecfit('KELT-9/night1',instrument='HARPSN')
 
-This will open the molecfit GUI for you to choose your fitting regions, continuum normalisation, etc and save the files in the output directory we indicated in the parameter file. 
+This will read in the data (which is not necessary if you did so before, but it is shown here for
+clarity), and start the the molecfit GUI. The spectrum shown is the middle spectrum of your
+time series, and you will use this spectrum to choose your fitting regions and parameters. These are
+then saved to the output directory that was indicated in the parameter file, and applied to the
+rest of the time-series. This can take hours or even a day, depending on how many spectra you have
+and how fast your system is. Don't worry, ideally you'll only need to do this once per dataset.
 
-Now we want to apply this correction to all obtained spectra, subsequently calling::
 
-    run.molecfit('/Users/tayph/xcor_project/data/KELT-9/night1', mode='batch',instrument='HARPSN')
+Starting Molecfit in GUI mode requires access to an X-window, while the hours-long fitting
+process does not. This may be very inconvenient if you are running Molecfit on a server in the
+background. Therefore, calls to Molecfit can be split into a GUI mode and a batch mode. To do
+this, call::
 
-If you want to execute the GUI and apply the correction immediately, you can call::
+    run.molecfit('KELT-9/night1',instrument='HARPSN',mode='GUI')
+    run.molecfit('KELT-9/night1',instrument='HARPSN',mode='batch')
 
-    import tayph.run as run
-    run.molecfit('/Users/tayph/xcor_project/data/KELT-9/night1', mode='both',instrument='HARPSN')
 
-In general, the call takes the form::
+In general, the call to Molecfit takes the form::
 
-    run.molecfit(input_folder, mode, instrument)
+    run.molecfit(dataname, instrument, mode)
 
 where:
 
-- :code:`input_folder` is the data path to your s1d files as molecfit does act on the one dimensional files, i.e. :code:`'/Users/tayph/downloads/demo_data/kelt-9-spectra'`.
-- :code:`mode` indicates the mode in which molecfit should be called. The options are 1. :code:`GUI`, 2. :code:`batch` or 3. :code:`both`, executing the GUI (1), applying the corrections after the successful execution of the GUI and saving of the parameters in HARPSN.fits (see above) (2) or executing both the GUI and apply the corrections in one call (3).
-- :code:`instrument` indicates the instrument you are working with, i.e. :code:`'HARPSN'`.
+- :code:`dataname` is the name of the dataset that you read in using e2ds, that contains the s1d files that Molecfit needs and that were read in by read_e2ds(). This may also be set to a relative or absolute path (starting with ".", ".." or "/" ).
+- :code:`instrument` indicates the instrument you are working with, i.e. :code:`'HARPSN'`, :code:`'HARPS'` or :code:`'ESPRESSO'`.
+- :code:`mode` indicates the mode in which Molecfit should be called. The options are :code:`both` (default), :code:`GUI` or :code:`batch`.
+
 
 .. note::
-    The GUI requires screen access, so remember to add -X when logging into an external server. The batch process runs through without interaction. 
-    So if you want to run Tayph on a server, it is recommended to call those two tasks separately and execute the batch process on a screen, for example over night.
+    The GUI requires screen access, so remember to add -X when logging into an external server.
+    Users of Mac OS may need XQuartz to be installed for this to work. The batch process runs
+    through without interaction. So if you want to run Tayph on a server, it is recommended to call
+    those two tasks separately and execute the batch process in the background, for example
+    overnight.

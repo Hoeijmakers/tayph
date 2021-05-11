@@ -348,7 +348,7 @@ The molecfit config file
 For molecfit to successfully run through, a config file has to be adapted. 
 Tayph produces a config file per default (see :code:`'tayph/tayph/data/molecfit_config.dat'`), but requires you to set the parameters yourself.
 
-To set the parameters, navigate to your project folder (i.e. :code:`/Users/tayph/xcor_project/`) , open a python 3 interpreter and call:code:
+To set the parameters, navigate to your project folder (i.e. :code:`/Users/tayph/xcor_project/`) , open a python 3 interpreter and call::
 
     import tayph.tellurics as tellurics
     tellurics.set_molecfit_config('/usr/local/src/tayph/tayph/data/molecfit_config.dat')

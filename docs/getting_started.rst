@@ -311,7 +311,7 @@ If you want to use molecfit for telluric corrections, these are the necessary st
 Install molecfit on your system
 *******************************
 
-You can find the all the required Molecfit files `here<https://drive.google.com/file/d/1GU--4UFYxmWPW1zOHzFT9bnzAhZGUR95/view?usp=sharing>`_.
+You can find the all the required Molecfit files `here <https://drive.google.com/file/d/1GU--4UFYxmWPW1zOHzFT9bnzAhZGUR95/view?usp=sharing>`_.
 It includes a manual on how to install molecfit on your system, as well as additional notes for the installation on OSX Catalina.
 Follow these guides for the installation of molecfit on your system. 
 

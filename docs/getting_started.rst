@@ -339,7 +339,7 @@ The following inputs have to be adapted to your system.
 
 - :code:`user_workdir`: The user directory has to be set to the path of your project. This is necessary for molecfit to find your files. We use :code:`user_workdir:user_workdir: /Users/tayph/xcor_project/`.
 - :code:`filename`: The filename of the fits file that is created during the molecfit run has to be set. This file shall be named after your parameter file. Hence in this example: :code:`'filename: user_workdir: /Users/tayph/xcor_project/models/molecfit/HARPSN.fits'`.
-- :code:`output_dir`: The output directory for intermediate molecfit output has to be defined. We define it to be the same folder as the input directory where store out parameter file. We use  :code:`'output_dir = user_workdir: /Users/tayph/xcor_project/models/molecfit/'`
+- :code:`output_dir`: The output directory for intermediate molecfit output has to be defined. We define it to be the same folder as the input directory where store out parameter file. We use  :code:`'output_dir: /Users/tayph/xcor_project/models/molecfit/'`
 
 
 The molecfit config file

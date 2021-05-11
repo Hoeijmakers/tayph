@@ -312,21 +312,22 @@ Install molecfit on your system
 *******************************
 
 You can find the all the required Molecfit files `here <https://drive.google.com/file/d/1GU--4UFYxmWPW1zOHzFT9bnzAhZGUR95/view?usp=sharing>`_ .
-It includes a manual on how to install molecfit on your system. 
-Additional notes for installation on Mac (Catalina) can be found here (add link)
+It includes a manual on how to install molecfit on your system, as well as additional notes for the installation on OSX Catalina.
+Follow these guides for the installation of molecfit on your system. 
 
-For the rest of theses tutorial, we assume your molecfit installation to be located at i.e. :code:`'/usr/local/src/Molecfit'`.
+For the rest of this tutorial, we assume your molecfit installation to be located at i.e. :code:`'/usr/local/src/Molecfit'`.
 
 
 Exchange of molecfit files (this is not done yet)
 *************************************************
 
-In order to correct for an error in a code line of a molecfit python file, as well as making molecfit executable with python3, several changes have to be made.
-The necessary files including the file structure are given here (insert url)
+In order to correct for an error in a code line of a molecfit python file, as well as making molecfit executable with python3, some files within your molecfit installation have to be changed. 
+The necessary files including the file structure are given in the molecfit files in the zip-folder ::`'molecfit_replacement.zip'`. 
+Follow the indicated structure to replace the files in your molecfit installation. 
 
-- bin changes 
 .. note::
-    When replacing the file :code:`SM02GUI_Main.py`, it will lose its alias, which is the molecfit_gui in another folder. Make sure to create this alias again, name it molecfit_gui and replace the broken version in the bin folder (i.e. :code:`/usr/local/src/Molecfit/bin/`).
+    When replacing the file :code:`SM02GUI_Main.py`, it will lose its alias, which is the molecfit_gui in another folder. 
+    Make sure to create this alias again, name it molecfit_gui and replace the broken version in the bin folder (i.e. :code:`/usr/local/src/Molecfit/bin/`).
 
 
 The parameter files
@@ -347,31 +348,32 @@ The molecfit config file
 For molecfit to successfully run through, a config file has to be adapted. 
 Tayph produces a config file per default (see :code:`'tayph/tayph/data/molecfit_config.dat'`), but requires you to set the parameters yourself.
 
-To set the parameters, navigate to your project folder, open a python 3 interpreter and call::
+To set the parameters, navigate to your project folder (i.e. ::`/Users/tayph/xcor_project/`) , open a python 3 interpreter and call::
 
     import tayph.tellurics as tellurics
     tellurics.set_molecfit_config('/usr/local/src/tayph/tayph/data/molecfit_config.dat')
 
 You will be asked to enter the following information:
 
-- **In what folder are parameter files defined and should (intermediate) molecfit output be written to?** This is going to be the location of your parameter file, i.e. :code:`'/Users/tayph/xcor_project/models/molecfit/'`.
-
-- **In what folder is the molecfit binary located?** This is within your molecfit installation, i.e. :code:`'/usr/local/src/Molecfit/bin'`
-    
-- **What is your python 3.x alias?** python
-
+- **In what folder are parameter files defined and should (intermediate) molecfit output be written to?** 
+This is going to be the location of your parameter file, i.e. :code:`'/Users/tayph/xcor_project/models/molecfit/'`.
+- **In what folder is the molecfit binary located?** 
+This is within your molecfit installation, i.e. :code:`'/usr/local/src/Molecfit/bin'`
+- **What is your python 3.x alias?** 
+python
 
 
 The run call
 *************
 
-Now we are almost there. Now you only need to execute molecfit from the terminal before running the cross-correlation. 
+Now we are almost there. Before you run the cross-correlations with Tayph, you want to execute molecfit from the terminal.
 To do so, you navigate into your project folder, open a python3 interpreter and call::
 
     import tayph.run as run
     run.molecfit('/Users/tayph/xcor_project/data/KELT-9/night1', mode='GUI',instrument='HARPSN')
 
 This will open the molecfit GUI for you to choose your fitting regions, continuum normalisation, etc and save the files in the output directory we indicated in the parameter file. 
+
 Now we want to apply this correction to all obtained spectra, subsequently calling::
 
     run.molecfit('/Users/tayph/xcor_project/data/KELT-9/night1', mode='batch',instrument='HARPSN')
@@ -381,6 +383,15 @@ If you want to execute the GUI and apply the correction immediately, you can cal
     import tayph.run as run
     run.molecfit('/Users/tayph/xcor_project/data/KELT-9/night1', mode='both',instrument='HARPSN')
 
+In general, the call takes the form::
+
+    run.molecfit(input_folder, mode, instrument)
+
+where:
+
+- ::`input_folder` is the data path to your s1d files as molecfit does act on the one dimensional files, i.e. ::`'/Users/tayph/downloads/demo_data/kelt-9-spectra'`.
+- ::`mode` indicates the mode in which molecfit should be called. The options are 1. ::`GUI`, 2. ::`batch` or 3. ::`both`, executing the GUI (1), applying the corrections after the successful execution of the GUI and saving of the parameters in HARPSN.fits (see above) (2) or executing both the GUI and apply the corrections in one call (3).
+- ::`instrument` indicates the instrument you are working with, i.e. ::`'HARPSN'`.
 
 .. note::
     The GUI requires screen access, so remember to add -X when logging into an external server. The batch process runs through without interaction. 

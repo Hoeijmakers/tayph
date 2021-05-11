@@ -315,7 +315,7 @@ You can find the all the required Molecfit files `here <https://drive.google.com
 It includes a manual on how to install molecfit on your system, as well as additional notes for the installation on OSX Catalina.
 Follow these guides for the installation of molecfit on your system. 
 
-For the rest of this tutorial, we assume your molecfit installation to be located at i.e. :code:`'/usr/local/src/Molecfit'`.
+For the rest of this tutorial, we assume your molecfit installation to be located at :code:`'/usr/local/src/Molecfit'`.
 
 
 Exchange of molecfit files (this is not done yet)

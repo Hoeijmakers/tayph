@@ -311,15 +311,15 @@ If you want to use molecfit for telluric corrections, these are the necessary st
 Install molecfit on your system
 *******************************
 
-You can find the all the required Molecfit files `here <https://drive.google.com/file/d/1GU--4UFYxmWPW1zOHzFT9bnzAhZGUR95/view?usp=sharing>`_ .
+You can find the all the required Molecfit files `here<https://drive.google.com/file/d/1GU--4UFYxmWPW1zOHzFT9bnzAhZGUR95/view?usp=sharing>`_.
 It includes a manual on how to install molecfit on your system, as well as additional notes for the installation on OSX Catalina.
 Follow these guides for the installation of molecfit on your system. 
 
 For the rest of this tutorial, we assume your molecfit installation to be located at :code:`'/usr/local/src/Molecfit'`.
 
 
-Exchange of molecfit files (this is not done yet)
-*************************************************
+Exchange of molecfit files
+**************************
 
 In order to correct for an error in a code line of a molecfit python file, as well as making molecfit executable with python3, some files within your molecfit installation have to be changed. 
 The necessary files including the file structure are given in the molecfit files in the zip-folder :code:`'molecfit_replacement.zip'`. 
@@ -397,7 +397,4 @@ where:
 
 .. note::
     The GUI requires screen access, so remember to add -X when logging into an external server. The batch process runs through without interaction. 
-    So if you want to run tayph on a server, it is recommended to call those two tasks separately and execute the batch process on a screen, for example over night.
-
-
-
+    So if you want to run Tayph on a server, it is recommended to call those two tasks separately and execute the batch process on a screen, for example over night.

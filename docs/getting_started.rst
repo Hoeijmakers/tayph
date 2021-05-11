@@ -355,14 +355,14 @@ To set the parameters, navigate to your project folder (i.e. :code:`/Users/tayph
 
 You will be asked to enter the following information:
 
-- **In what folder are parameter files defined and should (intermediate) molecfit output be written to?** 
-This is going to be the location of your parameter file, i.e. :code:`'/Users/tayph/xcor_project/models/molecfit/'`.
+-   **In what folder are parameter files defined and should (intermediate) molecfit output be written to?** 
+    This is going to be the location of your parameter file, i.e. :code:`'/Users/tayph/xcor_project/models/molecfit/'`.
 
-- **In what folder is the molecfit binary located?** 
-This is within your molecfit installation, i.e. :code:`'/usr/local/src/Molecfit/bin'`
+-   **In what folder is the molecfit binary located?** 
+    This is within your molecfit installation, i.e. :code:`'/usr/local/src/Molecfit/bin'`
 
-- **What is your python 3.x alias?** 
-python
+-   **What is your python 3.x alias?** 
+    python
 
 
 The run call

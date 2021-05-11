@@ -322,7 +322,7 @@ Exchange of molecfit files (this is not done yet)
 *************************************************
 
 In order to correct for an error in a code line of a molecfit python file, as well as making molecfit executable with python3, some files within your molecfit installation have to be changed. 
-The necessary files including the file structure are given in the molecfit files in the zip-folder ::`'molecfit_replacement.zip'`. 
+The necessary files including the file structure are given in the molecfit files in the zip-folder :code:`'molecfit_replacement.zip'`. 
 Follow the indicated structure to replace the files in your molecfit installation. 
 
 .. note::
@@ -348,7 +348,7 @@ The molecfit config file
 For molecfit to successfully run through, a config file has to be adapted. 
 Tayph produces a config file per default (see :code:`'tayph/tayph/data/molecfit_config.dat'`), but requires you to set the parameters yourself.
 
-To set the parameters, navigate to your project folder (i.e. ::`/Users/tayph/xcor_project/`) , open a python 3 interpreter and call::
+To set the parameters, navigate to your project folder (i.e. :code:`/Users/tayph/xcor_project/`) , open a python 3 interpreter and call:code:
 
     import tayph.tellurics as tellurics
     tellurics.set_molecfit_config('/usr/local/src/tayph/tayph/data/molecfit_config.dat')
@@ -357,8 +357,10 @@ You will be asked to enter the following information:
 
 - **In what folder are parameter files defined and should (intermediate) molecfit output be written to?** 
 This is going to be the location of your parameter file, i.e. :code:`'/Users/tayph/xcor_project/models/molecfit/'`.
+
 - **In what folder is the molecfit binary located?** 
 This is within your molecfit installation, i.e. :code:`'/usr/local/src/Molecfit/bin'`
+
 - **What is your python 3.x alias?** 
 python
 
@@ -389,9 +391,9 @@ In general, the call takes the form::
 
 where:
 
-- ::`input_folder` is the data path to your s1d files as molecfit does act on the one dimensional files, i.e. ::`'/Users/tayph/downloads/demo_data/kelt-9-spectra'`.
-- ::`mode` indicates the mode in which molecfit should be called. The options are 1. ::`GUI`, 2. ::`batch` or 3. ::`both`, executing the GUI (1), applying the corrections after the successful execution of the GUI and saving of the parameters in HARPSN.fits (see above) (2) or executing both the GUI and apply the corrections in one call (3).
-- ::`instrument` indicates the instrument you are working with, i.e. ::`'HARPSN'`.
+- :code:`input_folder` is the data path to your s1d files as molecfit does act on the one dimensional files, i.e. :code:`'/Users/tayph/downloads/demo_data/kelt-9-spectra'`.
+- :code:`mode` indicates the mode in which molecfit should be called. The options are 1. :code:`GUI`, 2. :code:`batch` or 3. :code:`both`, executing the GUI (1), applying the corrections after the successful execution of the GUI and saving of the parameters in HARPSN.fits (see above) (2) or executing both the GUI and apply the corrections in one call (3).
+- :code:`instrument` indicates the instrument you are working with, i.e. :code:`'HARPSN'`.
 
 .. note::
     The GUI requires screen access, so remember to add -X when logging into an external server. The batch process runs through without interaction. 

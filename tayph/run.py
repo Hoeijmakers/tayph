@@ -1283,8 +1283,8 @@ save_figure=True):
         # plt.legend()
         # plt.show()
         # pdb.set_trace()
-        wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False)
-        w=np.min([800/len(s1d),300])#Make the window dependent on how many exposures there are,
+        wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False,
+        w=np.min([800/len(s1d),300]))#Make the window dependent on how many exposures there are,
         #such that the block has a total number of 800 pixels. Don't make the window wider than 300.
 
         if mode in ['UVES-red','UVES-blue']:

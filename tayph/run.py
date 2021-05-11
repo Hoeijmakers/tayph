@@ -1308,8 +1308,9 @@ save_figure=True):
         # plt.show()
         # pdb.set_trace()
         wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False,
-        w=np.min([800/len(s1d),300]))#Make the window dependent on how many exposures there are,
-        #such that the block has a total number of 800 pixels. Don't make the window wider than 300.
+        w=np.max([np.min([800/len(s1d),200]),20]))#Make the window dependent on how many exposures there are,
+        #such that the block has a total number of 800 pixels. Don't make the window wider than 200,
+        #and don't make it smaller than 20 either (in case there are many spectra).
 
         if mode in ['UVES-red','UVES-blue']:
             pdb.set_trace()

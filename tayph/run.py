@@ -753,7 +753,7 @@ def run_instance(p):
 
 
 
-def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='solar',config=False,
+def read_e2ds(inpath,outname,read_s1d=True,instrument='HARPS',measure_RV=True,star='solar',config=False,
 save_figure=True):
     """This is the workhorse for reading in a time-series of archival 2D echelle
     spectra from a couple of instrument pipelines that produce a standard output,
@@ -766,6 +766,12 @@ save_figure=True):
     case of HARPS, HARPS-N, CARMENES and ESPRESSO these may be downloaded from the archive.
     UVES is a bit special, because the 2D echelle spectra are not a standard
     pipeline output. Typical use cases are explained further below.
+
+    Outname is to be set to the name of a datafolder to be located in the data/ subdirectory.
+    An absolute path can also be set (in which case the path stars with a "/"). A relative path
+    can also be set, but needs to start with a "." to denote the current path. Otherwise, Tayph
+    will place a folder named "data" in the data/ subdirectory, which is probably not your
+    intention.
 
     This script formats the time series of 2D echelle spectra into 2D FITS images,
     where each FITS file is the time-series of a single echelle order. If the
@@ -865,6 +871,9 @@ save_figure=True):
     from astropy.utils.data import download_file
     from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes
     from tayph.phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
+
+    mode = copy.deepcopy(instrument)#Transfer from using the mode keyword to instrument keyword
+    #to be compatible with Molecfit.
     print('\n \n \n')
     print('\n \n \n')
     print('\n \n \n')
@@ -891,18 +900,33 @@ save_figure=True):
             "CARMENES-VIS, CARMENES-NIR or ESPRESSO.")
 
 
+    #if outname[0] in ['/','.']:#Test that this is an absolute path. If so, we trigger a warning.
+        #ut.tprint(f'ERROR: The name of the dataset {outname} appears to be set as an absolute path.'
+        #' or a relative path from the current directory. However, Tayph is designed to run in a '
+        #'working directory in which datasets, models and cross-correlation output is bundled. To '
+        #'that end, this variable is supposed to be set to a name, or a name with a subfolder (like '
+        #'"WASP-123" or "WASP-123/night1"), which is to be placed in the data/ subdirectory of the '
+        #'current folder. To initialise this file structure, please make an empty working directory '
+        #'in e.g. /home/user/tayph/xcor_project/, start the python interpreter in this directory and '
+        #'create a dummy file structure using the make_project_folder function, e.g. by importing '
+        #'tayph.run and calling tayph.run.make_project_folder("/home/user/tayph/xcor_project/").')
+        #sys.exit()
+
     if outname[0] in ['/','.']:#Test that this is an absolute path. If so, we trigger a warning.
-        ut.tprint(f'ERROR: The name of the dataset {outname} appears to be set as an absolute path.'
-        ' or a relative path from the current directory. However, Tayph is designed to run in a '
-        'working directory in which datasets, models and cross-correlation output is bundled. To '
-        'that end, this variable is supposed to be set to a name, or a name with a subfolder (like '
-        '"WASP-123" or "WASP-123/night1"), which is to be placed in the data/ subdirectory of the '
-        'current folder. To initialise this file structure, please make an empty working directory '
-        'in e.g. /home/user/tayph/xcor_project/, start the python interpreter in this directory and '
-        'create a dummy file structure using the make_project_folder function, e.g. by importing '
-        'tayph.run and calling tayph.run.make_project_folder("/home/user/tayph/xcor_project/").')
-        sys.exit()
-    outpath = Path('data/'+outname)
+        ut.tprint(f'WARNING: The name of the dataset {outname} appears to be set as an absolute '
+        'path or a relative path from the current directory. However, Tayph is designed to run '
+        'in a working directory in which datasets, models and cross-correlation output is bundled. '
+        'To that end, this variable is recommended to be set to a name, or a name with a subfolder '
+        'structure, (like "WASP-123" or "WASP-123/night1"), which is to be placed in the data/ '
+        'subdirectory. To initialise this file structure, please make an empty working directory '
+        'in e.g. /home/user/tayph/xcor_project/, start the python interpreter in this directory '
+        'and create a dummy file structure using the make_project_folder function, e.g. by '
+        'importing tayph.run and calling '
+        'tayph.run.make_project_folder("/home/user/tayph/xcor_project/").\n\n'
+        'Read_e2ds will proceed, assuming that you know what you are doing.')
+        outpath = Path(outname)
+    else:
+        outpath = Path('data')/outname)
     if os.path.exists(outpath) != True:
         os.makedirs(outpath)
 
@@ -1500,7 +1524,8 @@ save_figure=True):
 
 
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
-def molecfit(dp,mode='GUI',instrument='HARPS',save_individual='',configfile=None,plot_spec=False):
+def molecfit(dataname,mode='both',instrument='HARPS',save_individual='',configfile=None,
+plot_spec=False):
     """This is the main wrapper for molecfit that pipes a list of s1d spectra and
     executes it. It first launces the molecfit gui on the middle spectrum of the
     sequence, and then loops through the entire list, returning the transmission
@@ -1539,8 +1564,24 @@ def molecfit(dp,mode='GUI',instrument='HARPS',save_individual='',configfile=None
 
 
     #The DP contains the S1D files and the configile of the data (air or vaccuum)
-    if instrument=='HARPS-N': instrument='HARPSN' #Guard against various ways of referring to HARPS-N.
-    dp = ut.check_path(dp,exists=True)
+    if instrument=='HARPS-N': instrument='HARPSN'#Guard against various ways of spelling HARPS-N.
+
+    if dataname[0] in ['/','.']:#Test that this is an absolute path. If so, we trigger a warning.
+        ut.tprint(f'WARNING: The name of the dataset {dataname} appears to be set as an absolute '
+        'path or a relative path from the current directory. However, Tayph is designed to run '
+        'in a working directory in which datasets, models and cross-correlation output is bundled. '
+        'To that end, this variable is recommended to be set to a name, or a name with a subfolder '
+        'structure, (like "WASP-123" or "WASP-123/night1"), which is to be placed in the data/ '
+        'subdirectory. To initialise this file structure, please make an empty working directory '
+        'in e.g. /home/user/tayph/xcor_project/, start the python interpreter in this directory '
+        'and create a dummy file structure using the make_project_folder function, e.g. by '
+        'importing tayph.run and calling '
+        'tayph.run.make_project_folder("/home/user/tayph/xcor_project/").\n\n'
+        'Molecfit will proceed, assuming that you know what you are doing.')
+        dp = ut.check_path(Path(dataname),exists=True)
+    else:
+        dp = ut.check_path(Path('data')/dataname,exists=True)
+
     typetest(mode,str,'mode in molecfit()')
     typetest(instrument,str,'mode in molecfit()')
 

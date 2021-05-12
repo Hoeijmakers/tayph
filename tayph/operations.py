@@ -176,8 +176,13 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
     import warnings
     typetest(list_of_orders,list,'list_of_orders in ops.normalize_orders()')
     typetest(list_of_sigmas,list,'list_of_sigmas in ops.normalize_orders()')
-    dimtest(list_of_orders,[0,0,0])
-    dimtest(list_of_sigmas,[len(list_of_orders),0,0])
+
+    dimtest(list_of_orders[0],[0,0])#Test that the first order is 2D.
+    dimtest(list_of_sigmas[0],[0,0])#And that the corresponding sigma array is, as well.
+    n_exp=np.shape(list_of_orders[0])[0]#Get the number of exposures.
+    for i in range(len(list_of_orders)):#Should be the same for all orders.
+        dimtest(list_of_orders[i],[n_exp,0])
+        dimtest(list_of_sigmas[i],np.shape(list_of_orders[i]))
     typetest(deg,int,'degree in ops.normalize_orders()')
     typetest(nsigma,[int,float],'nsigma in ops.normalize_orders()')
     postest(deg,'degree in ops.normalize_orders()')
@@ -187,8 +192,6 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
     N = len(list_of_orders)
     out_list_of_orders=[]
     out_list_of_sigmas=[]
-    n_px=np.shape(list_of_orders[0])[1]
-    n_exp=np.shape(list_of_orders[0])[0]#Need to remove extreme outliers first?
 
 
     #First compute the exposure-to-exposure flux variations to be used as weights.
@@ -208,6 +211,7 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
 
             #What I'm doing here is probably stupid and numpy division will probably work just fine without
             #IDL-relics.
+            n_px=np.shape(list_of_orders[i])[1]
             meanflux=np.nanmedian(list_of_orders[i],axis=1)#Average flux in each order. Median or mean?
             meanblock=fun.rebinreform(meanflux/np.nanmean(meanflux),n_px).T#This is a slow operation. Row-by-row division is better done using a double-transpose...
             out_list_of_orders.append(list_of_orders[i]/meanblock)
@@ -322,7 +326,6 @@ def bin_avg(wl,fx,wlm):
         The binned flux points.
     """
     import numpy as np
-    import pdb
     import sys
     from tayph.vartests import typetest,dimtest,minlength
     import matplotlib.pyplot as plt
@@ -407,7 +410,6 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
     """
 
     import numpy as np
-    import pdb
     import tayph.functions as fun
     from tayph.vartests import typetest,postest,dimtest
     typetest(edge_degree,int,'edge_degree in ops.convolve()')
@@ -654,12 +656,12 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
     import tayph.util as ut
     import tayph.functions as fun
     from tayph.vartests import typetest,nantest,dimtest
-    import pdb
     from matplotlib import pyplot as plt
     import astropy.constants as const
     import astropy.units as u
     import time
     import sys
+    import pdb
     from scipy import interpolate
     typetest(dv,float,'dv in blur_rotate()')
     typetest(wl,[list,np.ndarray],'wl in blur_rotate()')
@@ -696,9 +698,7 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
 
     n=1000.0
     a=fun.findgen(n)/(n-1)*np.pi
-    rv=np.cos(a)*np.sin(np.radians(inclination))*(2.0*np.pi*1.7*const.R_jup/(1.27*u.day)).to('km/s').value #in km/s
-
-
+    rv=np.cos(a)*np.sin(np.radians(inclination))*(2.0*np.pi*Rp*const.R_jup/(P*u.day)).to('km/s').value #in km/s
     trunc_dist=np.round(sig_px*truncsize+np.max(rv)*wl/(const.c.to('km/s').value)/deriv).astype(int)
     # print('Maximum rotational rv: %s' % max(rv))
     # print('Sigma_px: %s' % np.nanmean(np.array(sig_px)))
@@ -746,7 +746,8 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
         wlgrid =   wl[i]*rvgrid/(const.c.to('km/s').value)+wl[i]#This converts the velocity grid to a d-wavelength grid centered on wk[i]
         #print([np.min(wlbin),np.min(wlgrid),np.max(wlbin),np.max(wlgrid)])
 
-        i_wl = interpolate.interp1d(wlgrid,lsf) #This is a class that can be called.
+        i_wl = interpolate.interp1d(wlgrid,lsf,bounds_error=False,fill_value='extrapolate')#Extrapolate should not be necessary but sometimes there is a minute mismatch between the
+        #start and end wavelengths of the constructed grid and the bin.
         try:
             lsf_wl=i_wl(wlbin)
         except:
@@ -841,7 +842,6 @@ def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True):
     import warnings
     import copy
     import tayph.util as ut
-    import pdb
     block[np.abs(block)<1e-10*np.nanmedian(block)]=0.0#First set very small values to zero.
     sum=np.nansum(np.abs(block),axis=0)#Anything that is zero in this sum (i.e. the all-zero columns) will be identified.
     npx=len(sum)

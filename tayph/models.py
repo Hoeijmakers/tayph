@@ -103,7 +103,7 @@ def get_model(name,library='models/library',root='models'):
     import os
     typetest(name,str,'name in mod.get_model()')
     library=check_path(library,exists=True)
-    root=check_path(root,exists=True)
+
 
 
     #First open the library file.
@@ -123,6 +123,7 @@ def get_model(name,library='models/library',root='models'):
     except KeyError:
         raise KeyError(f'Model {name} is not present in library at {str(library)}') from None
     if str(modelpath)[0]!='/':#Test if this is an absolute path.
+        root=check_path(root,exists=True)
         modelpath=root/modelpath
     try:
         modelarray=fits.getdata(modelpath)#Two-dimensional array with wl on the first row and flux on the second row.

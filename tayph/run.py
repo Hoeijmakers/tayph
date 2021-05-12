@@ -33,7 +33,7 @@ def make_project_folder(pwd='.'):
     dirs = ['data','models','output']
     for d in dirs:
         (root/d).mkdir(exist_ok=True)
-    (root/'data'/'WASP-12345'/'night1').mkdir(parents=True,exist_ok=True)
+    (root/'data'/'KELT-9'/'night1').mkdir(parents=True,exist_ok=True)
 
 
 
@@ -99,6 +99,7 @@ def start_run(configfile):
             'modellist':modellist,
             'templatelist':templatelist,
             'c_subtract':sp.paramget('c_subtract',cf,full_path=True),
+            # 'invert_template':sp.paramget('invert_template',cf,full_path=True),
             'template_library':sp.paramget('template_library',cf,full_path=True),
             'model_library':sp.paramget('model_library',cf,full_path=True),
     }
@@ -160,6 +161,7 @@ def run_instance(p):
     make_mask=p['make_mask']
     apply_mask=p['apply_mask']
     c_subtract=p['c_subtract']
+    # invert_template=p['invert_template']
     do_berv_correction=p['do_berv_correction']
     do_keplerian_correction=p['do_keplerian_correction']
     make_doppler_model=p['make_doppler_model']
@@ -202,6 +204,7 @@ def run_instance(p):
     typetest(make_mask,bool,            'make_mask in run_instance()')
     typetest(apply_mask,bool,           'apply_mask in run_instance()')
     typetest(c_subtract,bool,           'c_subtract in run_instance()')
+    # typetest(invert_template,bool,      'invert_template in run_instance()')
     typetest(do_berv_correction,bool,   'do_berv_correction in run_instance()')
     typetest(do_keplerian_correction,bool,'do_keplerian_correction in run_instance()')
     typetest(make_doppler_model,bool,   'make_doppler_model in run_instance()')
@@ -364,10 +367,6 @@ def run_instance(p):
 
 
 
-
-
-
-
 #Apply telluric correction file or not.
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='red')
     # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='red',alpha=0.5)
@@ -425,21 +424,25 @@ def run_instance(p):
             raise Exception(f'Wavelength axis of order {i} is neither 1D nor 2D.')
 
         for j in range(len(list_of_orders[0])):
-            gamma = 1.0+(rv_cor[j]*u.km/u.s/const.c)#Doppler factor.
+            # gamma = 1.0+(rv_cor[j]*u.km/u.s/const.c)#Doppler factor.
             # wl_cor = list_of_wls[i][j]*(1.0-(rv_cor[j]*u.km/u.s/const.c))#The minus sign was
             #tested on a slow-rotator.
             if list_of_wls[i].ndim==2:
-                order_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma,order[j],
+                order_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma[j],order[j],
                 bounds_error=False)(wl_cor)
-                sigma_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma,sigma[j],
+                sigma_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma[j],sigma[j],
+                bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
+                #SNR, apart from wavelength-shifting it.
+            elif type(rv_cor) != int:
+                order_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j],order[j],
+                bounds_error=False)(wl_cor)
+                sigma_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j],sigma[j],
                 bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
                 #SNR, apart from wavelength-shifting it.
             else:
-                order_cor[j] = interp.interp1d(list_of_wls[i]*gamma,order[j],
-                bounds_error=False)(wl_cor)
-                sigma_cor[j] = interp.interp1d(list_of_wls[i]*gamma,sigma[j],
-                bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
-                #SNR, apart from wavelength-shifting it.
+                #No interpolation at all:
+                order_cor[j]=order[j]
+                sigma_cor[j]=sigma[j]
         list_of_orders_cor.append(order_cor)
         list_of_sigmas_cor.append(sigma_cor)
         list_of_wls_cor.append(wl_cor)
@@ -474,7 +477,7 @@ def run_instance(p):
                 'spectra.')
             masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,40.0,5.0,manual=True)
         if apply_mask == False:
-            ut.print('---WARNING in run_instance: Mask was made but is not applied to data '
+            ut.tprint('---WARNING in run_instance: Mask was made but is not applied to data '
                 '(apply_mask == False)')
 
 
@@ -537,10 +540,10 @@ def run_instance(p):
         for templatename in templatelist:
             ut.tprint(f'---Building template {templatename}')
             wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,
-                template_library=template_library,c_subtract=c_subtract)
+                template_library=template_library,c_subtract=c_subtract)#Top-envelope subtraction.
             T*=(-1.0)
-            if np.mean(wlt) < 50.0:#This is likely in microns:
-                ut.tprint('------WARNING: The loaded template has a mean wavelength less than 50.0,'
+            if np.median(wlt) < 50.0:#This is likely in microns:
+                ut.tprint('------WARNING: The loaded template has a median wavelength less than 50.0,'
                 'meaning that it is very likely not in nm, but in microns. I have divided by 1,000'
                 'now and hope for the best...')
                 wlt*=1000.0
@@ -587,7 +590,7 @@ def run_instance(p):
         ut.tprint('---Cleaning CCFs')
         ccf_n,ccf_ne,ccf_nn,ccf_nne= clean_ccf(rv,ccf,ccf_e,dp)
 
-        if make_doppler_model == True and skip_doppler_model == False:
+        if make_doppler_model == True:
             shadow.construct_doppler_model(rv,ccf_nn,dp,shadowname,xrange=[-200,200],Nxticks=20.0,
             Nyticks=10.0)
             make_doppler_model = False # This sets it to False after it's been run once, for the
@@ -597,6 +600,8 @@ def run_instance(p):
             doppler_model,dsmask = shadow.read_shadow(dp,shadowname,rv,ccf)#This returns both the
             #model evaluated on the rv,ccf grid, as well as the mask that blocks the planet trace.
             ccf_clean,matched_ds_model = shadow.match_shadow(rv,ccf_nn,dsmask,dp,doppler_model)
+
+
             #THIS IS AN ADDITIVE CORRECTION, SO CCF_NNE DOES NOT NEED TO BE ALTERED AND IS STILL V
             #ALID VOOR CCF_CLEAN
         else:
@@ -748,7 +753,7 @@ def run_instance(p):
 
 
 
-def read_e2ds(inpath,outname,read_s1d=True,mode='HARPS',measure_RV=True,star='solar',config=False,
+def read_e2ds(inpath,outname,read_s1d=True,instrument='HARPS',measure_RV=True,star='solar',config=False,
 save_figure=True):
     """This is the workhorse for reading in a time-series of archival 2D echelle
     spectra from a couple of instrument pipelines that produce a standard output,
@@ -761,6 +766,12 @@ save_figure=True):
     case of HARPS, HARPS-N, CARMENES and ESPRESSO these may be downloaded from the archive.
     UVES is a bit special, because the 2D echelle spectra are not a standard
     pipeline output. Typical use cases are explained further below.
+
+    Outname is to be set to the name of a datafolder to be located in the data/ subdirectory.
+    An absolute path can also be set (in which case the path stars with a "/"). A relative path
+    can also be set, but needs to start with a "." to denote the current path. Otherwise, Tayph
+    will place a folder named "data" in the data/ subdirectory, which is probably not your
+    intention.
 
     This script formats the time series of 2D echelle spectra into 2D FITS images,
     where each FITS file is the time-series of a single echelle order. If the
@@ -859,7 +870,10 @@ save_figure=True):
     import textwrap
     from astropy.utils.data import download_file
     from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes
-    from .phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
+    from tayph.phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
+
+    mode = copy.deepcopy(instrument)#Transfer from using the mode keyword to instrument keyword
+    #to be compatible with Molecfit.
     print('\n \n \n')
     print('\n \n \n')
     print('\n \n \n')
@@ -882,22 +896,37 @@ save_figure=True):
 
     if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue',
         'CARMENES-VIS','CARMENES-NIR']:
-        raise ValueError("in read_e2ds: mode needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
+        raise ValueError("in read_e2ds: instrument needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
             "CARMENES-VIS, CARMENES-NIR or ESPRESSO.")
 
 
+    #if outname[0] in ['/','.']:#Test that this is an absolute path. If so, we trigger a warning.
+        #ut.tprint(f'ERROR: The name of the dataset {outname} appears to be set as an absolute path.'
+        #' or a relative path from the current directory. However, Tayph is designed to run in a '
+        #'working directory in which datasets, models and cross-correlation output is bundled. To '
+        #'that end, this variable is supposed to be set to a name, or a name with a subfolder (like '
+        #'"WASP-123" or "WASP-123/night1"), which is to be placed in the data/ subdirectory of the '
+        #'current folder. To initialise this file structure, please make an empty working directory '
+        #'in e.g. /home/user/tayph/xcor_project/, start the python interpreter in this directory and '
+        #'create a dummy file structure using the make_project_folder function, e.g. by importing '
+        #'tayph.run and calling tayph.run.make_project_folder("/home/user/tayph/xcor_project/").')
+        #sys.exit()
+
     if outname[0] in ['/','.']:#Test that this is an absolute path. If so, we trigger a warning.
-        ut.tprint(f'ERROR: The name of the dataset {outname} appears to be set as an absolute path.'
-        ' or a relative path from the current directory. However, Tayph is designed to run in a '
-        'working directory in which datasets, models and cross-correlation output is bundled. To '
-        'that end, this variable is supposed to be set to a name, or a name with a subfolder (like '
-        '"WASP-123" or "WASP-123/night1"), which is to be placed in the data/ subdirectory of the '
-        'current folder. To initialise this file structure, please make an empty working directory '
-        'in e.g. /home/user/tayph/xcor_project/, start the python interpreter in this directory and '
-        'create a dummy file structure using the make_project_folder function, e.g. by importing '
-        'tayph.run and calling tayph.run.make_project_folder("/home/user/tayph/xcor_project/").')
-        sys.exit()
-    outpath = Path('data/'+outname)
+        ut.tprint(f'WARNING: The name of the dataset {outname} appears to be set as an absolute '
+        'path or a relative path from the current directory. However, Tayph is designed to run '
+        'in a working directory in which datasets, models and cross-correlation output is bundled. '
+        'To that end, this variable is recommended to be set to a name, or a name with a subfolder '
+        'structure, (like "WASP-123" or "WASP-123/night1"), which is to be placed in the data/ '
+        'subdirectory. To initialise this file structure, please make an empty working directory '
+        'in e.g. /home/user/tayph/xcor_project/, start the python interpreter in this directory '
+        'and create a dummy file structure using the make_project_folder function, e.g. by '
+        'importing tayph.run and calling '
+        'tayph.run.make_project_folder("/home/user/tayph/xcor_project/").\n\n'
+        'Read_e2ds will proceed, assuming that you know what you are doing.')
+        outpath = Path(outname)
+    else:
+        outpath = Path('data')/outname
     if os.path.exists(outpath) != True:
         os.makedirs(outpath)
 
@@ -993,7 +1022,7 @@ save_figure=True):
     elif mode == 'CARMENES-NIR':
         DATA = read_carmenes(inpath,filelist,'nir',construct_s1d=read_s1d)
     else:
-        raise ValueError(f'Error in read_e2ds: {mode} is not a valid instrument mode.')
+        raise ValueError(f'Error in read_e2ds: {mode} is not a valid instrument.')
 
 
     #There is a problem in this way of dealing with airmass and that is that the
@@ -1122,7 +1151,7 @@ save_figure=True):
         for i in range(len(s1dsorting)):
             s1dhdr_sorted.append(s1dhdr[s1dsorting[i]])
             s1d_sorted.append(s1d[s1dsorting[i]])
-            wave1d_sorted.append(wave1d[sorting[i]])
+            wave1d_sorted.append(wave1d[s1dsorting[i]])
             #Sort the s1d files for application of molecfit.
         #Store the S1Ds in a pickle file. I choose not to use a FITS image because the dimensions
         #of the s1ds can be different from one exposure to another.
@@ -1213,18 +1242,22 @@ save_figure=True):
 
     if config:
         keywords=['P\t','a\t','aRstar\t','Mp\t','Rp\t','K\t','RpRstar\t','vsys\t',
-        'RA\t-00:00:00.0','DEC\t-00:00:00.0','Tc\t','duration\t','resolution\t','inclination\t',
-        'vsini\t']
-        if mode in ['ESPRESSO','UVES-red','UVES-blue']:
-            keywords+=['long\t-70.4039','lat\t-24.6272','elev\t2635.0','air\tTrue']
+        'RA\t-00:00:00.0','DEC\t-00:00:00.0','Tc\t','inclination\t','vsini\t']
+        if mode in ['ESPRESSO']:
+            keywords+=['resolution\t120000','long\t-70.4039','lat\t-24.6272','elev\t2635.0',
+            'air\tTrue']
+        if mode in ['UVES-red','UVES-blue']:
+            keywords+=['resolution\t','long\t-70.4039','lat\t-24.6272','elev\t2635.0','air\tTrue']
         elif mode=='HARPS':
-            keywords+=['long\t-70.7380','lat\t-29.2563','elev\t2387.2','air\tTrue']
+            keywords+=['resolution\t115000','long\t-70.7380','lat\t-29.2563','elev\t2387.2',
+            'air\tTrue']
         elif mode in ['HARPSN','HARPS-N']:
-            keywords+=['long\t-17.8850','lat\t28.7573','elev\t2396.0','air\tTrue']
+            keywords+=['resolution\t115000','long\t-17.8850','lat\t28.7573','elev\t2396.0',
+            'air\tTrue']
         elif mode in ['CARMENES-VIS','CARMENES-NIR']:
-            keywords+=['long\t-2.5468','lat\t37.2208','elev\t2168.0','air\t']
+            keywords+=['resolution\t80000','long\t-2.5468','lat\t37.2208','elev\t2168.0','air\t']
         else:
-            keywords+=['long\t','lat\t','elev\t','air\t']
+            keywords+=['resolution\t','long\t','lat\t','elev\t','air\t']
 
         with open(outpath/'config_empty','w',newline='\n') as f:
             for keyword in keywords:
@@ -1258,7 +1291,7 @@ save_figure=True):
         print(f'---The wavelength axes of the spectra will be shown here as they were saved by read_e2ds.')
         print(f'---Cleaning 1D spectra for cross-correlation.')
 
-        if mode in ['HARPS','HARPSN','ESPRESSO']:
+        if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS']:
             #gamma = (1.0-(berv[0]*u.km/u.s/const.c).decompose().value)
             wave_1d = wave1d[0]/10.0#*gamma#Universal berv-un-corrected wavelength axis in nm in air.
             s1d_block=np.zeros((len(s1d),len(wave_1d)))
@@ -1274,8 +1307,10 @@ save_figure=True):
         # plt.legend()
         # plt.show()
         # pdb.set_trace()
-        wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False)
-        #Slow. Needs parallelising.
+        wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False,
+        w=np.max([np.min([800/len(s1d),200]),20]))#Make the window dependent on how many exposures there are,
+        #such that the block has a total number of 800 pixels. Don't make the window wider than 200,
+        #and don't make it smaller than 20 either (in case there are many spectra).
 
         if mode in ['UVES-red','UVES-blue']:
             pdb.set_trace()
@@ -1490,8 +1525,8 @@ save_figure=True):
 
 
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
-def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False):
-# def do_molecfit(headers,waves,spectra,configfile,mode='HARPS',load_previous=False,save_individual=''):
+def molecfit(dataname,mode='both',instrument='HARPS',save_individual='',configfile=None,
+plot_spec=False):
     """This is the main wrapper for molecfit that pipes a list of s1d spectra and
     executes it. It first launces the molecfit gui on the middle spectrum of the
     sequence, and then loops through the entire list, returning the transmission
@@ -1503,6 +1538,11 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
 
     You can also set save_individual to a path to an existing folder to which the
     transmission spectra of the time-series can be written one by one.
+
+    Set the mode keyword to either 'GUI', 'batch' or 'both', to run molecfit in respectively
+    GUI mode (requiring connection to an X-window), batch mode (which can be run in the background
+    without access to a window environment, or both, in which the GUI and the batch are executed
+    in the same call to molecfit.)
     """
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
@@ -1521,10 +1561,31 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
     import astropy.io.fits as fits
     import pkg_resources
     import tayph.tellurics  as tel
+    from tayph.vartests import typetest
 
 
     #The DP contains the S1D files and the configile of the data (air or vaccuum)
-    dp = ut.check_path(dp,exists=True)
+    if instrument=='HARPS-N': instrument='HARPSN'#Guard against various ways of spelling HARPS-N.
+
+    if dataname[0] in ['/','.']:#Test that this is an absolute path. If so, we trigger a warning.
+        ut.tprint(f'WARNING: The name of the dataset {dataname} appears to be set as an absolute '
+        'path or a relative path from the current directory. However, Tayph is designed to run '
+        'in a working directory in which datasets, models and cross-correlation output is bundled. '
+        'To that end, this variable is recommended to be set to a name, or a name with a subfolder '
+        'structure, (like "WASP-123" or "WASP-123/night1"), which is to be placed in the data/ '
+        'subdirectory. To initialise this file structure, please make an empty working directory '
+        'in e.g. /home/user/tayph/xcor_project/, start the python interpreter in this directory '
+        'and create a dummy file structure using the make_project_folder function, e.g. by '
+        'importing tayph.run and calling '
+        'tayph.run.make_project_folder("/home/user/tayph/xcor_project/").\n\n'
+        'Molecfit will proceed, assuming that you know what you are doing.')
+        dp = ut.check_path(Path(dataname),exists=True)
+    else:
+        dp = ut.check_path(Path('data')/dataname,exists=True)
+
+    typetest(mode,str,'mode in molecfit()')
+    typetest(instrument,str,'mode in molecfit()')
+
     s1d_path=ut.check_path(dp/'s1ds.pkl',exists=True)
     if not configfile:
         molecfit_config=tel.get_molecfit_config()#Path at which the system-wide molecfit
@@ -1533,6 +1594,13 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
         molecfit_config=ut.check_path(configfile)
 
 
+
+
+    if mode.lower() not in ['gui','batch']:
+        raise ValueError("Molecfit mode should be set to 'GUI', 'batch' or 'both.'")
+
+
+    #Now we know what mode we are in, do the standard molecfit setups:
     #If this file doesn't exist (e.g. due to accidental corruption) the user needs to supply these
     #parameters.
     if molecfit_config.exists() == False:
@@ -1549,12 +1617,12 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
 
 
 
-    #We check if the parameter file for this mode exists.
-    parname=Path(mode+'.par')
+    #We check if the parameter file for this instrument exists.
+    parname=Path(instrument+'.par')
     parfile = molecfit_input_folder/parname#Path to molecfit parameter file.
     ut.check_path(molecfit_input_folder,exists=True)#This should be redundant, but still check.
     ut.check_path(parfile,exists=True)#Test that the molecfit parameter file
-    #for this mode exists.
+    #for this instrument exists.
 
 
 
@@ -1598,36 +1666,37 @@ def molecfit(dp,mode='HARPS',save_individual='',configfile=None,plot_spec=False)
     list_of_fxc = []
     list_of_trans = []
 
-    tel.write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,
-        s1d_sorted,middle_i,plot=plot_spec)
-    tel.execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
-    wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/mode)
-    tel.remove_output_molecfit(molecfit_input_folder,mode)
-
-    for i in range(N):#range(len(spectra)):
-        print('Fitting spectrum %s from %s' % (i+1,N))
-        t1=ut.start()
-        tel.write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
-        tel.execute_molecfit(molecfit_prog_folder,parfile,gui=False)
-        wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/mode)
-        tel.remove_output_molecfit(molecfit_input_folder,mode)
-        list_of_wls.append(wl*1000.0)#Convert to nm.
-        list_of_fxc.append(fx/trans)
-        list_of_trans.append(trans)
-        ut.end(t1)
-        if len(str(save_individual)) > 0:
-            indv_outpath=Path(save_individual)/f'tel_{i}.fits'
-            indv_out = np.zeros((2,len(trans)))
-            indv_out[0]=wl*1000.0
-            indv_out[1]=trans
-            fits.writeto(indv_outpath,indv_out)
+    if mode.lower() == 'gui' or mode.lower()=='both':
+        tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,
+            wave1d_sorted,s1d_sorted,middle_i,plot=plot_spec)
+        tel.execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
+        wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
+        tel.remove_output_molecfit(molecfit_input_folder,instrument)
 
 
 
-    tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,list_of_fxc,
-    dp/'telluric_transmission_spectra.pkl')
+    if mode.lower() == 'batch' or mode.lower()=='both':
+        for i in range(N):#range(len(spectra)):
+            print('Fitting spectrum %s from %s' % (i+1,N))
+            t1=ut.start()
+            tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
+            tel.execute_molecfit(molecfit_prog_folder,parfile,gui=False)
+            wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
+            tel.remove_output_molecfit(molecfit_input_folder,instrument)
+            list_of_wls.append(wl*1000.0)#Convert to nm.
+            list_of_fxc.append(fx/trans)
+            list_of_trans.append(trans)
+            ut.end(t1)
+            if len(str(save_individual)) > 0:
+                indv_outpath=Path(save_individual)/f'tel_{i}.fits'
+                indv_out = np.zeros((2,len(trans)))
+                indv_out[0]=wl*1000.0
+                indv_out[1]=trans
+                fits.writeto(indv_outpath,indv_out)
+        tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,list_of_fxc,
+        dp/'telluric_transmission_spectra.pkl')
 
-def check_molecfit(dp,mode='HARPS',configfile=None):
+def check_molecfit(dp,instrument='HARPS',configfile=None):
     """This allows the user to visually inspect the telluric correction performed by Molecfit, and
     select individual spectra that need to be refit. Each of these spectra will then be fit with
     molecfit in GUI mode."""
@@ -1655,15 +1724,15 @@ def check_molecfit(dp,mode='HARPS',configfile=None):
         python_alias = sp.paramget('python_alias',molecfit_config,full_path=True)
         #If this passes, the molecfit confugration file appears to be set correctly.
 
-        parname=Path(mode+'.par')
+        parname=Path(instrument+'.par')
         parfile = molecfit_input_folder/parname#Path to molecfit parameter file.
 
         print('The following spectra were selected to be redone manually:')
         print(to_do_manually)
         for i in to_do_manually:
-            tel.write_file_to_molecfit(molecfit_input_folder,mode+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
+            tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
             tel.execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
-            wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/mode)
+            wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
             list_of_wls[int(i)] = wl*1000.0#Convert to nm.
             list_of_fxc[int(i)] = fx/trans
             list_of_trans[int(i)] = trans

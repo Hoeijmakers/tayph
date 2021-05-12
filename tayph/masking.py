@@ -185,6 +185,8 @@ class mask_maker(object):
         self.Nxticks = Nxticks
         self.Nyticks = Nyticks
         self.nsigma = nsigma
+
+
         self.xrange = [0,self.npx-1]
         self.yrange=[0,self.nexp-1]
         self.x_axis=fun.findgen(self.npx).astype(int)
@@ -192,7 +194,7 @@ class mask_maker(object):
         self.x2,self.y2,self.z,self.wl_sel,self.y_axis_sel,self.xticks,self.yticks,void1,void2= plotting.plotting_scales_2D(self.x_axis,self.y_axis,self.residual,self.xrange,self.yrange,Nxticks=self.Nxticks,Nyticks=self.Nyticks,nsigma=self.nsigma)
         self.fig,self.ax = plt.subplots(3,1,sharex=True,figsize=(14,6))#Initialize the figure and 3 axes.
         plt.subplots_adjust(left=0.05)#Make them more tight, we need all the space we can get.
-        plt.subplots_adjust(right=0.85)
+        plt.subplots_adjust(right=0.75)
 
         self.ax[0].set_title('Spectral order %s  (%s - %s nm)' % (self.N,round(np.min(self.wl),1),round(np.max(self.wl),1)))
         self.ax[1].set_title('Residual of time-average')
@@ -210,9 +212,9 @@ class mask_maker(object):
         self.ax[2].set_ylim(0,self.img_max)
         #This trick to associate a single CB to multiple axes comes from
         #https://stackoverflow.com/questions/13784201/matplotlib-2-subplots-1-colorbar
-        self.cbar = self.fig.colorbar(self.img2, ax=self.ax.ravel().tolist(),aspect = 20)
-        self.cbar = dcb.DraggableColorbar_fits(self.cbar,[self.img2],'hot')
-        self.cbar.connect()
+        # self.cbar = self.fig.colorbar(self.img2, ax=self.ax.ravel().tolist(),aspect = 20)
+        # self.cbarD = dcb.DraggableColorbar_fits(self.cbar,[self.img2],'hot')
+        # self.cbarD.connect()
 
         #The rest is for dealing with the masking itself; the behaviour of the
         #add/subtact buttons, the cursor and the saving of the masked columns.
@@ -540,9 +542,11 @@ class mask_maker(object):
         """
         The button to go to the previous order.
         """
+        import pdb
         self.N -= 1
         if self.N <0:#If order tries to become less than zero, loop to the highest order.
             self.N = len(self.list_of_orders)-1
+
         self.set_order(self.N)
         self.mask_slider.set_val(self.N)#Update the slider value.
         self.update_plots()#Redraw everything.
@@ -551,6 +555,7 @@ class mask_maker(object):
         """
         The button to go to the next order. Similar to previous().
         """
+        import pdb
         self.N += 1
         if self.N > len(self.list_of_orders)-1:
             self.N = 0
@@ -582,16 +587,47 @@ class mask_maker(object):
         import tayph.drag_colour as dcb
         import tayph.functions as fun
         import copy
-        array1 = copy.deepcopy(self.order.ravel())
-        array2 = copy.deepcopy(self.residual.ravel())
-        array1[np.isnan(array1)] = np.inf#The colobar doesn't eat NaNs, so now set them to inf just for the plot.
-        array2[np.isnan(array2)] = np.inf#And here too.
+        import pdb
+        import tayph.plotting as plotting
 
-        self.img1.set_array(array1)
-        self.img1.set_clim(vmin=0,vmax=self.img_max)
-        self.img2.set_array(array2)
-        self.img2.set_clim(vmin=self.vmin,vmax=self.vmax)
-        self.img3[0].set_ydata(self.meanspec)
+        if self.npx != len(self.x_axis):
+            print('--------- Redrawing to account for order width mismatch')
+            array1 = copy.deepcopy(self.order)
+            array2 = copy.deepcopy(self.residual)
+            array1[np.isnan(array1)] = np.inf#The colobar doesn't eat NaNs, so now set them to inf just for the plot.
+            array2[np.isnan(array2)] = np.inf#And here too.
+
+
+            self.xrange = [0,self.npx-1]
+            # self.yrange=[0,self.nexp-1]#Should not be needed as self.y_axis cant change!
+            self.x_axis=fun.findgen(self.npx).astype(int)
+            # self.y_axis = fun.findgen(self.nexp).astype(int)
+
+            self.x2,self.y2,self.z,self.wl_sel,self.y_axis_sel,self.xticks,self.yticks,void1,void2 = plotting.plotting_scales_2D(self.x_axis,self.y_axis,self.residual,self.xrange,self.yrange,Nxticks=self.Nxticks,Nyticks=self.Nyticks,nsigma=self.nsigma)
+            self.img1=self.ax[0].pcolormesh(self.x2,self.y2,array1,vmin=0,vmax=self.img_max,cmap='hot')
+            self.img2=self.ax[1].pcolormesh(self.x2,self.y2,array2,vmin=self.vmin,vmax=self.vmax,cmap='hot')
+            self.ax[2].set_xlim((min(self.x_axis),max(self.x_axis)))
+            # self.ax[2].set_ylim(0,self.img_max)
+            self.ax[2].clear()
+            self.img3=self.ax[2].plot(self.x_axis,self.meanspec)
+            # self.cbar.remove()
+            # self.cbar = self.fig.colorbar(self.img2, ax=self.ax.ravel().tolist(),aspect = 20)
+            # self.cbarD = dcb.DraggableColorbar_fits(self.cbar,[self.img2],'hot')
+            # self.cbarD.connect()
+
+        else:
+            array1 = copy.deepcopy(self.order.ravel())
+            array2 = copy.deepcopy(self.residual.ravel())
+            array1[np.isnan(array1)] = np.inf#The colobar doesn't eat NaNs, so now set them to inf just for the plot.
+            array2[np.isnan(array2)] = np.inf#And here too.
+
+            self.img1.set_array(array1)
+            self.img1.set_clim(vmin=0,vmax=self.img_max)
+            self.img2.set_array(array2)
+            self.img2.set_clim(vmin=self.vmin,vmax=self.vmax)
+            self.img3[0].set_ydata(self.meanspec)
+
+
         self.ax[0].set_title('Spectral order %s  (%s - %s nm)' % (self.N,round(np.min(self.wl),1),round(np.max(self.wl),1)))
         self.ax[2].set_ylim(0,self.img_max)
         self.draw_masked_areas()
@@ -645,9 +681,10 @@ def manual_masking(list_of_wls,list_of_orders,list_of_masks,Nxticks = 20,Nyticks
     typetest(list_of_orders,list,'list_of_orders in manual_masking()')
     typetest(list_of_masks,list,'list_of_masks in manual_masking()')
     typetest(saved,list,'saved list_of_masks in manual_masking()')
-    dimtest(list_of_wls,[0,0],'list_of_wls in manual_masking()')
-    dimtest(list_of_orders,[len(list_of_wls),0,0],'list_of_orders in manual_masking()')
-    dimtest(list_of_masks,[len(list_of_wls),0,0],'list_of_masks in manual_masking()')
+
+    for i in range(len(list_of_orders)):
+        dimtest(list_of_orders[i],[0,len(list_of_wls[i])],'list_of_orders in manual_masking()')
+        dimtest(list_of_masks[i],[len(list_of_orders[i]),len(list_of_wls[i])],'list_of_masks in manual_masking()')
 
 
     print('------Entered manual masking mode')
@@ -760,7 +797,8 @@ def load_columns_from_file(dp,maskname,mode='strict'):
 
     if os.path.isfile(outpath) ==  False:
          if mode == 'strict':
-             raise Exception('FileNotFoundError in reading columns from file: Column file named %s do not exist at %s.' % (maskname,dp))
+             raise Exception('FileNotFoundError in reading columns from file: Column file named '
+             f'{maskname} do not exist at {dp}.')
          else:
              print('---No previously saved manual mask exists. User will start a new mask.')
              return([])
@@ -789,24 +827,73 @@ def write_columns_to_file(dp,maskname,list_of_selected_columns):
 def write_mask_to_file(dp,maskname,list_of_masks_auto,list_of_masks_manual=[]):
     import sys
     from pathlib import Path
+    import pickle
     import tayph.util as ut
-    from tayph.vartests import typetest,dimtest
+    from tayph.vartests import typetest,dimtest,lentest
     import pdb
+    import numpy as np
     ut.check_path(dp)
     typetest(maskname,str,'maskname in write_mask_to_file()')
     typetest(list_of_masks_auto,list,'list_of_masks_auto in write_mask_to_file()')
     typetest(list_of_masks_manual,list,'list_of_masks_manual in write_mask_to_file()')
-    dimtest(list_of_masks_auto,[len(list_of_masks_manual),0,0],'list_of_masks_auto in write_mask_to_file()')
+    lentest(list_of_masks_auto,len(list_of_masks_manual),'list_of_masks_auto in '
+    'write_mask_to_file()')
+
+
+    for i in range(len(list_of_masks_auto)):
+        dimtest(list_of_masks_auto[i],np.shape(list_of_masks_manual[i]),'list_of_masks_auto in '
+        'write_mask_to_file()')
     outpath=Path(dp)/maskname
     if len(list_of_masks_auto) == 0 and len(list_of_masks_manual) == 0:
         print('RuntimeError in write_mask_to_file: Both lists of masks are emtpy!')
         sys.exit()
 
     print(f'---Saving lists of auto and manual masks to {str(outpath)}')
+
     if len(list_of_masks_auto) > 0:
-        ut.save_stack(str(outpath)+'_auto.fits',list_of_masks_auto)
+        with open(str(outpath)+'_auto.pkl', 'wb') as f: pickle.dump(list_of_masks_auto,f)
+        # ut.save_stack(str(outpath)+'_auto.fits',list_of_masks_auto)
     if len(list_of_masks_manual) > 0:
-        ut.save_stack(str(outpath)+'_manual.fits',list_of_masks_manual)
+        with open(str(outpath)+'_manual.pkl', 'wb') as f: pickle.dump(list_of_masks_manual,f)
+        # ut.save_stack(str(outpath)+'_manual.fits',list_of_masks_manual)
+
+def convert_mask_to_pkl(dp,maskname):
+    """This is a continuity function to deal with updating mask fits files to pkl files without
+    disturbing anyone's work-flow..."""
+    import sys
+    from pathlib import Path
+    import pickle
+    import tayph.util as ut
+    from tayph.vartests import typetest,dimtest,lentest
+    import pdb
+    import numpy as np
+    import astropy.io.fits as fits
+
+    inpath_auto = Path(dp)/(maskname+'_auto.fits')
+    inpath_man = Path(dp)/(maskname+'_manual.fits')
+    outpath_auto = Path(dp)/(maskname+'_auto.pkl')
+    outpath_man = Path(dp)/(maskname+'_manual.pkl')
+    ut.check_path(inpath_auto,exists=True)
+    ut.check_path(inpath_man,exists=True)
+
+    mask_auto = fits.getdata(inpath_auto)
+    mask_man = fits.getdata(inpath_man)
+
+    list_of_mask_auto = []
+    list_of_mask_man = []
+
+    for i in range(len(mask_auto)):
+        list_of_mask_auto.append(mask_auto[i])
+
+    for i in range(len(mask_man)):
+        list_of_mask_man.append(mask_man[i])
+
+    with open(outpath_auto, 'wb') as f: pickle.dump(list_of_mask_auto,f)
+    with open(outpath_man, 'wb') as f: pickle.dump(list_of_mask_man,f)
+
+
+
+
 
 def apply_mask_from_file(dp,maskname,list_of_orders):
     import astropy.io.fits as fits
@@ -816,17 +903,19 @@ def apply_mask_from_file(dp,maskname,list_of_orders):
     import tayph.util as ut
     from tayph.vartests import typetest,dimtest
     from pathlib import Path
+    import pickle
     ut.check_path(dp)
     typetest(maskname,str,'maskname in write_mask_to_file()')
     typetest(list_of_orders,list,'list_of_orders in apply_mask_from_file()')
 
     N = len(list_of_orders)
 
-    inpath_auto = Path(dp)/(maskname+'_auto.fits')
-    inpath_man = Path(dp)/(maskname+'_manual.fits')
+    inpath_auto = Path(dp)/(maskname+'_auto.pkl')
+    inpath_man = Path(dp)/(maskname+'_manual.pkl')
 
     if os.path.isfile(inpath_auto) ==  False and os.path.isfile(inpath_man) == False:
-        raise Exception(f'FileNotFoundError in reading mask from file: Both mask files named {maskname} do not exist at {str(dp)}. Rerun with make_maske = True.')
+        raise Exception(f'FileNotFoundError in apply_mask_from_file: Both mask files named '
+        f'{maskname} do not exist at {str(dp)}. Rerun with make_maske = True.')
 
     #At this point either of the mask files is determined to exist.
     #Apply the masks to the orders, by adding. This works because the mask is zero
@@ -834,25 +923,33 @@ def apply_mask_from_file(dp,maskname,list_of_orders):
 
 
     if os.path.isfile(inpath_auto) ==  True:
-        print('------Applying sigma_clipped mask from %s' % inpath_auto)
-        cube_of_masks_auto = fits.getdata(inpath_auto)
-        Nm = len(cube_of_masks_auto)
-        err = f'ERROR in apply_mask_from_file: List_of_orders and list_of_masks_auto do not have the same length ({N} vs {Nm}), meaning that the number of orders provided and the number of orders onto which the masks were created are not the same. This could have happened if you copy-pased mask_auto from one dataset to another. This is not recommended anyway, as bad pixels / outliers are expected to be in different locations in different datasets.'
+        print(f'------Applying sigma_clipped mask from {inpath_auto}')
+        # cube_of_masks_auto = fits.getdata(inpath_auto)
+        with open(inpath_auto,"rb") as f:
+            list_of_masks_auto = pickle.load(f)
+        Nm = len(list_of_masks_auto)
+        err = f'ERROR in apply_mask_from_file: List_of_orders and list_of_masks_auto do not have '
+        f'the same length ({N} vs {Nm}), meaning that the number of orders provided and the number '
+        'of orders onto which the masks were created are not the same. This could have happened if '
+        'you copy-pased mask_auto from one dataset to another. This is not recommended anyway, as '
+        'bad pixels / outliers are expected to be in different locations in different datasets.'
         if Nm != N:
             raise Exception(err)
         #Checks have passed. Add the mask to the list of orders.
         for i in range(N):
-            list_of_orders[i]+=cube_of_masks_auto[i,:,:]
+            list_of_orders[i]+=list_of_masks_auto[i]
 
     if os.path.isfile(inpath_man) ==  True:
-        print('------Applying manually defined mask from %s' % inpath_man)
-        cube_of_masks_man = fits.getdata(inpath_man)
-        Nm = len(cube_of_masks_man)
+        print(f'------Applying manually defined mask from {inpath_man}')
+        # cube_of_masks_man = fits.getdata(inpath_man)
+        with open(inpath_man,"rb") as f:
+            list_of_masks_man = pickle.load(f)
+        Nm = len(list_of_masks_man)
         err = f'ERROR in apply_mask_from_file: List_of_orders and list_of_masks_auto do not have the same length ({N} vs {Nm}), meaning that the number of orders provided and the number of orders onto which the masks were created are not the same. This could have happened if you copy-pased mask_auto from one dataset to another. This is not recommended anyway, as bad pixels / outliers are expected to be in different locations in different datasets.'
         if Nm != N:
             raise Exception(err)
         for i in range(N):
-            list_of_orders[i]+=cube_of_masks_man[i,:,:]
+            list_of_orders[i]+=list_of_masks_man[i]
     return(list_of_orders)
 
 
@@ -884,6 +981,7 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False):
     import tayph.functions as fun
     import tayph.plotting as plotting
     import sys
+    import pdb
     import matplotlib.pyplot as plt
     import tayph.util as ut
     import warnings
@@ -897,8 +995,8 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False):
     typetest(list_of_wls,list,'list_of_wls in mask_orders()')
     typetest(list_of_orders,list,'list_of_orders in mask_orders()')
     typetest(manual,bool,'manual keyword in mask_orders()')
-    dimtest(list_of_wls,[0,0],'list_of_wls in mask_orders()')
-    dimtest(list_of_orders,[len(list_of_wls),0,0],'list_of_orders in mask_orders()')
+    for i in range(len(list_of_wls)):
+        dimtest(list_of_wls[i],[len(list_of_orders[i][0])],'list_of_wls in mask_orders()')
 
     if c_thresh <= 0 and manual == False:
         print('---WARNING in mask_orders: c_thresh is set to zero and manual masking is turned off.')
@@ -913,6 +1011,8 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False):
     #that this needs to be done twice; as colour correction is also needed for proper maskng. The second variable is
     #a dummy to replace the expected list_of_sigmas input.
     N_NaN = 0
+    N_total = 0
+    for i in range(len(list_of_orders)): N_total+=np.size(list_of_orders[i])
     list_of_masked_orders = []
 
     for i in range(N):
@@ -939,7 +1039,7 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False):
             list_of_masks.append(order*0.0)
             ut.statusbar(i,void)
 
-        print(f'%s outliers identified and set to NaN ({N_NaN}/{round(N_NaN/np.size(list_of_masks)*100.0,3)}).')
+        print(f'%s outliers identified and set to NaN ({N_NaN}/{round(N_NaN/N_total*100.0,3)}).')
     else:
         print('------Skipping sigma-clipping (c_thres <= 0)')
         #Do nothing to list_of_masks. It is now an empty list.

@@ -22,6 +22,12 @@ Despite the aims set out above, both the methods used by the community to analys
 A paper describing the functionality of Tayph is currently in preparation. If you make use of Tayph in your publication, please consider citing the analysis presented in [Hoeijmakers et al. 2020](https://www.aanda.org/articles/aa/pdf/2020/09/aa38365-20.pdf), which most closely matches the current implementation of Tayph.
 
 
+Documentation
+-------------
+
+For instructions and demo's on how to install and use Tayph, please refer to the official [documentation pages](https://tayph.readthedocs.io/en/latest/).
+
+
 License
 -------
 

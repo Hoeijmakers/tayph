@@ -284,14 +284,20 @@ def clean_ccf(rv,ccf,ccf_e,dp):
         meanccf=np.nanmean(ccf_n,axis=0)
         meanccf_e=1.0/len(transit)*np.sqrt(np.nansum(ccf_ne**2.0,axis=0))#I validated that this is approximately equal
         #to sqrt(N)*ccf_ne, where N is the number of out-of-transit exposures.
+    if np.min(transit) == 1.0:
+        print('------WARNING in Cleaning: The data is not predicted to contain in-transit exposures.')
+        print(f'------If you expect to be dealing with transit-data, please check the ephemeris '
+        f'at {dp}')
+        print('------The mean ccf is taken over the entire time-series.')
+        meanccf=np.nanmean(ccf_n,axis=0)
+        meanccf_e=1.0/len(transit)*np.sqrt(np.nansum(ccf_ne**2.0,axis=0))#I validated that this is approximately equal
+        #to sqrt(N)*ccf_ne, where N is the number of out-of-transit exposures.
     else:
         meanccf=np.nanmean(ccf_n[transit == 1.0,:],axis=0)
         meanccf_e=1.0/np.sum(transit==1)*np.sqrt(np.nansum(ccf_ne[transit == 1.0,:]**2.0,axis=0))#I validated that this is approximately equal
         #to sqrt(N)*ccf_ne, where N is the number of out-of-transit exposures.
-    if np.min(transit) == 1.0:
-        print('------WARNING in clean_ccf: The data is not predicted to contain in-transit exposures.')
-        print('------If you expect to be dealing with transit-data, please check the ephemeris at %s.'%dp)
-        sys.exit()
+
+
 
 
     meanblock2=fun.rebinreform(meanccf,len(meanflux))
@@ -303,7 +309,7 @@ def clean_ccf(rv,ccf,ccf_e,dp):
 
 
     #ONLY WORKS IF LIGHTCURVE MODEL IS ACCURATE, i.e. if Euler observations are available.
-    print("---> WARNING IN CLEANING.CLEAN_CCF(): NEED TO ADD A FUNCTION THAT YOU CAN NORMALIZE BY THE LIGHTCURVE AND SUBTRACT INSTEAD OF DIVISION!")
+    # print("---> WARNING IN CLEANING.CLEAN_CCF(): NEED TO ADD A FUNCTION THAT YOU CAN NORMALIZE BY THE LIGHTCURVE AND SUBTRACT INSTEAD OF DIVISION!")
     return(ccf_n,ccf_ne,ccf_nn-1.0,ccf_nne)
 
 
@@ -360,7 +366,6 @@ def shift_ccf(RV,CCF,drv):
     return(CCF_new)
 
 
-
 def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
     """The name says it all. Do good tests."""
     import tayph.functions as fun
@@ -372,6 +377,8 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
     import tayph.util as ut
     import sys
     import pdb
+    from joblib import Parallel, delayed
+
     Kp = fun.findgen((kprange[1]-kprange[0])/dkp+1)*dkp+kprange[0]
     n_exp = np.shape(ccf)[0]
     KpVsys = np.zeros((len(Kp),len(rv)))
@@ -380,26 +387,16 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
     transit /= np.nansum(transit)
     transitblock = fun.rebinreform(transit,len(rv)).T
 
-    j = 0
-    ccfs = []
-    for i in Kp:
+    def Kp_parallel(i):
         dRV = sp.RV(dp,vorb=i)*(-1.0)
         ccf_shifted = shift_ccf(rv,ccf,dRV)
         ccf_e_shifted = shift_ccf(rv,ccf_e,dRV)
-        ccfs.append(ccf_shifted)
-        KpVsys[j,:] = np.nansum(transitblock * ccf_shifted,axis=0)
-        KpVsys_e[j,:] = (np.nansum((transitblock*ccf_e_shifted)**2.0,axis=0))**0.5
-        # plt.plot(rv,KpVsys[j,:])
-        # plt.fill_between(rv, KpVsys[j,:]-KpVsys_e[j,:], KpVsys[j,:]+KpVsys_e[j,:],alpha=0.5)
-        # plt.show()
-        # pdb.set_trace()
-        j+=1
-        ut.statusbar(i,Kp)
+        return (np.nansum(transitblock * ccf_shifted,axis=0), (np.nansum((transitblock*ccf_e_shifted)**2.0,axis=0))**0.5)
+    
+    KpVsys, KpVsys_e = zip(*Parallel(n_jobs=-1, verbose=5)(delayed(Kp_parallel)(i) for i in Kp))
+
+    
     return(Kp,KpVsys,KpVsys_e)
-
-
-
-
 
     # CCF_total = np.zeros((n_exp,n_rv))
     #

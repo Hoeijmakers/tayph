@@ -19,8 +19,11 @@ def tprint(msg,margin=5):
     """
 
     import textwrap
-    terminal_width=get_term_width()
-    print(textwrap.fill(msg,width=int(terminal_width)-margin))
+    try:
+        terminal_width=get_term_width()
+        print(textwrap.fill(msg,width=int(terminal_width)-margin))
+    except:
+        print(msg)
 
 
 def get_term_width():

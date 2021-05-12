@@ -76,7 +76,7 @@ To continue with the demo data, move to your working directory in the terminal
 (i.e. :code:`cd /Users/tayph/xcor_project/`), open a python 3 interpreter and call::
 
     import tayph.run as run
-    run.read_e2ds('/Users/tayph/downloads/demo_data/kelt-9-spectra','KELT-9/night1',mode='HARPSN',config=True)
+    run.read_e2ds('/Users/tayph/downloads/demo_data/kelt-9-spectra','KELT-9/night1',instrument='HARPSN',config=True)
 
 This converts the pipeline-reduced data to the format used by Tayph, places it in the data
 folder in your working directory, and executes a preliminary cross-correlation to measure the
@@ -91,7 +91,7 @@ protect you against confusion regarding wavelength solutions and velocity correc
 (where different pipelines have different conventions). The input parameters of read_e2ds are
 structured in the following way::
 
-    tayph.run.read_e2ds('input_folder','output_name',mode='HARPSN',measure_RV=True,star='hot',config=True)
+    tayph.run.read_e2ds('input_folder','output_name',instrument='HARPSN',measure_RV=True,star='hot',config=True)
 
 - :code:`'input_folder'`: The first parameter is the location of your downloaded data. This is typically a dedicated folder in your project or even your downloads folder.
 - :code:`'output_name'`: The second is the name of your dataset, as a folder name. Typically, this takes the form of system_name_b, or system_name_b/night_n if multiple transits of the same system are available.
@@ -307,7 +307,7 @@ Molecfit is developed by ESO and hosted `on the ESO webpages <https://www.eso.or
 However in 2020, ESO moved to integrate Molecfit into its data reduction environment, deprecating
 the standalone execution of Molecfit that is needed for use with non-ESO data, and that Tayph uses.
 As of 2021, previous standalone versions are still hosted `on ESO's FTP server <ftp://ftp.eso.org/pub/dfs/pipelines/skytools/molecfit/>`_,
-but these may be removed in the future. We have therefore hosted a copy of Molecfit version 1.5.9
+but these may be removed in the future. We have therefore host a copy of Molecfit version 1.5.9
 along with the demo data. Importantly, version 1.5.9 is not pyhon 3.0 compatible and it contains an
 error in the line-list of water, and so we have updated the relevant files in our repackaged version.
 
@@ -315,7 +315,6 @@ error in the line-list of water, and so we have updated the relevant files in ou
 You can find a compressed package of our version of Molecfit `here <https://drive.google.com/file/d/1obc3ZlnoMld7erbg_4URzM8fcYEOeQuu/view?usp=sharing>`__.
 For the rest of this tutorial, we assume that the package contents have been extracted to a folder
 called :code:`molecfit_package`, somewhere on your system.
-
 
 
 Installing Molecfit
@@ -332,8 +331,6 @@ dependencies. For standard Linux distributions, these instructions will suffice.
 Installation on OSX (and in particular OSX Catalina) can be slightly more complicated and likely
 requires a downgrade of XCode to version 11.7. We have therefore modified ESO's installation
 instructions for OSX users as follows.
-
-
 
 The installation of the basic molecfit binary package
 requires:
@@ -355,9 +352,7 @@ for MacPorts. Our requirements for the GUI are therefore as follows:
 These can be installed with e.g. pip as :code:`pip3 install wxpython matplotlib astropy`.
 
 The command line client also has optional display features which require gnuplot v4.2 patchlevel 3
- or newer, but these are not used by Tayph.
-
-
+or newer, but these are not used by Tayph.
 
 We proceed to execute the binary installer. First the downloaded installer needs to be made
 executable. To do this, change into the directory :code:`cd molecfit_package/1.5.9/` and run::
@@ -380,7 +375,6 @@ installed into :code:`/usr/local/src/Molecfit/bin`. They can be executed by spec
 relative paths, which is what Tayph will do when fitting telluric models to your spectra.
 
 
-
 Python 3.x compatibility and fixing an error in the water line-list
 *******************************************************************
 
@@ -393,7 +387,6 @@ structure of Molecfit located in :code:`/usr/local/src/Molecfit/`.
 Backup and replace the python files in :code:`/usr/local/src/Molecfit/share/molecfit/gui/`, and
 backup and replace the line-list file in :code:`/usr/local/src/Molecfit/share/molecfit/data/hitran/`
 with the files provided in the package.
-
 
 When replacing the file :code:`SM02GUI_Main.py`, its alias located in
 :code:`/usr/local/src/Molecfit/bin/` becomes invalid. Make a new alias to
@@ -425,7 +418,6 @@ the situation on your system:
 - :code:`output_dir`: The output directory for intermediate molecfit output (located somewhere further down in the .par files). We define it to be the same folder as the input directory: :code:`output_dir: /Users/tayph/xcor_project/molecfit/`.
 
 Repeat these steps for the other instrument parameter files.
-
 
 
 Optional: Tayph's Molecfit configuration file
@@ -474,7 +466,7 @@ We are now ready to apply Molecfit to our demo data of KELT-9 b. Continuing the 
 of reading in the data followed by telluric correction, call::
 
     import tayph.run as run
-    run.read_e2ds('/Users/tayph/downloads/demo_data/kelt-9-spectra','KELT-9/night1',mode='HARPSN',measure_RV=False)
+    run.read_e2ds('/Users/tayph/downloads/demo_data/kelt-9-spectra','KELT-9/night1',instrument='HARPSN',measure_RV=False)
     run.molecfit('KELT-9/night1',instrument='HARPSN')
 
 This will read in the data (which is not necessary if you did so before, but it is shown here for

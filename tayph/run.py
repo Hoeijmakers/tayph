@@ -896,7 +896,7 @@ save_figure=True):
 
     if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue',
         'CARMENES-VIS','CARMENES-NIR']:
-        raise ValueError("in read_e2ds: mode needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
+        raise ValueError("in read_e2ds: instrument needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
             "CARMENES-VIS, CARMENES-NIR or ESPRESSO.")
 
 
@@ -1022,7 +1022,7 @@ save_figure=True):
     elif mode == 'CARMENES-NIR':
         DATA = read_carmenes(inpath,filelist,'nir',construct_s1d=read_s1d)
     else:
-        raise ValueError(f'Error in read_e2ds: {mode} is not a valid instrument mode.')
+        raise ValueError(f'Error in read_e2ds: {mode} is not a valid instrument.')
 
 
     #There is a problem in this way of dealing with airmass and that is that the

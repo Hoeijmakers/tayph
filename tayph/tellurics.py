@@ -421,6 +421,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
     import tayph.functions as fun
     from tayph.vartests import dimtest,postest,typetest,nantest
     import copy
+    from joblib import Parallel, delayed
 
     T = read_telluric_transmission_from_file(inpath)
     wlT=T[0]
@@ -449,14 +450,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
         raise Exception(f'Runtime error in telluric correction: List of telluric spectra and data'
         f'spectra read from file do not have the same length ({Nexp} vs {len(list_of_orders[0])}).')
 
-
-    #Corrected orders will be stored here.
-    list_of_orders_cor = []
-    list_of_sigmas_cor = []
-
-
-    #Do the correction order by order:
-    for i in range(No):
+    def telluric_correction_order(i):
         order = list_of_orders[i]
         order_cor = order*0.0
         error  = list_of_sigmas[i]
@@ -464,7 +458,6 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
         wl = copy.deepcopy(list_of_wls[i])#input wl axis, either 1D or 2D.
         #If it is 1D, we make it 2D by tiling it vertically:
         if wl.ndim == 1: wl=np.tile(wl,(Nexp,1))#Tile it into a 2D thing.
-
         #If read (2D) or tiled (1D) correctly, wl and order should have the same shape:
         dimtest(wl,np.shape(order),f'Wl axis of order {i}/{No} in apply_telluric_correction()')
         dimtest(error,np.shape(order),f'errors {i}/{No} in apply_telluric_correction()')
@@ -473,11 +466,14 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
             postest(T_i,f'T-spec of exposure {j} in apply_telluric_correction()')
             nantest(T_i,f'T-spec of exposure {j} in apply_telluric_correction()')
             order_cor[j]=order[j]/T_i
-            error_cor[j]=error[j]/T_i#I checked that this works because the SNR before and after
+            error_cor[j]=error[j]/T_i #I checked that this works because the SNR before and after
             #telluric correction is identical.
-        list_of_orders_cor.append(order_cor)
-        list_of_sigmas_cor.append(error_cor)
-        ut.statusbar(i,x)
+
+        return (order_cor, error_cor)
+    
+    # executing all No jobs simultaneously
+    list_of_orders_cor, list_of_sigmas_cor = zip(*Parallel(n_jobs=No, verbose=1)(delayed(telluric_correction_order)(i) for i in range(No)))
+
     return(list_of_orders_cor,list_of_sigmas_cor)
 
 

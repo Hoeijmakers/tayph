@@ -319,8 +319,7 @@ def check_fit_gui(wls,fxc,trans):
     M.selec.spines['top'].set_color('white')
     M.selec.spines['left'].set_color('white')
     M.selec.spines['right'].set_color('white')
-    vlines = fun.findgen(M.N-1)+0.5
-
+    vlines = np.arange(0.5, M.N-0.5) # fun.findgen(M.N-1)+0.5
     row = M.nrows
     offset = 0
     for i in range(M.N):
@@ -435,7 +434,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
 
 
     No = len(list_of_wls)#Number of orders.
-    x = fun.findgen(No)
+    x = np.arange(No, dtype=float) #fun.findgen(No)
     Nexp = len(wlT)
 
 

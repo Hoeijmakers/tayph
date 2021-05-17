@@ -303,7 +303,7 @@ class fit_doppler_model(object):
         self.outpath=self.dp/(outname+'.pkl')
         #Translate the pivot to RV-phase points.
         #Need to interpolate on phase only, because the primer was already defined in RV space.
-        p_i = interpol.interp1d(fun.findgen(nexp),self.p)
+        p_i = interpol.interp1d(np.arange(nexp, dtype=float),self.p)
         p1 = float(p_i(primer[0][1]))
         p2 = float(p_i(primer[1][1]))
         v1 = primer[0][0]
@@ -478,7 +478,7 @@ class fit_pulsation_model(object):
         self.outpath=self.dp/(outname+'_pulsations.pkl')
         #Translate the pivot to RV-phase points.
         #Need to interpolate on phase only, because the primer was already defined in RV space.
-        p_i = interpol.interp1d(fun.findgen(nexp),self.p)
+        p_i = interpol.interp1d(np.arange(nexp, dtype=float),self.p)
         # p1 = float(p_i(primer[0][1]))
         # p2 = float(p_i(primer[1][1]))
         # v1 = primer[0][0]
@@ -578,7 +578,7 @@ def construct_doppler_model(rv,ccf,dp,shadowname,xrange=[-200,200],Nxticks=20.0,
     #This is for setting plot axes in the call to plotting_scales_2D below.
     nexp = np.shape(ccf)[0]
     yrange=[0,nexp-1]
-    y_axis = fun.findgen(nexp)
+    y_axis = np.arange(nexp, dtype=float) #fun.findgen(nexp)
     #And for adding the planet line:
     vsys = sp.paramget('vsys',dp)
     vsini = sp.paramget('vsini',dp)

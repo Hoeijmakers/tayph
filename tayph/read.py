@@ -134,7 +134,7 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                         f'equal to that of the e2ds file. {berv1d} vs {hdr[bervkeyword]}')
                         ut.tprint(wrn_msg)
                     gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)#Doppler factor BERV.
-                    wave1d.append((hdr1d['CDELT1']*fun.findgen(len(data_1d))+hdr1d['CRVAL1'])*gamma)
+                    wave1d.append((hdr1d['CDELT1']*np.arange(len(data_1d), dtype=float)+hdr1d['CRVAL1'])*gamma)
 
     #Check that all exposures have the same number of pixels, and clip s1ds if needed.
     # min_npx1d = int(np.min(np.array(npx1d)))
@@ -381,7 +381,7 @@ def read_uves(inpath,filelist,mode):
                 if not hdr1d['HIERARCH ESO PRO SCIENCE']:#Only add if it's actually a science product:#I force the user to supply only science exposures in the input  folder. No BS allowed... UVES is hard enough as it is.
                     raise ValueError(f' in read_e2ds: UVES file {tmp_product} is not classified as a SCIENCE file, but should be. Remove it from the folder?')
                 npx_1d = hdr1d['NAXIS1']
-                wavedata = fun.findgen(npx_1d)*hdr1d['CDELT1']+hdr1d['CRVAL1']
+                wavedata = np.arange(npx_1d, dtype=float)*hdr1d['CDELT1']+hdr1d['CRVAL1']
                 data1d_combined.append(data_1d)
                 wave1d_combined.append(wavedata)
 

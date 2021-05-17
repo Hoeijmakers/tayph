@@ -554,7 +554,7 @@ def run_instance(p):
 
             return (wlt, T, outpath)
         
-        list_of_wlts, list_of_templates, outpaths = zip(*Parallel(n_jobs=len(templatelist), verbose=10)(delayed(do_blurring_parallel)(templatename) for templatename in templatelist))
+        list_of_wlts, list_of_templates, outpaths = zip(*Parallel(n_jobs=len(templatelist))(delayed(do_blurring_parallel)(templatename) for templatename in templatelist))
 
     """       
     ut.tprint(f'--- Cross-correlating spectra with templates {templatelist}')

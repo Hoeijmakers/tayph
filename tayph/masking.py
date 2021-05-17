@@ -69,20 +69,23 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False):
         nexp = shape[0]
         npx = shape[1]
         N_pixels = nexp*npx
-        
+        list_of_masked_columns=[]
+        N_nans_columns=0
+        N_nans_columns=0
+        N_nans_isolated=0
+        N_healed = 0
         if np.sum(np.isnan(order)) > 0:
             # N_nans_total+=np.sum(np.isnan(order))
             #So this order contains NaNs.
             #First we loop over all columns to try to find columns where the number
             #of NaNs is greater than CUTOFF.
-
+            
+            
             N_Nans = np.sum(np.isnan(order), axis=0)
             list_of_masked_columns = np.where(N_Nans > (cutoff*nexp))[0]
             N_nans_columns =  len(list_of_masked_columns) * nexp
             N_nans_isolated = np.sum(N_Nans[np.where(N_Nans <= (cutoff*nexp))[0]])
             
-            N_healed = 0
-
             for k in range(nexp):
                 spectrum = order[k,:]
                 nans,x= fun.nan_helper(spectrum)

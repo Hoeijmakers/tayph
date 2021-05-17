@@ -33,6 +33,7 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False):
     import tayph.util as ut
     from tayph.vartests import typetest
     import astropy.io.fits as fits
+    from joblib import Parallel, delayed
     """
     This function loops through a list of orders, over the individual
     spectra in each order, and interpolates over the NaNs. It uses the manual provided at
@@ -61,34 +62,27 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False):
     N = len(list_of_orders)
     if N == 0:
         raise Exception('Runtime Error in interpolate_over_NaNs: List of orders is empty.')
-
-    # N_nans_total = 0
-    N_nans_columns = 0
-    N_nans_isolated = 0
-    N_healed = 0
-    N_pixels = 0
-    list_of_healed_orders = []
-    for i in range(len(list_of_orders)):
-        order = list_of_orders[i]*1.0#x1 to copy it, otherwise the input is altered backwardly.
+    
+    def interpolate_over_NaNs_parallel(i):
+        order = list_of_orders[i]*1.0 #x1 to copy it, otherwise the input is altered backwardly.
         shape  = np.shape(order)
         nexp = shape[0]
         npx = shape[1]
-        N_pixels += nexp*npx
-        list_of_masked_columns = []#This will contain the column numbers to mask completely at the end.
+        N_pixels = nexp*npx
+        
         if np.sum(np.isnan(order)) > 0:
             # N_nans_total+=np.sum(np.isnan(order))
             #So this order contains NaNs.
             #First we loop over all columns to try to find columns where the number
             #of NaNs is greater than CUTOFF.
-            for j in range(npx):
-                column = order[:,j]
-                N_nans = np.sum(np.isnan(column))
-                if N_nans > cutoff*nexp:
-                    list_of_masked_columns.append(j)
-                    N_nans_columns+=nexp
-                else:
-                    N_nans_isolated+=N_nans
-            # fits.writeto('test.fits',order,overwrite=True)
+
+            N_Nans = np.sum(np.isnan(order), axis=0)
+            list_of_masked_columns = np.where(N_Nans > (cutoff*nexp))[0]
+            N_nans_columns =  len(list_of_masked_columns) * nexp
+            N_nans_isolated = np.sum(N_Nans[np.where(N_Nans <= (cutoff*nexp))[0]])
+            
+            N_healed = 0
+
             for k in range(nexp):
                 spectrum = order[k,:]
                 nans,x= fun.nan_helper(spectrum)
@@ -107,12 +101,24 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False):
         if len(list_of_masked_columns) > 0:
             for l in list_of_masked_columns:
                 order[:,l]+=np.nan#Set the ones that were erroneously healed back to nan.
-        list_of_healed_orders.append(order)
+        
+        return (order, [N_nans_columns, N_nans_isolated, N_pixels, N_healed])
+
+    list_of_healed_orders, N_list = zip(*Parallel(n_jobs=len(list_of_orders))(delayed(interpolate_over_NaNs_parallel)(i) for i in range(len(list_of_orders))))
+    
+    list_of_healed_orders = list(list_of_healed_orders)
+    
+    N_nans_columns = np.sum(N_list, axis=0)[0]
+    N_nans_isolated = np.sum(N_list, axis=0)[1]
+    N_pixels = np.sum(N_list, axis=0)[2]
+    N_healed = np.sum(N_list, axis=0)[3]
+
     if quiet == False:
         ut.tprint(f'------Total number of pixels in {N} orders: {N_pixels}')
         ut.tprint(f'------Number of NaNs in columns identified as bad (or previously masked): {N_nans_columns} ({np.round(N_nans_columns/N_pixels*100,2)}% of total)')
         ut.tprint(f'------Number of NaNs in isolated pixels: {N_nans_isolated} ({np.round(N_nans_isolated/N_pixels*100,2)}% of total)')
         ut.tprint(f'------Number of bad pixels identified: {N_nans_isolated+N_nans_columns} ({np.round((N_nans_isolated+N_nans_columns)/N_pixels*100,2)}% of total)')
+
     return(list_of_healed_orders)
 
 

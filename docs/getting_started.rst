@@ -467,14 +467,15 @@ of reading in the data followed by telluric correction, call::
 
     import tayph.run as run
     run.read_e2ds('/Users/tayph/downloads/demo_data/kelt-9-spectra','KELT-9/night1',instrument='HARPSN',measure_RV=False)
-    run.molecfit('KELT-9/night1',instrument='HARPSN')
+    run.molecfit('KELT-9/night1',instrument='HARPSN',configfile='/Users/tayph/xcor_project/molecfit/molecfit_config.dat')
 
 This will read in the data (which is not necessary if you did so before, but it is shown here for
-clarity), and start the the molecfit GUI. The spectrum shown is the middle spectrum of your
-time series, and you will use this spectrum to choose your fitting regions and parameters. These are
-then saved to the output directory that was indicated in the parameter file, and applied to the
-rest of the time-series. This can take hours or even a day, depending on how many spectra you have
-and how fast your system is. Don't worry, ideally you'll only need to do this once per dataset.
+clarity), and start the the molecfit GUI using the configuration file that you just made.
+The spectrum shown is the middle spectrum of your time series, and you will use this spectrum to
+choose your fitting regions and parameters. These are then saved to the output directory that was
+indicated in the parameter file, and applied to the rest of the time-series. This can take hours or
+even a day, depending on how many spectra you have and how fast your system is. Don't worry,
+ideally you'll only need to do this once per dataset.
 
 
 Starting Molecfit in GUI mode requires access to an X-window, while the hours-long fitting

@@ -50,7 +50,7 @@ def smooth(fx,w,mode='box',edge_degree=1):
     #elements, and that it is symmetric around zero.
         kw+=1
 
-    kx=fun.findgen(kw)
+    kx=np.arange(kw,dtype=float) #fun.findgen(kw)
     kx-=np.mean(kx)#This must be centered around zero. Doing a hardcoded check:
     if (-1.0)*kx[-1] != kx[0]:
         print(kx)
@@ -195,7 +195,7 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
 
 
     #First compute the exposure-to-exposure flux variations to be used as weights.
-    meanfluxes = fun.findgen(n_exp)*0.0 # why not just np.zeros(nexp)?
+    meanfluxes = np.zeros(n_exp) #fun.findgen(n_exp)*0.0
 
     ### suggestions for improvement
     """
@@ -447,13 +447,13 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
         raise Exception('Error in ops.convolve(): Kernel needs to have an odd number of elements.')
 
     #Perform polynomial fits at the edges.
-    x=fun.findgen(len(array))
+    x= np.arange(len(array), dtype=float) # fun.findgen(len(array))
     fit_left=np.polyfit(x[0:len(kernel)*2],array[0:len(kernel)*2],edge_degree)
     fit_right=np.polyfit(x[-2*len(kernel)-1:-1],array[-2*len(kernel)-1:-1],edge_degree)
 
     #Pad both the x-grid (onto which the polynomial is defined)
     #and the data array.
-    pad=fun.findgen((len(kernel)-1)/2)
+    pad= np.arange((len(kernel)-1)/2, dtype=float) #fun.findgen((len(kernel)-1)/2)
     left_pad=pad-(len(kernel)-1)/2
     right_pad=np.max(x)+pad+1
     left_array_pad=np.polyval(fit_left,left_pad)
@@ -573,7 +573,7 @@ def constant_velocity_wl_grid(wl,fx,oversampling=1.0):
     #range from min(wl) to max(wl), it will add 100,000 more; until it's enough.
     n=len(wl)
     while np.max(wl_new) < np.max(wl):
-        x=fun.findgen(n)
+        x=np.arange(n, dtype=float) #fun.findgen(n)
         wl_new=np.exp(a/c * x)*np.min(wl)
         n+=len(wl)
     wl_new[0]=np.min(wl)#Artificially set to zero to avoid making a small round
@@ -713,7 +713,7 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
     sig_px=sig_wl/deriv
 
     n=1000.0
-    a=fun.findgen(n)/(n-1)*np.pi
+    a=np.arange(n, dtype=float)/(n-1)*np.pi #fun.findgen(n)/(n-1)*np.pi
     rv=np.cos(a)*np.sin(np.radians(inclination))*(2.0*np.pi*Rp*const.R_jup/(P*u.day)).to('km/s').value #in km/s
     trunc_dist=np.round(sig_px*truncsize+np.max(rv)*wl/(const.c.to('km/s').value)/deriv).astype(int)
     # print('Maximum rotational rv: %s' % max(rv))
@@ -722,8 +722,7 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
 
     rvgrid_max=(np.max(trunc_dist)+1.0)*sig_dv+np.max(rv)
     rvgrid_n=rvgrid_max / dv * 100.0 #100 samples per lsf fwhm.
-    rvgrid=(fun.findgen(2*rvgrid_n+1)-rvgrid_n)/rvgrid_n*rvgrid_max#Need to make sure that this is wider than the truncation bin and more finely sampled than wl - everywhere.
-
+    rvgrid=np.arange(-rvgrid_n, rvgrid_n, dtype=float)/rvgrid_n*rvgrid_max #(fun.findgen(2*rvgrid_n+1)-rvgrid_n)/rvgrid_n*rvgrid_max#Need to make sure that this is wider than the truncation bin and more finely sampled than wl - everywhere.
     lsf=rvgrid*0.0
     #We loop through velocities in the velocity grid to build up the sum of Gaussians
     #that is the LSF.
@@ -739,7 +738,7 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
         # print(len_rv_grid_low%2)
         if len_rv_grid_low%2 == 0:
             len_rv_grid_low -= 1
-        rvgrid_low = fun.findgen(len_rv_grid_low)*dv#Slightly smaller than the original grid.
+        rvgrid_low = np.arange(len_rv_grid_low)*dv #fun.findgen(len_rv_grid_low)*dv#Slightly smaller than the original grid.
         rvgrid_low -=0.5*np.max(rvgrid_low)
         lsf_low = interpolate.interp1d(rvgrid,lsf)(rvgrid_low)
         lsf_low /=np.sum(lsf_low)#This is now an LSF on a grid with the same spacing as the data has.

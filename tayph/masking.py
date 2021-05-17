@@ -195,8 +195,8 @@ class mask_maker(object):
 
         self.xrange = [0,self.npx-1]
         self.yrange=[0,self.nexp-1]
-        self.x_axis=fun.findgen(self.npx).astype(int)
-        self.y_axis = fun.findgen(self.nexp).astype(int)
+        self.x_axis= np.arange(self.npx, dtype=int) #fun.findgen(self.npx).astype(int)
+        self.y_axis = np.arange(self.nexp, dtype=int) #fun.findgen(self.nexp).astype(int)
         self.x2,self.y2,self.z,self.wl_sel,self.y_axis_sel,self.xticks,self.yticks,void1,void2= plotting.plotting_scales_2D(self.x_axis,self.y_axis,self.residual,self.xrange,self.yrange,Nxticks=self.Nxticks,Nyticks=self.Nyticks,nsigma=self.nsigma)
         self.fig,self.ax = plt.subplots(3,1,sharex=True,figsize=(14,6))#Initialize the figure and 3 axes.
         plt.subplots_adjust(left=0.05)#Make them more tight, we need all the space we can get.
@@ -526,7 +526,7 @@ class mask_maker(object):
         """
         import tayph.functions as fun
         ncol = len(self.list_of_orders[self.N][0])
-        self.list_of_selected_columns[self.N] = list(fun.findgen(ncol))
+        self.list_of_selected_columns[self.N] = list(np.arange(ncol, dtype=float)) #list(fun.findgen(ncol))
         # print(self.list_of_selected_columns[self.N])
         self.draw_masked_areas()#Update the green areas.
         self.fig.canvas.draw()
@@ -606,7 +606,7 @@ class mask_maker(object):
 
             self.xrange = [0,self.npx-1]
             # self.yrange=[0,self.nexp-1]#Should not be needed as self.y_axis cant change!
-            self.x_axis=fun.findgen(self.npx).astype(int)
+            self.x_axis= np.arange(self.npx, dtype=int) #fun.findgen(self.npx).astype(int)
             # self.y_axis = fun.findgen(self.nexp).astype(int)
 
             self.x2,self.y2,self.z,self.wl_sel,self.y_axis_sel,self.xticks,self.yticks,void1,void2 = plotting.plotting_scales_2D(self.x_axis,self.y_axis,self.residual,self.xrange,self.yrange,Nxticks=self.Nxticks,Nyticks=self.Nyticks,nsigma=self.nsigma)
@@ -1010,7 +1010,7 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False):
         return(list_of_orders)
 
     N = len(list_of_orders)
-    void = fun.findgen(N)
+    void = np.arange(N, dtype=float) #fun.findgen(N)
 
     list_of_orders = ops.normalize_orders(list_of_orders,list_of_orders)[0]#first normalize. Dont want outliers to
     #affect the colour correction later on, so colour correction cant be done before masking, meaning

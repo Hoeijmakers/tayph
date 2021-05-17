@@ -131,7 +131,7 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
 
 #===END OF TESTS. NOW DEFINE CONSTANTS===
     c=const.c.to('km/s').value#In km/s
-    RV=fun.findgen(2.0*RVrange/drv+1)*drv-RVrange#..... CONTINUE TO DEFINE THE VELOCITY GRID
+    RV= np.arange(-RVrange, RVrange+drv, drv, dtype=float) #fun.findgen(2.0*RVrange/drv+1)*drv-RVrange#..... CONTINUE TO DEFINE THE VELOCITY GRID
     beta=1.0-RV/c#The doppler factor with which each wavelength is to be shifted.
     n_rv = len(RV)
 
@@ -379,7 +379,7 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
     import pdb
     from joblib import Parallel, delayed
 
-    Kp = fun.findgen((kprange[1]-kprange[0])/dkp+1)*dkp+kprange[0]
+    Kp = np.arange(kprange[0], kprange[1]+dkp, dpk, dtype=float) #fun.findgen((kprange[1]-kprange[0])/dkp+1)*dkp+kprange[0]
     n_exp = np.shape(ccf)[0]
     KpVsys = np.zeros((len(Kp),len(rv)))
     KpVsys_e = np.zeros((len(Kp),len(rv)))

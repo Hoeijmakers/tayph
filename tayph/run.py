@@ -576,11 +576,11 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         print(f'------Completed. Time spent in cross-correlation: {txcor}s.')
 
         #The following is to compare time spent in parallel computation.
-        # txxx2 = ut.start()
-        # RV,list_of_CCFs,list_of_CCF_Es,list_of_T_sums = xcor(list_of_wls,list_of_orders_normalised,
-        # list_of_wlts,list_of_templates,drv,RVrange,list_of_errors=list_of_sigmas_normalised,
-        # parallel=True)
-        # txcor_p  = ut.end(txxx2,silent=True)
+        txxx2 = ut.start()
+        RV,list_of_CCFs,list_of_CCF_Es,list_of_T_sums = xcor(list_of_wls,list_of_orders_normalised,
+        list_of_wlts,list_of_templates,drv,RVrange,list_of_errors=list_of_sigmas_normalised,
+        parallel=True)
+        txcor_p  = ut.end(txxx2,silent=True)
 
 
 
@@ -657,12 +657,12 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         # ut.writefits(outpath/'Kp.fits',Kp)
 
 
-    # print('DONE')
-    # print(f'Time spent in serial xcor: {txcor}s')
-    # print(f'{txcor/len(list_of_wlts)}s per template.')
-    # print('')
-    # print(f'Time spent in parallel xcor: {txcor_p}s')
-    # print(f'{txcor_p/len(list_of_wlts)}s per template.')
+    print('DONE')
+    print(f'Time spent in serial xcor: {txcor}s')
+    print(f'{txcor/len(list_of_wlts)}s per template.')
+    print('')
+    print(f'Time spent in parallel xcor: {txcor_p}s')
+    print(f'{txcor_p/len(list_of_wlts)}s per template.')
 
 
     #Now repeat it all for the model injection.
@@ -691,7 +691,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                     if xcor_parallel:
                         ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} '
                         'templates in parallel.')
-                    if else:
+                    else:
                         ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} '
                         'templates in sequence.')
 

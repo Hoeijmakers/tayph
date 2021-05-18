@@ -62,7 +62,7 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False):
     N = len(list_of_orders)
     if N == 0:
         raise Exception('Runtime Error in interpolate_over_NaNs: List of orders is empty.')
-    
+
     def interpolate_over_NaNs_parallel(i):
         order = list_of_orders[i]*1.0 #x1 to copy it, otherwise the input is altered backwardly.
         shape  = np.shape(order)
@@ -79,13 +79,13 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False):
             #So this order contains NaNs.
             #First we loop over all columns to try to find columns where the number
             #of NaNs is greater than CUTOFF.
-            
-            
+
+
             N_Nans = np.sum(np.isnan(order), axis=0)
             list_of_masked_columns = np.where(N_Nans > (cutoff*nexp))[0]
             N_nans_columns =  len(list_of_masked_columns) * nexp
             N_nans_isolated = np.sum(N_Nans[np.where(N_Nans <= (cutoff*nexp))[0]])
-            
+
             for k in range(nexp):
                 spectrum = order[k,:]
                 nans,x= fun.nan_helper(spectrum)
@@ -104,13 +104,13 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False):
         if len(list_of_masked_columns) > 0:
             for l in list_of_masked_columns:
                 order[:,l]+=np.nan#Set the ones that were erroneously healed back to nan.
-        
+
         return (order, [N_nans_columns, N_nans_isolated, N_pixels, N_healed])
 
     list_of_healed_orders, N_list = zip(*Parallel(n_jobs=len(list_of_orders))(delayed(interpolate_over_NaNs_parallel)(i) for i in range(len(list_of_orders))))
-    
+
     list_of_healed_orders = list(list_of_healed_orders)
-    
+
     N_nans_columns = np.sum(N_list, axis=0)[0]
     N_nans_isolated = np.sum(N_list, axis=0)[1]
     N_pixels = np.sum(N_list, axis=0)[2]
@@ -528,6 +528,7 @@ class mask_maker(object):
         If something was, it will all be unmasked.
         """
         import tayph.functions as fun
+        import numpy as np
         ncol = len(self.list_of_orders[self.N][0])
         self.list_of_selected_columns[self.N] = list(np.arange(ncol, dtype=float)) #list(fun.findgen(ncol))
         # print(self.list_of_selected_columns[self.N])

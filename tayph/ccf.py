@@ -230,21 +230,8 @@ def xcor(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_
 
     if parallel:#This here takes a lot of memory.
         list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*Parallel(n_jobs=NT)(delayed(do_xcor)(i) for i in range(NT)))
-<<<<<<< HEAD
     else:
         list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*[do_xcor(i) for i in range(NT)])
-=======
-
-    else:
-        list_of_CCFs = []
-        list_of_CCF_Es = []
-        list_of_T_sums = []
-        for i in range(NT):
-            CCF,CCF_E,T_sums = do_xcor(i)
-            list_of_CCFs.append(CCF)
-            list_of_CCF_Es.append(CCF_Es)
-            list_of_T_sums.append(T_sums)
->>>>>>> 9ef96b9b45c4dd2b56c5c099f7222a6d9fdb277b
 
     if list_of_errors != None:
         return(RV,list_of_CCFs,list_of_CCF_Es,list_of_T_sums)

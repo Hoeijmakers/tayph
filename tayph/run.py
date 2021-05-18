@@ -38,7 +38,7 @@ def make_project_folder(pwd='.'):
 
 
 
-def start_run(configfile):
+def start_run(configfile,parallel=True,xcor_parallel=True):
     """
     This is the main command-line initializer of the cross-correlation routine provided by Tayph.
     It parses a configuration file located at configfile which should contain predefined keywords.
@@ -103,10 +103,10 @@ def start_run(configfile):
             'template_library':sp.paramget('template_library',cf,full_path=True),
             'model_library':sp.paramget('model_library',cf,full_path=True),
     }
-    run_instance(params)
+    run_instance(params,parallel=parallel,xcor_parallel=xcor_parallel)
 
 
-def run_instance(p):
+def run_instance(p,parallel=True,xcor_parallel=False):
     """This runs the entire cross correlation analysis cascade."""
     import numpy as np
     from astropy.io import fits
@@ -377,7 +377,7 @@ def run_instance(p):
         print('---Applying telluric correction')
         telpath = dp/'telluric_transmission_spectra.pkl'
         list_of_orders,list_of_sigmas = telcor.apply_telluric_correction(telpath,list_of_wls,
-        list_of_orders,list_of_sigmas) # this is in parallel now 
+        list_of_orders,list_of_sigmas,parallel=parallel) # this is in parallel now
 
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='blue')
     # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='blue',alpha=0.5)
@@ -457,7 +457,7 @@ def run_instance(p):
     #Now the spectra are telluric corrected and velocity corrected, and the wavelength axes have
     #been collapsed from 2D to 1D (if they were 2D in the first place, e.g. for ESPRESSO).
 
-    
+
     if len(list_of_orders) != n_orders:
         raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
         'was before. Something went wrong during telluric correction or velocity correction.')
@@ -485,15 +485,15 @@ def run_instance(p):
 
 #Apply the mask that was previously created and saved to file.
     if apply_mask == True:
-        print('---Applying mask')
+        print('---Applying mask to spectra and uncertainty arrays')
         list_of_orders = masking.apply_mask_from_file(dp,maskname,list_of_orders)
         list_of_sigmas = masking.apply_mask_from_file(dp,maskname,list_of_sigmas)
 #Interpolate over all isolated NaNs and set bad columns to NaN (so that they are ignored in the CCF)
     if do_xcor == True:
         print('---Healing NaNs')
-        list_of_orders = masking.interpolate_over_NaNs(list_of_orders)#THERE IS AN ISSUE HERE:
+        list_of_orders = masking.interpolate_over_NaNs(list_of_orders,parallel=parallel)#THERE IS AN ISSUE HERE:
         #INTERPOLATION SHOULD ALSO HAPPEN ON THE SIGMAS ARRAY!
-        list_of_sigmas = masking.interpolate_over_NaNs(list_of_sigmas,quiet=True)
+        list_of_sigmas = masking.interpolate_over_NaNs(list_of_sigmas,quiet=True,parallel=parallel)
 
 
         #This is the point from which model injection will also start.
@@ -533,13 +533,11 @@ def run_instance(p):
         #data and once for the injected models.
     if do_xcor == True or plot_xcor == True:
 
-        #list_of_wlts = []
-        #list_of_templates = []
-        #outpaths = []
-
-        def do_blurring_parallel(templatename):
+        def construct_template(templatename,verbose=False):#For use in parallelised iterator.
             wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,
-                template_library=template_library,c_subtract=c_subtract)#Top-envelope subtraction.
+                template_library=template_library,c_subtract=c_subtract,verbose=verbose)
+                #Top-envelope subtraction and blurring.
+
             T*=(-1.0)
             if np.median(wlt) < 50.0:#This is likely in microns:
                 ut.tprint('------WARNING: The loaded template has a median wavelength less than 50.0,'
@@ -553,113 +551,60 @@ def run_instance(p):
                 os.makedirs(outpath)
 
             return (wlt, T, outpath)
-        
-        list_of_wlts, list_of_templates, outpaths = zip(*Parallel(n_jobs=len(templatelist))(delayed(do_blurring_parallel)(templatename) for templatename in templatelist))
 
-    """       
-    ut.tprint(f'--- Cross-correlating spectra with templates {templatelist}')
-    def do_xcor_parallel(i, do_xcor=do_xcor, make_doppler_model=make_doppler_model, skip_doppler_model=skip_doppler_model, f_w=f_w):
-        templatename = templatelist[i]
-        wlt = list_of_wlts[i]
-        T = list_of_templates[i]
-        outpath = outpaths[i]
 
-        if do_xcor == True:
-            #ut.tprint(f'---Cross-correlating spectra with template {templatename}.')
-            #t1=ut.start()
-            rv,ccf,ccf_e,Tsums=xcor(list_of_wls,list_of_orders_normalised,np.flipud(np.flipud(wlt)),
-            T,drv,RVrange,list_of_errors=list_of_sigmas_normalised)
-            #ut.end(t1)
-            #ut.tprint(f'------Writing CCFs to {str(outpath)}')
-            ut.writefits(outpath/'ccf.fits',ccf)
-            ut.writefits(outpath/'ccf_e.fits',ccf_e)
-            ut.writefits(outpath/'RV.fits',rv)
-            ut.writefits(outpath/'Tsum.fits',Tsums)
+        if parallel:
+            list_of_wlts, list_of_templates, outpaths = zip(*Parallel(n_jobs=len(templatelist))(delayed(construct_template)(templatename) for templatename in templatelist))
         else:
-            #ut.tprint(f'---Reading CCFs with template {templatename} from {str(outpath)}.')
+            list_of_wlts, list_of_templates, outpaths = zip(*[construct_template(templatename,verbose=True) for templatename in templatelist])
+
+
+    if do_xcor:#Perform the cross-correlation on the entire list of orders and the entire list of
+    #templates, in parallel or sequentially.
+        if xcor_parallel:
+            ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} templates in '
+            'parallel.')
+        else:
+            ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} templates in '
+            'sequence.')
+
+        t1 = ut.start()
+        RV,list_of_CCFs,list_of_CCF_Es,list_of_T_sums = xcor(list_of_wls,list_of_orders_normalised,
+        list_of_wlts,list_of_templates,drv,RVrange,list_of_errors=list_of_sigmas_normalised,
+        parallel=xcor_parallel)
+        txcor  = ut.end(t1,silent=True)
+        print(f'------Completed. Time spent in cross-correlation: {txcor}s.')
+
+        #The following is to compare time spent in parallel computation.
+        # txxx2 = ut.start()
+        # RV,list_of_CCFs,list_of_CCF_Es,list_of_T_sums = xcor(list_of_wls,list_of_orders_normalised,
+        # list_of_wlts,list_of_templates,drv,RVrange,list_of_errors=list_of_sigmas_normalised,
+        # parallel=True)
+        # txcor_p  = ut.end(txxx2,silent=True)
+
+
+
+    #Save CCFs to disk, read them back in and perform cleaning steps.
+    ut.tprint('---Writing CCFs to file and peforming cleaning steps.')
+    for i in range(len(templatelist)):
+        outpath = outpaths[i]
+        if do_xcor:
+            ut.tprint(f'------Writing CCF of {templatelist[i]} to {str(outpath)}')
+            ut.writefits(outpath/'ccf.fits',list_of_CCFs[i])
+            ut.writefits(outpath/'ccf_e.fits',list_of_CCF_Es[i])
+            ut.writefits(outpath/'RV.fits',RV)
+            ut.writefits(outpath/'Tsum.fits',list_of_T_sums[i])
+        else:
+            ut.tprint(f'---Reading CCF of template {templatename[i]} from {str(outpath)}.')
             if os.path.isfile(outpath/'ccf.fits') == False:
                 raise FileNotFoundError(f'CCF output not located at {outpath}. Rerun with '
                 'do_xcor=True to create these files.')
+
+        #Read regardless of whether XCOR was performed or not.
         rv=fits.getdata(outpath/'RV.fits')
         ccf = fits.getdata(outpath/'ccf.fits')
         ccf_e = fits.getdata(outpath/'ccf_e.fits')
         Tsums = fits.getdata(outpath/'Tsum.fits')
-
-        #ut.tprint('---Cleaning CCFs')
-        ccf_n,ccf_ne,ccf_nn,ccf_nne= clean_ccf(rv,ccf,ccf_e,dp)
-
-        if make_doppler_model == True:
-            shadow.construct_doppler_model(rv,ccf_nn,dp,shadowname,xrange=[-200,200],Nxticks=20.0,
-            Nyticks=10.0)
-            make_doppler_model = False # This sets it to False after it's been run once, for the
-            # first template.
-        if skip_doppler_model == False:
-            #ut.tprint(f'---Reading doppler shadow model from {shadowname}')
-            doppler_model,dsmask = shadow.read_shadow(dp,shadowname,rv,ccf)#This returns both the
-            #model evaluated on the rv,ccf grid, as well as the mask that blocks the planet trace.
-            ccf_clean,matched_ds_model = shadow.match_shadow(rv,ccf_nn,dsmask,dp,doppler_model)
-
-
-            #THIS IS AN ADDITIVE CORRECTION, SO CCF_NNE DOES NOT NEED TO BE ALTERED AND IS STILL V
-            #ALID VOOR CCF_CLEAN
-        else:
-            #ut.tprint('---Not performing shadow correction')
-            ccf_clean = ccf_nn*1.0
-            matched_ds_model = ccf_clean*0.0
-
-        #High-pass filtering
-        if f_w > 0.0:
-            #ut.tprint('---Performing high-pass filter on the CCF')
-            ccf_clean_filtered,wiggles = filter_ccf(rv,ccf_clean,v_width = f_w)#THIS IS ALSO AN
-            #ADDITIVE CORRECTION, SO CCF_NNE IS STILL VALID.
-        else:
-            #ut.tprint('---Skipping high-pass filter')
-            ccf_clean_filtered = ccf_clean*1.0
-            wiggles = ccf_clean*0.0#This filtering is additive so setting to zero is accurate.
-
-        #ut.tprint('---Weighing CCF rows by mean fluxes that were normalised out')
-        ccf_clean_weighted = np.transpose(np.transpose(ccf_clean_filtered)*meanfluxes_norm)
-        #MULTIPLYING THE AVERAGE FLUXES BACK IN! NEED TO CHECK THAT THIS ALSO GOES PROPERLY WITH
-        #THE ERRORS!
-        ccf_nne = np.transpose(np.transpose(ccf_nne)*meanfluxes_norm)
-
-        ut.save_stack(outpath/'cleaning_steps.fits',[ccf,ccf_nn,ccf_clean,matched_ds_model,
-        ccf_clean_filtered,wiggles,ccf_clean_weighted])
-        ut.writefits(outpath/'ccf_cleaned.fits',ccf_clean_weighted)
-        ut.writefits(outpath/'ccf_cleaned_error.fits',ccf_nne)
-        return (dsmask, doppler_model)
-
-    dsmasks, doppler_models = zip(*Parallel(n_jobs=-1, verbose=5)(delayed(do_xcor_parallel)(i) for i in range(len(list_of_wlts))))
-    dsmask = dsmasks[0]
-    doppler_model = doppler_models[0]
-    """
-    #Perform the cross-correlation on the entire list of orders.
-    for i in range(len(list_of_wlts)):
-        templatename = templatelist[i]
-        wlt = list_of_wlts[i]
-        T = list_of_templates[i]
-        outpath = outpaths[i]
-        if do_xcor == True:
-            ut.tprint(f'---Cross-correlating spectra with template {templatename}.')
-            t1=ut.start()
-            rv,ccf,ccf_e,Tsums=xcor(list_of_wls,list_of_orders_normalised,np.flipud(np.flipud(wlt)),
-            T,drv,RVrange,list_of_errors=list_of_sigmas_normalised)
-            ut.end(t1)
-            ut.tprint(f'------Writing CCFs to {str(outpath)}')
-            ut.writefits(outpath/'ccf.fits',ccf)
-            ut.writefits(outpath/'ccf_e.fits',ccf_e)
-            ut.writefits(outpath/'RV.fits',rv)
-            ut.writefits(outpath/'Tsum.fits',Tsums)
-        else:
-            ut.tprint(f'---Reading CCFs with template {templatename} from {str(outpath)}.')
-            if os.path.isfile(outpath/'ccf.fits') == False:
-                raise FileNotFoundError(f'CCF output not located at {outpath}. Rerun with '
-                'do_xcor=True to create these files.')
-        rv=fits.getdata(outpath/'RV.fits')
-        ccf = fits.getdata(outpath/'ccf.fits')
-        ccf_e = fits.getdata(outpath/'ccf_e.fits')
-        Tsums = fits.getdata(outpath/'Tsum.fits')
-
 
         ut.tprint('---Cleaning CCFs')
         ccf_n,ccf_ne,ccf_nn,ccf_nne= clean_ccf(rv,ccf,ccf_e,dp)
@@ -667,23 +612,20 @@ def run_instance(p):
         if make_doppler_model == True:
             shadow.construct_doppler_model(rv,ccf_nn,dp,shadowname,xrange=[-200,200],Nxticks=20.0,
             Nyticks=10.0)
-            make_doppler_model = False # This sets it to False after it's been run once, for the
-            # first template.
+            make_doppler_model = False # This sets it to False after it's been run once, i.e. for
+            #the first template.
         if skip_doppler_model == False:
             ut.tprint(f'---Reading doppler shadow model from {shadowname}')
             doppler_model,dsmask = shadow.read_shadow(dp,shadowname,rv,ccf)#This returns both the
             #model evaluated on the rv,ccf grid, as well as the mask that blocks the planet trace.
             ccf_clean,matched_ds_model = shadow.match_shadow(rv,ccf_nn,dsmask,dp,doppler_model)
 
-
-            #THIS IS AN ADDITIVE CORRECTION, SO CCF_NNE DOES NOT NEED TO BE ALTERED AND IS STILL V
-            #ALID VOOR CCF_CLEAN
+            #THIS IS AN ADDITIVE CORRECTION, SO CCF_NNE DOES NOT NEED TO BE ALTERED AND IS STILL
+            #VALID VOOR CCF_CLEAN
         else:
             ut.tprint('---Not performing shadow correction')
             ccf_clean = ccf_nn*1.0
             matched_ds_model = ccf_clean*0.0
-
-
 
 
         #High-pass filtering
@@ -714,23 +656,24 @@ def run_instance(p):
         # ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
         # ut.writefits(outpath/'Kp.fits',Kp)
 
-        print('')
- 
+
+    # print('DONE')
+    # print(f'Time spent in serial xcor: {txcor}s')
+    # print(f'{txcor/len(list_of_wlts)}s per template.')
+    # print('')
+    # print(f'Time spent in parallel xcor: {txcor_p}s')
+    # print(f'{txcor_p/len(list_of_wlts)}s per template.')
+
 
     #Now repeat it all for the model injection.
     if inject_model == True and do_xcor == True:
-
         for modelname in modellist:
-
             if do_xcor == True:
                 print('---Injecting model '+modelname)
-
                 list_of_orders_injected=models.inject_model(list_of_wls,list_of_orders,dp,modelname,
                 model_library=model_library)#Start with the unnormalised orders from before.
                 #Normalize the orders to their average flux in order to effectively apply
                 #a broad-band colour correction (colour is a function of airmass and seeing).
-
-
 
                 if do_colour_correction == True:
                     print('------Normalizing injected orders to common flux level')
@@ -740,38 +683,52 @@ def run_instance(p):
                 else:
                     meanfluxes_norm_injected = np.ones(len(list_of_orders_injected[0])) #fun.findgen(len(list_of_orders_injected[0]))*0.0+1.0
 
-            
 
-                #Perform the cross-correlation on the entire list of orders.
-                for i in range(len(list_of_wlts)):
-                    templatename = templatelist[i]
-                    wlt = list_of_wlts[i]
-                    T = list_of_templates[i]
+
+
+                if do_xcor:#Perform the cross-correlation on the entire list of orders and the entire list of
+                    #templates, in parallel or sequentially.
+                    if xcor_parallel:
+                        ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} '
+                        'templates in parallel.')
+                    if xcor_parallel:
+                        ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} '
+                        'templates in sequence.')
+
+                    t1 = ut.start()
+
+                    RV_i,list_of_CCFs_i,list_of_CCF_Es_i,list_of_T_sums_i = xcor(list_of_wls,
+                    list_of_orders_normalised,list_of_wlts,list_of_templates,drv,RVrange,
+                    list_of_errors=list_of_sigmas_normalised,parallel=xcor_parallel)
+
+                    txcor  = ut.end(t1,silent=True)
+                    print(f'------Completed. Time spent in cross-correlation: {txcor}s.')
+
+
+    #Save CCFs to disk, read them back in and perform cleaning steps.
+                ut.tprint('---Writing CCFs to file and peforming cleaning steps.')
+                for i in range(len(templatelist)):
                     outpath_i = outpaths[i]/modelname
-                    #Save the correlation results in subfolders of the template, which was in:
-                        #Path('output')/Path(dataname)/Path(libraryname)/Path(templatename)
-                    if do_xcor == True:
-                        ut.tprint('------Cross-correlating injected orders')
-                        rv_i,ccf_i,ccf_e_i,Tsums_i=xcor(list_of_wls,list_of_orders_injected,np.flipud(
-                            np.flipud(wlt)),T,drv,RVrange,list_of_errors=list_of_sigmas_injected)
-                        ut.tprint(f'------Writing injected CCFs to {outpath_i}')
+                    if do_xcor:
+                        ut.tprint(f'------Writing {modelname}-injected CCF of {templatelist[i]} '
+                        f'to {str(outpath)}.')
                         if not os.path.exists(outpath_i):
                             ut.tprint("---------That path didn't exist, I made it now.")
                             os.makedirs(outpath_i)
-                        ut.writefits(outpath_i/'ccf_i.fits',ccf_i)
-                        ut.writefits(outpath_i/'ccf_e_i.fits',ccf_e_i)
-                        ut.writefits(outpath_i/'RV.fits',rv_i)
-                        ut.writefits(outpath_i/'Tsum.fits',Tsums_i)
+                        ut.writefits(outpath_i/'ccf.fits',list_of_CCFs_i[i])
+                        ut.writefits(outpath_i/'ccf_e.fits',list_of_CCF_Es_i[i])
+                        ut.writefits(outpath_i/'RV.fits',RV_i)
+                        ut.writefits(outpath_i/'Tsum.fits',list_of_T_sums_i[i])
+
                     else:
-                        ut.tprint(f'---Reading injected CCFs from {outpath_i}')
+                        ut.tprint(f'---Reading injected CCF from {outpath_i}')
                         if os.path.isfile(outpath_i/'ccf_i.fits') == False:
                             raise FileNotFoundError(f'Injected CCF not located at {str(outpath_i)} '
                             'Rerun do_xcor=True and inject_model=True to create these files.')
-                        rv_i = fits.getdata(outpath_i/'RV.fits')
-                        ccf_i = fits.getdata(outpath_i/'ccf_i.fits')
-                        ccf_e_i = fits.getdata(outpath_i/'ccf_e_i.fits')
-                        Tsums_i = fits.getdata(outpath_i/'Tsum.fits')
-
+                    rv_i = fits.getdata(outpath_i/'RV.fits')
+                    ccf_i = fits.getdata(outpath_i/'ccf_i.fits')
+                    ccf_e_i = fits.getdata(outpath_i/'ccf_e_i.fits')
+                    Tsums_i = fits.getdata(outpath_i/'Tsum.fits')
 
 
                     ut.tprint('---Cleaning injected CCFs')
@@ -821,7 +778,7 @@ def run_instance(p):
                     # if plot_xcor == True:
                     #     print('---Plotting KpVsys with '+modelname+' injected.')
                     #     analysis.plot_KpVsys(rv_i,Kp_i,KpVsys,dp,injected=KpVsys_i)
-    
+
             """
             def do_xcor_inj_parallel(i, do_xcor=do_xcor, skip_doppler_model=skip_doppler_model, dsmask=dsmask, f_w=f_w):
                 templatename = templatelist[i]
@@ -901,7 +858,7 @@ def run_instance(p):
                 # if plot_xcor == True:
                 #     print('---Plotting KpVsys with '+modelname+' injected.')
                 #     analysis.plot_KpVsys(rv_i,Kp_i,KpVsys,dp,injected=KpVsys_i)
-                return 0 
+                return 0
 
             result = Parallel(n_jobs=-1, verbose=5)(delayed(do_xcor_inj_parallel)(i) for i in range(len(list_of_wlts)))
             """

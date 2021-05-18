@@ -6,13 +6,11 @@ __all__ = [
     "construct_KpVsys"
 ]
 
-
-
-def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_errors=None):
+def xcor(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_errors=None,parallel=False):
     """
     This routine takes a combined dataset (in the form of lists of wl spaces,
     spectral orders and possible a matching list of errors on those spectal orders),
-    as well as a template (wlm,fxm) to cross-correlate with, and the cross-correlation
+    as well as a list of templates (wlm,fxm) to cross-correlate with, and the cross-correlation
     parameters (drv,RVrange). The code takes on the order of ~10 minutes for an entire
     HARPS dataset, which appears to be superior to my old IDL pipe.
 
@@ -22,7 +20,8 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
     inside spectral lines (the CCF is scale-invariant so their overall scaling
     doesn't matter),
 
-    It returns the RV axis and the resulting CCF in a tuple.
+    It returnsthe RV axis and lists of the resulting CCF, uncertainties and template integrals in a
+    tuple.
 
     Thanks to Brett Morris (bmorris3), this code now implements a clever numpy broadcasting trick to
     instantly apply and interpolate the wavelength shifts of the model template onto
@@ -36,14 +35,33 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
     typically measured in 100s of milliseconds rather than minutes.
 
     This way of calculation does impose some strict rules on NaNs, though. To keep things fast,
-    NaNs are now used to set the interpolated template matrix to zero wherever there are NaNs in the data.
-    These NaNs are found by looking at the first spectrum in the stack, with the assumption that
-    every NaN is in an all-NaN column. In the standard cross-correlation work-flow, isolated
+    NaNs are now used to set the interpolated template matrix to zero wherever there are NaNs in the
+    data. These NaNs are found by looking at the first spectrum in the stack, with the assumption
+    that every NaN is in an all-NaN column. In the standard cross-correlation work-flow, isolated
     NaNs are interpolated over (healed), after all.
 
     The places where there are NaN columns in the data are therefore set to 0 in the template matrix.
     The NaN values themselves are then set to to an arbitrary value, since they will never
     weigh into the average by construction.
+
+
+    The templates are provided as lists of wavelength and weight arrays. These are passed as lists
+    to enable parallel computation on multiple threads without having to re-instantiate the stacks
+    of spectra each time a template has to be cross-correlated with. Like other places in Tayph
+    where parellelisation is applied, this is much faster in theory. However, the interpolation of
+    the templates onto the data grid signifies a multiplication of the size of each template
+    variable equal to the number of velocity steps times the size of the wavelength axis of the
+    data. Multiplied by the number of templates, the total instantaneous memory load can be
+    enormous. For example in case of the demo data, the data's wavelength axis weights 2.6 MB.
+    Times 600 velocity steps makes 1.6GB. Times 10 templates makes 16GB, which is (more than) the
+    total memory of a typical laptop. And often, one may wish to compute dozens of templates
+    at a time. Running out of memory may crash the system in the worst case, or severely slow down
+    the computation, making it less efficient than a standard serial computation in a for-loop.
+
+    Parallel computation is therefore made optional, set by the parallel keyword. For small numbers
+    of templates or velocity steps; or on systems with large amounts of memory, parallelisation may
+    entail very significant speed gains. Otherwise, the user can keep this parameter switched off.
+
 
 
     Parameters
@@ -57,10 +75,10 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
     list_of_errors : list
         Optional, list of corresponding 2D error matrices.
 
-    wlm : np.ndarray
+    list_of_wlm : tuple or list of nd.arrays
         Wavelength axis of the template.
 
-    fxm : np.ndarray
+    list_of_fxm : tuple or list of nd.arrays
         Weight-axis of the template.
 
     drv : int,float
@@ -70,48 +88,47 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
         The velocity range in the positive and negative direction over which to
         evaluate the CCF. Typically >100 km/s.
 
-    plot : bool
-        Set to True for diagnostic plotting.
+    parallel: bool
+        Optional, enabling parallel computation (potentially highly demanding on memory).
 
     Returns
     -------
     RV : np.ndarray
         The radial velocity grid over which the CCF is evaluated.
 
-    CCF : np.ndarray
+    CCF : list of np.ndarrays
         The weighted average flux in the spectrum as a function of radial velocity.
 
-    CCF_E : np.ndarray
+    CCF_E : list of np.ndarrays
         Optional. The error on each CCF point propagated from the error on the spectral values.
 
-    Tsums : np.ndarray
-        The sum of the template for each velocity step. Used for normalising the CCFs.
+    Tsums : list of np.ndarrays
+        The sums of the template for each velocity step. Used for normalising the CCFs.
     """
 
     import tayph.functions as fun
     import astropy.constants as const
     import tayph.util as ut
-    from tayph.vartests import typetest,dimtest,postest,nantest
+    from tayph.vartests import typetest,dimtest,postest,nantest,lentest
     import numpy as np
     import scipy.interpolate
     import astropy.io.fits as fits
     import matplotlib.pyplot as plt
     import sys
     import pdb
+    from joblib import Parallel, delayed
 
 #===FIRST ALL SORTS OF TESTS ON THE INPUT===
     if len(list_of_wls) != len(list_of_orders):
         raise ValueError(f'In xcor(): List of wls and list of orders have different length ({len(list_of_wls)} & {len(list_of_orders)}).')
 
-    dimtest(wlm,[len(fxm)],'wlm in ccf.xcor()')
-    typetest(wlm,np.ndarray,'wlm in ccf.xcor')
-    typetest(fxm,np.ndarray,'fxm in ccf.xcor')
+    t_init = ut.start()
+    NT = len(list_of_fxm)
+    lentest(list_of_wlm,NT,'list_of_wlm in ccf.xcor()')
     typetest(drv,[int,float],'drv in ccf.xcor')
     typetest(RVrange,float,'RVrange in ccf.xcor()',)
     postest(RVrange,'RVrange in ccf.xcor()')
     postest(drv,'drv in ccf.xcor()')
-    nantest(wlm,'fxm in ccf.xcor()')
-    nantest(fxm,'fxm in ccf.xcor()')
     nantest(drv,'drv in ccf.xcor()')
     nantest(RVrange,'RVrange in ccf.xcor()')
 
@@ -140,43 +157,85 @@ def xcor(list_of_wls,list_of_orders,wlm,fxm,drv,RVrange,plot=False,list_of_error
     stack_of_orders = np.hstack(list_of_orders)
     stack_of_wls = np.concatenate(list_of_wls)
     if list_of_errors is not None:
-        stack_of_errors = np.hstack(list_of_errors)#Stack them horizontally
-
+        stack_of_errors2 = np.hstack(list_of_errors)**2#Stack them horizontally and square.
         #Check that the number of NaNs is the same in the orders as in the errors on the orders;
         #and that they are in the same place; meaning that if I add the errors to the orders, the number of
         #NaNs does not increase (NaN+value=NaN).
-        if (np.sum(np.isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors+stack_of_orders))) and (np.sum(np.isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors))):
-            raise ValueError(f"in CCF: The number of NaNs in list_of_orders and list_of_errors is not equal ({np.sum(np.isnan(list_of_orders))},{np.sum(np.isnan(list_of_errors))})")
+        if (np.sum(np.isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors2+stack_of_orders))) and (np.sum(np.isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors2))):
+            raise ValueError(f"in CCF: The number of NaNs in list_of_orders and list_of_errors is not equal ({np.sum(np.isnan(list_of_orders))},{np.sum(np.isnan(list_of_errors2))})")
 
 #===HERE IS THE JUICY BIT===
-    shifted_wavelengths = stack_of_wls * beta[:, np.newaxis]#2D broadcast of wl_data, each row shifted by beta[i].
-    T = scipy.interpolate.interp1d(wlm,fxm, bounds_error=False, fill_value=0)(shifted_wavelengths)#...making this a 2D thing.
-    T[:,np.isnan(stack_of_orders[0])] = 0.0#All NaNs are assumed to be in all-NaN columns. If that is not true, the below nantest will fail.
-    T_sums = np.sum(T,axis = 1)
-
+#===FIRST, FIND AND MARK NANS===
     #We check whether there are isolated NaNs:
-    n_nans = np.sum(np.isnan(stack_of_orders),axis=0)#This is the total number of NaNs in each column.
-    n_nans[n_nans==len(stack_of_orders)]=0#Whenever the number of NaNs equals the length of a column, set the flag to zero.
+    n_nans = np.sum(np.isnan(stack_of_orders),axis=0)#This is the total number of NaNs in each
+    #column. Whenever the number of NaNs equals the length of a column, we ignore them:
+    n_nans[n_nans==len(stack_of_orders)]=0
     if np.max(n_nans)>0:#If there are any columns which still have NaNs in them, we need to crash.
-        raise ValueError(f"in CCF: Not all NaN values are purely in columns. There are still isolated NaNs. Remove those.")
+        raise ValueError(f"in CCF: Not all NaN values are purely in data columns. There are still "
+        "isolated NaNs in the data. Remove those.")
+
+    #So we checked that all NaNs were in whole columns. These columns have the following indices:
+    nan_columns =  np.isnan(stack_of_orders[0])
+    #We set all of them to arbitrarily high values, but set the template to zero in those locations
+    #(see below). The reason this is OK is because at no time does the template see these values.
+    #The fact that the template shifts doesn't matter: If a line appears or disappears by shifting
+    #into a NaN-blocked region, T_sum changes as a function of RV, but not as a function of time.
+    #So at for each time (column) of the CCF, T_sum is identical.
+
+    #The only effect that could happen is that the planet signal appears from a NaN blocked area,
+    #creating a tiny time-dependence of the planet lines included in the average.
+    #(in fact this is implicitly always the case due to the edges of spectral orders and the
+    #edges of the data)
+    #Solving this would require that the template ignores all lines that pass over an edge or
+    #to a NaN affected areay. To be implemented?
 
     stack_of_orders[np.isnan(stack_of_orders)] = 47e20#Set NaNs to arbitrarily high values.
-    CCF = stack_of_orders @ T.T/T_sums#Here it the entire cross-correlation. Over all orders and velocity steps. No forloops.
-    CCF_E = CCF*0.0
-
-    #If the errors were provided, we do the same to those:
-    if list_of_errors is not None:
-        stack_of_errors[np.isnan(stack_of_errors)] = 42e20#we have already tested that these NaNs are in the same place.
-        CCF_E = stack_of_errors**2 @ (T.T/T_sums)**2#This has been mathematically proven.
+    if list_of_errors is not None: stack_of_errors2[np.isnan(stack_of_errors2)] = 42e20#we have
+    #already tested way before that the error array has NaNs are in the same place.
 
 
-#===THAT'S ALL. TEST INTEGRITY AND RETURN THE RESULT===
-    nantest(CCF,'CCF in ccf.xcor()')#If anything went wrong with NaNs in the data, these tests will fail because the matrix operation @ is non NaN-friendly.
-    nantest(CCF_E,'CCF_E in ccf.xcor()')
+
+    shifted_wls = stack_of_wls * beta[:, np.newaxis]#2D broadcast of wl_data, each row shifted by beta[i].
+    def do_xcor(i):#Calling XCOR on template i.
+        wlm = list_of_wlm[i]
+        fxm = list_of_fxm[i]
+        typetest(wlm,np.ndarray,'wlm in ccf.xcor')
+        typetest(fxm,np.ndarray,'fxm in ccf.xcor')
+        nantest(wlm,'fxm in ccf.xcor()')
+        nantest(fxm,'fxm in ccf.xcor()')
+        dimtest(wlm,[len(fxm)],'wlm in ccf.xcor()')
+
+        #A wild 2D thing has appeared! It's super effective!
+        T = scipy.interpolate.interp1d(wlm,fxm, bounds_error=False, fill_value=0)(shifted_wls)
+        #... it's also massive in memory: A copy of the data's wavelength axis for EACH velocity
+        #step. For the KELT-9 demo data, that's 2.7MB, times 600 velocity steps = 1.6 GB, times
+        #NT templates. So if you're running 20 templates in a row, good luck!
+
+        #How do we solve this?
+        T[:,nan_columns] = 0.0#All NaNs are assumed to be in all-NaN columns. If that is not true, the below nantest will fail.
+        T_sums = np.sum(T,axis = 1)
+        T = T.T/T_sums
+        CCF = stack_of_orders @ T#Here it the entire cross-correlation. Over all orders and
+        #velocity steps. No forloops.
+        CCF_E = CCF*0.0
+        #If the errors were provided, we do the same to those:
+        if list_of_errors is not None: CCF_E = np.sqrt(stack_of_errors2 @ T**2)#This has been
+        #mathematically proven: E^2 = e^2 * T^2
+
+
+        #===THAT'S ALL. TEST INTEGRITY AND RETURN THE RESULT===
+        nantest(CCF,'CCF in ccf.xcor()')#If anything went wrong with NaNs in the data, these tests will fail because the matrix operation @ is non NaN-friendly.
+        nantest(CCF_E,'CCF_E in ccf.xcor()')
+        return(CCF,CCF_E,T_sums)
+
+    if parallel:#This here takes a lot of memory.
+        list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*Parallel(n_jobs=NT)(delayed(do_xcor)(i) for i in range(NT)))
+    else:
+        list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*[do_xcor(i) for i in range(NT)])
 
     if list_of_errors != None:
-        return(RV,CCF,np.sqrt(CCF_E),T_sums)
-    return(RV,CCF,T_sums)
+        return(RV,list_of_CCFs,list_of_CCF_Es,list_of_T_sums)
+    return(RV,list_of_CCFs,list_of_T_sums)
 
 
 
@@ -392,10 +451,10 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
         ccf_shifted = shift_ccf(rv,ccf,dRV)
         ccf_e_shifted = shift_ccf(rv,ccf_e,dRV)
         return (np.nansum(transitblock * ccf_shifted,axis=0), (np.nansum((transitblock*ccf_e_shifted)**2.0,axis=0))**0.5)
-    
+
     KpVsys, KpVsys_e = zip(*Parallel(n_jobs=-1)(delayed(Kp_parallel)(i) for i in Kp))
 
-    
+
     return(Kp,KpVsys,KpVsys_e)
 
     # CCF_total = np.zeros((n_exp,n_rv))

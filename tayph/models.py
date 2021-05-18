@@ -9,7 +9,8 @@ __all__ = [
 
 
 
-def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0.0,c_subtract=True,twopass=False,template_library='models/library'):
+def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0.0,c_subtract=True,
+twopass=False,template_library='models/library',verbose=False):
     """This routine reads a specified model from the library and turns it into a
     cross-correlation template by subtracting the top-envelope (or bottom envelope),
     if c_subtract is set to True."""
@@ -66,10 +67,12 @@ def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0
 
     if resolution !=0.0:
         dRV = c/resolution
-        print(f'------Blurring template to resolution of data ({round(resolution,0)}, {round(dRV,2)} km/s)')
+        if verbose:
+            ut.tprint(f'------Blurring template to resolution of data ({round(resolution,0)}, {round(dRV,2)} km/s)')
         wlt_cv,T_cv,vstep=ops.constant_velocity_wl_grid(wlt,T,oversampling=2.0)
-        print(f'---------v_step is {np.round(vstep,3)} km/s')
-        print(f'---------So the resolution blurkernel has an avg width of {np.round(dRV/vstep,3)} px.')
+        if verbose:
+            ut.tprint(f'---------v_step is {np.round(vstep,3)} km/s')
+            ut.tprint(f'---------So the resolution blurkernel has an avg width of {np.round(dRV/vstep,3)} px.')
         T_b=ops.smooth(T_cv,dRV/vstep,mode='gaussian')
         wlt = wlt_cv*1.0
         T = T_b*1.0

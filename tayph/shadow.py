@@ -225,8 +225,7 @@ def mask_ccf_near_RV(rv,ccf,RVp,hw):
         ccf_mask[i,sel] = np.nan
     return(ccf_mask)
 
-def match_shadow(rv,ccf,mask,dp,doppler_model):
-    #THIS NEEDS TO BE DEBUGGED OR SIMPLIFIED (FOLDED INTO THE CLASS BELOW) ALTOGETHER
+def match_shadow(rv,ccf,mask,dp,doppler_model,verbose=True):
     import scipy.optimize
     # import pdb
     import numpy as np
@@ -249,8 +248,9 @@ def match_shadow(rv,ccf,mask,dp,doppler_model):
         diff[np.isnan(diff)] = 0.0
         return(diff.flatten())
     result = scipy.optimize.leastsq(scale_shadow,[0.5,0.0],args = (doppler_model,ccf*mask))
-    print(f'------Obtained scaling and offset: {np.round(result[0][0],3)}, '+format(result[0][1],'.2e'))
-    print('------If the scaling is not nearly exactly 1 for the species for which the model was made, there is a problem.')
+    if verbose:
+        print(f'------Obtained scaling and offset of shadow model: {np.round(result[0][0],3)}, '+format(result[0][1],'.2e'))
+    # print('------If the scaling is not nearly exactly 1 for the species for which the model was made, there is a problem.')
 
     matched_model = result[0][0]*doppler_model+result[0][1]
     return(ccf - matched_model,matched_model)

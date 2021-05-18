@@ -384,7 +384,7 @@ def read_telluric_transmission_from_file(inpath):
     return(pickle.load(pickle_in))#This is a tuple that can be unpacked into 2 elements.
 
 
-def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
+def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas,parallel=False):
     """
     This applies a set of telluric spectra (computed by molecfit) for each exposure
     in our time series that were written to a pickle file by write_telluric_transmission_to_file.
@@ -469,10 +469,12 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
             #telluric correction is identical.
 
         return (order_cor, error_cor)
-    
-    # executing all No jobs simultaneously
-    list_of_orders_cor, list_of_sigmas_cor = zip(*Parallel(n_jobs=No)(delayed(telluric_correction_order)(i) for i in range(No)))
 
+    # executing all No jobs simultaneously
+    if parallel:
+        list_of_orders_cor, list_of_sigmas_cor = zip(*Parallel(n_jobs=No)(delayed(telluric_correction_order)(i) for i in range(No)))
+    else:
+        list_of_orders_cor, list_of_sigmas_cor = zip(*[telluric_correction_order(i) for i in range(No)])
     return(list_of_orders_cor,list_of_sigmas_cor)
 
 
@@ -560,7 +562,9 @@ def test_molecfit_config(molecfit_config):
     except:
         err_msg = (f'ERROR in initialising Molecfit. The molecfit configuration file '
         f'({molecfit_config}) exists, but it does not contain the right keywords. The required '
-        'parameters are molecfit_input_folder, molecfit_prog_folder and python_alias')
+        'parameters are molecfit_input_folder, molecfit_prog_folder and python_alias. '
+        'Alternatively, check that you have set the configfile parameter in run.molecfit() '
+        'correctly.')
         ut.tprint(err_msg)
         sys.exit()
 
@@ -569,7 +573,8 @@ def test_molecfit_config(molecfit_config):
             f"({molecfit_config}) exists and it has the correct parameter keywords "
             f"(molecfit_input_folder, molecfit_prog_folder and python_alias), but the "
             f"molecfit_input_folder path ({molecfit_input_folder}) does not exist. Please run "
-            f"tayph.tellurics.set_molecfit_config() to resolve this.")
+            f"tayph.tellurics.set_molecfit_config() to resolve this. Alternatively, check that "
+            f"you have set the configfile parameter in run.molecfit() correctly.")
         ut.tprint(err_msg)
         sys.exit()
 
@@ -578,7 +583,8 @@ def test_molecfit_config(molecfit_config):
             f"({molecfit_config}) exists and it has the correct parameter keywords "
             f"(molecfit_input_folder, molecfit_prog_folder and python_alias), but the "
             f"molecfit_prog_folder path ({molecfit_prog_folder}) does not exist. Please run "
-            f"tayph.tellurics.set_molecfit_config() to resolve this.")
+            f"tayph.tellurics.set_molecfit_config() to resolve this. Alternatively, check that "
+            f"you have set the configfile parameter in run.molecfit() correctly.")
         ut.tprint(err_msg)
         sys.exit()
     binarypath=molecfit_prog_folder/'molecfit'
@@ -589,7 +595,8 @@ def test_molecfit_config(molecfit_config):
                 f"({molecfit_config}) exists and it has the correct parameter keywords "
                 f"(molecfit_input_folder, molecfit_prog_folder and python_alias), but the molecfit "
                 f"binary ({binarypath}) does not exist. Please run "
-                f"tayph.tellurics.set_molecfit_config() to resolve this.")
+                f"tayph.tellurics.set_molecfit_config() to resolve this. Alternatively, check that "
+                f"you have set the configfile parameter in run.molecfit() correctly.")
         ut.tprint(err_msg)
         sys.exit()
 
@@ -598,7 +605,8 @@ def test_molecfit_config(molecfit_config):
                 f"({molecfit_config}) exists and it has the correct parameter keywords "
                 f"(molecfit_input_folder, molecfit_prog_folder and python_alias), but the molecfit "
                 f"gui binary ({guipath}) does not exist. Please run "
-                f"tayph.tellurics.set_molecfit_config() to resolve this.")
+                f"tayph.tellurics.set_molecfit_config() to resolve this. Alternatively, check that "
+                f"you have set the configfile parameter in run.molecfit() correctly.")
         ut.tprint(err_msg)
         sys.exit()
 
@@ -607,7 +615,8 @@ def test_molecfit_config(molecfit_config):
                 f'({molecfit_config}) exists and it has the correct parameter keywords '
                 f'(molecfit_input_folder, molecfit_prog_folder and python_alias), but the python '
                 f'alias ({python_alias}) does not exist. Please run '
-                f'tayph.tellurics.set_molecfit_config() to resolve this.')
+                f'tayph.tellurics.set_molecfit_config() to resolve this. Alternatively, check that '
+                f"you have set the configfile parameter in run.molecfit() correctly.")
         ut.tprint(err_msg)
         sys.exit()
 

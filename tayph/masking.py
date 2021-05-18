@@ -22,7 +22,7 @@ __all__ = [
 
 
 
-def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False):
+def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False,parallel=False):
     #This is a helper function I had to dump here that is mostly unrelated to the GUI,
     #but with healing NaNs. If there are too many NaNs in a column, instead of
     #interpolating, just set the entire column to NaN. If an entire column is set to NaN,
@@ -107,7 +107,10 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False):
 
         return (order, [N_nans_columns, N_nans_isolated, N_pixels, N_healed])
 
-    list_of_healed_orders, N_list = zip(*Parallel(n_jobs=len(list_of_orders))(delayed(interpolate_over_NaNs_parallel)(i) for i in range(len(list_of_orders))))
+    if parallel:
+        list_of_healed_orders, N_list = zip(*Parallel(n_jobs=len(list_of_orders))(delayed(interpolate_over_NaNs_parallel)(i) for i in range(len(list_of_orders))))
+    else:
+        list_of_healed_orders, N_list = zip(*[interpolate_over_NaNs_parallel(i) for i in range(len(list_of_orders))])
 
     list_of_healed_orders = list(list_of_healed_orders)
 

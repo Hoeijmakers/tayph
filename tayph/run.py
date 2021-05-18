@@ -691,7 +691,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                     if xcor_parallel:
                         ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} '
                         'templates in parallel.')
-                    if xcor_parallel:
+                    if else:
                         ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} '
                         'templates in sequence.')
 
@@ -715,8 +715,8 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                         if not os.path.exists(outpath_i):
                             ut.tprint("---------That path didn't exist, I made it now.")
                             os.makedirs(outpath_i)
-                        ut.writefits(outpath_i/'ccf.fits',list_of_CCFs_i[i])
-                        ut.writefits(outpath_i/'ccf_e.fits',list_of_CCF_Es_i[i])
+                        ut.writefits(outpath_i/'ccf_i.fits',list_of_CCFs_i[i])
+                        ut.writefits(outpath_i/'ccf_e_i.fits',list_of_CCF_Es_i[i])
                         ut.writefits(outpath_i/'RV.fits',RV_i)
                         ut.writefits(outpath_i/'Tsum.fits',list_of_T_sums_i[i])
 

@@ -1459,12 +1459,17 @@ save_figure=True):
         #Slow, also needs parallelising.
         s1d_block=masking.interpolate_over_NaNs([s1d_block])[0]
         print(f'---Performing cross-correlation and plotting output.')
-        rv,ccf,Tsums=xcor(list_of_waves_trimmed,list_of_orders_trimmed,np.flipud(np.flipud(wlm)),
-            fxmn-1.0,drv,RVrange)
-        rv1d,ccf1d,Tsums1d=xcor([wave_1d],[s1d_block],np.flipud(np.flipud(wlm)),fxmn-1.0,drv,RVrange)
-        rvT,ccfT,TsusmT=xcor([wave_1d],[s1d_block],np.flipud(np.flipud(wlt)),fxtn-1.0,drv,RVrange)
-        rvT2D,ccfT2D,TsusmT2D=xcor(list_of_waves_trimmed,list_of_orders_trimmed,
-            np.flipud(np.flipud(wlt)),fxtn-1.0,drv,RVrange)
+        rv,ccf,Tsums=xcor(list_of_waves_trimmed,list_of_orders_trimmed,[wlm],
+        [fxmn-1.0],drv,RVrange)
+        rv1d,ccf1d,Tsums1d=xcor([wave_1d],[s1d_block],[wlm],[fxmn-1.0],drv,RVrange)
+        rvT,ccfT,TsusmT=xcor([wave_1d],[s1d_block],[wlt],[fxtn-1.0],drv,RVrange)
+        rvT2D,ccfT2D,TsusmT2D=xcor(list_of_waves_trimmed,list_of_orders_trimmed,[wlt],[fxtn-1.0],
+        drv,RVrange)
+
+        ccf=ccf[0]
+        ccf1d=ccf1d[0]
+        ccfT=ccfT[0]
+        ccfT2D=ccfT2D[0]
 
 
 

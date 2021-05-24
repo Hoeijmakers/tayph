@@ -6,7 +6,8 @@ __all__ = [
     "construct_KpVsys"
 ]
 
-def xcor(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_errors=None,parallel=False):
+def xcor(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_errors=None,
+parallel=False):
     """
     This routine takes a combined dataset (in the form of lists of wl spaces,
     spectral orders and possible a matching list of errors on those spectal orders),
@@ -40,8 +41,8 @@ def xcor(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_
     that every NaN is in an all-NaN column. In the standard cross-correlation work-flow, isolated
     NaNs are interpolated over (healed), after all.
 
-    The places where there are NaN columns in the data are therefore set to 0 in the template matrix.
-    The NaN values themselves are then set to to an arbitrary value, since they will never
+    The places where there are NaN columns in the data are therefore set to 0 in the template
+    matrix. The NaN values themselves are then set to to an arbitrary value, since they will never
     weigh into the average by construction.
 
 
@@ -116,11 +117,12 @@ def xcor(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_
     import matplotlib.pyplot as plt
     import sys
     import pdb
-    from joblib import Parallel, delayed
+    if parallel: from joblib import Parallel, delayed
 
 #===FIRST ALL SORTS OF TESTS ON THE INPUT===
     if len(list_of_wls) != len(list_of_orders):
-        raise ValueError(f'In xcor(): List of wls and list of orders have different length ({len(list_of_wls)} & {len(list_of_orders)}).')
+        raise ValueError(f'In xcor(): List of wls and list of orders have different length '
+        f'({len(list_of_wls)} & {len(list_of_orders)}).')
 
     t_init = ut.start()
     NT = len(list_of_fxm)
@@ -148,7 +150,7 @@ def xcor(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_
 
 #===END OF TESTS. NOW DEFINE CONSTANTS===
     c=const.c.to('km/s').value#In km/s
-    RV= np.arange(-RVrange, RVrange+drv, drv, dtype=float) #fun.findgen(2.0*RVrange/drv+1)*drv-RVrange#..... CONTINUE TO DEFINE THE VELOCITY GRID
+    RV= np.arange(-RVrange, RVrange+drv, drv, dtype=float) #The velocity grid.
     beta=1.0-RV/c#The doppler factor with which each wavelength is to be shifted.
     n_rv = len(RV)
 
@@ -159,10 +161,13 @@ def xcor(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_
     if list_of_errors is not None:
         stack_of_errors2 = np.hstack(list_of_errors)**2#Stack them horizontally and square.
         #Check that the number of NaNs is the same in the orders as in the errors on the orders;
-        #and that they are in the same place; meaning that if I add the errors to the orders, the number of
-        #NaNs does not increase (NaN+value=NaN).
-        if (np.sum(np.isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors2+stack_of_orders))) and (np.sum(np.isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors2))):
-            raise ValueError(f"in CCF: The number of NaNs in list_of_orders and list_of_errors is not equal ({np.sum(np.isnan(list_of_orders))},{np.sum(np.isnan(list_of_errors2))})")
+        #and that they are in the same place; meaning that if I add the errors to the orders, the
+        #number of NaNs does not increase (NaN+value=NaN).
+        if (np.sum(np.isnan(stack_of_orders)) != np.sum(np.isnan(stack_of_errors2+
+        stack_of_orders))) and (np.sum(np.isnan(stack_of_orders)) !=
+        np.sum(np.isnan(stack_of_errors2))):
+            raise ValueError(f"in CCF: The number of NaNs in list_of_orders and list_of_errors is "
+            f"not equal ({np.sum(np.isnan(list_of_orders))},{np.sum(np.isnan(list_of_errors2))})")
 
 #===HERE IS THE JUICY BIT===
 #===FIRST, FIND AND MARK NANS===
@@ -195,7 +200,8 @@ def xcor(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_
 
 
 
-    shifted_wls = stack_of_wls * beta[:, np.newaxis]#2D broadcast of wl_data, each row shifted by beta[i].
+    shifted_wls = stack_of_wls * beta[:, np.newaxis]#2D broadcast of wl_data, each row shifted by
+    #beta[i].
     def do_xcor(i):#Calling XCOR on template i.
         wlm = list_of_wlm[i]
         fxm = list_of_fxm[i]
@@ -212,7 +218,8 @@ def xcor(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_
         #NT templates. So if you're running 20 templates in a row, good luck!
 
         #How do we solve this?
-        T[:,nan_columns] = 0.0#All NaNs are assumed to be in all-NaN columns. If that is not true, the below nantest will fail.
+        T[:,nan_columns] = 0.0#All NaNs are assumed to be in all-NaN columns. If that is not true,
+        #the below nantest will fail.
         T_sums = np.sum(T,axis = 1)
         T = T.T/T_sums
         CCF = stack_of_orders @ T#Here it the entire cross-correlation. Over all orders and
@@ -224,12 +231,14 @@ def xcor(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_
 
 
         #===THAT'S ALL. TEST INTEGRITY AND RETURN THE RESULT===
-        nantest(CCF,'CCF in ccf.xcor()')#If anything went wrong with NaNs in the data, these tests will fail because the matrix operation @ is non NaN-friendly.
+        nantest(CCF,'CCF in ccf.xcor()')#If anything went wrong with NaNs in the data, these tests
+        #will fail because the matrix operation @ is non NaN-friendly.
         nantest(CCF_E,'CCF_E in ccf.xcor()')
         return(CCF,CCF_E,T_sums)
 
     if parallel:#This here takes a lot of memory.
-        list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*Parallel(n_jobs=NT)(delayed(do_xcor)(i) for i in range(NT)))
+        list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*Parallel(n_jobs=NT)(delayed(do_xcor)(i)
+        for i in range(NT)))
     else:
         list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*[do_xcor(i) for i in range(NT)])
 

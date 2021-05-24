@@ -38,7 +38,7 @@ def make_project_folder(pwd='.'):
 
 
 
-def start_run(configfile,parallel=True,xcor_parallel=True):
+def start_run(configfile,parallel=True,xcor_parallel=False):
     """
     This is the main command-line initializer of the cross-correlation routine provided by Tayph.
     It parses a configuration file located at configfile which should contain predefined keywords.
@@ -46,6 +46,32 @@ def start_run(configfile,parallel=True,xcor_parallel=True):
     A call to this function is called a "run" of Tayph. A run has this configuration file as input,
     as well as a dataset, a (list of) cross-correlation template(s) and a (list of) models for
     injection purposes.
+
+    Various routines in the main analysis cascade have been parallelised as of May 2021,
+    allowing for a great speed up on systems that support multi-threading. In case simple
+    parallelisation via the joblib package is not possible on your system, parallel computation
+    can be switched off by setting parallel=False.
+
+    Parallelisation of the cross-correlation function is handled separately, because it is highly
+    demanding on the available memory, with each template doppler-shifted to all radial velocity
+    samples having to be loaded into memory at once. Memory usage scales with the number of
+    templates, the number of spectral pixels per template, and the number of cross-correlation steps
+    ( = RVrange / dv).
+
+    As an example, the templates provided along with the demo data weigh 2.8 MB each when being
+    interpolated onto the wavelength grid of the data. That's 1.4GB for 500 RV points (e.g. 250 km/s
+    on either side for 1 km/s velocity steps, close to the bare minimum you would need). Doing more
+    than 5 such templates in parallel will overflow the memory of a standard laptop (8GB RAM).
+    Realisticly, you might be computing 8 or 16 templates in parallel (depending on the number of
+    threads you have), with 1000 steps in velocity, meaning that you'd
+    need 20 to 40 GB of RAM. That's in the realm of servers.
+
+    Memory overflow won't necessarily make your system crash, as long as it has allocated sufficient
+    swap memory. However, that does make your calculation very slow, potentially slower than doing
+    the computation in sequence. Therefore, parallelisation of the cross-correlation operation is
+    provided via the xcor_parallel keyword, and is switched off by default. In case you are running
+    Tayph on a server with many cores and plenty of RAM, switching this on may effect speed gains
+    of factors of 5 to 10 in cross-correlation.
     """
     import tayph.system_parameters as sp
     cf = configfile
@@ -75,7 +101,7 @@ def start_run(configfile,parallel=True,xcor_parallel=True):
     print('')
 
     print('---Start')
-    print('---Load parameters from config file')
+    print(f'---Load parameters from {cf}')
     modellist = sp.paramget('model',cf,full_path=True).split(',')
     templatelist = sp.paramget('template',cf,full_path=True).split(',')
 
@@ -125,8 +151,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     import pickle
     import copy
     from pathlib import Path
-    from joblib import Parallel, delayed
-
+    if parallel or xcor_parallel: from joblib import Parallel, delayed
     import tayph.util as ut
     import tayph.operations as ops
     import tayph.functions as fun
@@ -219,7 +244,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
     ut.tprint('---Passed parameter input tests. Initiating output folder tree in '
-    'f{Path("output")/dp}.')
+    f'{Path("output")/dp}.')
     libraryname=str(template_library).split('/')[-1]
     if str(dp).split('/')[0] == 'data':
         dataname=str(dp).replace('data/','')
@@ -343,8 +368,11 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                 if trigger2 == 0:
                     ut.tprint('------WARNING: Sigma (flux error) files not provided. '
                     'Assuming sigma = sqrt(flux). This is standard practise for HARPS data, but '
-                    'e.g. ESPRESSO has a pipeline that computes standard errors on each pixel for '
-                    'you.')
+                    'e.g. ESPRESSO has a pipeline that computes standard errors on each pixel more '
+                    'accurately. The sqrt approximation is known to be inappropriate for data '
+                    'of CARMENES or GIANO, because these pipeline renormalise the spectra. Make '
+                    'sure that the errors are treated properly, otherwise the error-bars on the '
+                    'output CCFs will be invalid.')
                     trigger2=-1
                 list_of_sigmas.append(np.sqrt(order_i))
 
@@ -352,7 +380,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
         #This ends the loop in which the data are read in. Print the final number of pixels that
         #was vetted because they were negative.
-        ut.tprint(f'------{n_negative_total} negative values set to NaN in total'
+        ut.tprint(f'------{n_negative_total} negative values set to NaN in total '
         f'({np.round(100.0*n_negative_total/n_exp/n_px/len(order_numbers),2)}% of total spectral '
         'pixels in dataset).')
 
@@ -491,8 +519,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 #Interpolate over all isolated NaNs and set bad columns to NaN (so that they are ignored in the CCF)
     if do_xcor == True:
         print('---Healing NaNs')
-        list_of_orders = masking.interpolate_over_NaNs(list_of_orders,parallel=parallel)#THERE IS AN ISSUE HERE:
-        #INTERPOLATION SHOULD ALSO HAPPEN ON THE SIGMAS ARRAY!
+        list_of_orders = masking.interpolate_over_NaNs(list_of_orders,parallel=parallel)
         list_of_sigmas = masking.interpolate_over_NaNs(list_of_sigmas,quiet=True,parallel=parallel)
 
 
@@ -508,14 +535,16 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     #correction (colour is typically a function of airmass and seeing).
     if do_colour_correction == True:
         print('---Normalizing orders to common flux level')
-        # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',alpha=0.4)
+        # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',
+        #alpha=0.4)
         list_of_orders_normalised,list_of_sigmas_normalised,meanfluxes = (
         ops.normalize_orders(list_of_orders,list_of_sigmas,colourdeg))#I tested that this works
         #because it doesn't alter the SNR.
 
         meanfluxes_norm = meanfluxes/np.nanmean(meanfluxes)
     else:
-        meanfluxes_norm = np.ones(len(list_of_orders[0])) #fun.findgen(len(list_of_orders[0]))*0.0+1.0#All unity.
+        meanfluxes_norm = np.ones(len(list_of_orders[0]))
+        #fun.findgen(len(list_of_orders[0]))*0.0+1.0#All unity.
         # plt.plot(list_of_wls[60],list_of_orders_normalised[60][10]/list_of_sigmas[60][10],
         # color='red',alpha=0.4)
         # plt.show()
@@ -540,9 +569,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
             T*=(-1.0)
             if np.median(wlt) < 50.0:#This is likely in microns:
-                ut.tprint('------WARNING: The loaded template has a median wavelength less than 50.0,'
-                'meaning that it is very likely not in nm, but in microns. I have divided by 1,000'
-                'now and hope for the best...')
+                ut.tprint('------WARNING: The loaded template has a median wavelength less than '
+                '50.0, meaning that it is very likely not in nm, but in microns. I have divided by '
+                '1,000 now and hope for the best...')
                 wlt*=1000.0
             outpath=Path('output')/Path(dataname)/Path(libraryname)/Path(templatename)
 
@@ -554,9 +583,11 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
         if parallel:
-            list_of_wlts, list_of_templates, outpaths = zip(*Parallel(n_jobs=len(templatelist))(delayed(construct_template)(templatename) for templatename in templatelist))
+            list_of_wlts, list_of_templates, outpaths = zip(*Parallel(n_jobs=len(templatelist)
+            )(delayed(construct_template)(templatename) for templatename in templatelist))
         else:
-            list_of_wlts, list_of_templates, outpaths = zip(*[construct_template(templatename,verbose=True) for templatename in templatelist])
+            list_of_wlts, list_of_templates, outpaths = zip(*[construct_template(templatename,
+            verbose=True) for templatename in templatelist])
 
 
     if do_xcor:#Perform the cross-correlation on the entire list of orders and the entire list of
@@ -573,14 +604,15 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         list_of_wlts,list_of_templates,drv,RVrange,list_of_errors=list_of_sigmas_normalised,
         parallel=xcor_parallel)
         txcor  = ut.end(t1,silent=True)
-        print(f'------Completed. Time spent in cross-correlation: {txcor}s.')
+        print(f'------Completed. Time spent in cross-correlation: {np.round(txcor,1)}s '
+        f'({np.round(txcor/len(list_of_templates),1)} per template).')
 
         #The following is to compare time spent in parallel computation.
-        txxx2 = ut.start()
-        RV,list_of_CCFs,list_of_CCF_Es,list_of_T_sums = xcor(list_of_wls,list_of_orders_normalised,
-        list_of_wlts,list_of_templates,drv,RVrange,list_of_errors=list_of_sigmas_normalised,
-        parallel=True)
-        txcor_p  = ut.end(txxx2,silent=True)
+        # txxx2 = ut.start()
+        # RV,list_of_CCFs,list_of_CCF_Es,list_of_T_sums = xcor(list_of_wls,list_of_orders_normalised,
+        # list_of_wlts,list_of_templates,drv,RVrange,list_of_errors=list_of_sigmas_normalised,
+        # parallel=True)
+        # txcor_p  = ut.end(txxx2,silent=True)
 
 
 
@@ -657,12 +689,12 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         # ut.writefits(outpath/'Kp.fits',Kp)
 
 
-    print('DONE')
-    print(f'Time spent in serial xcor: {txcor}s')
-    print(f'{txcor/len(list_of_wlts)}s per template.')
-    print('')
-    print(f'Time spent in parallel xcor: {txcor_p}s')
-    print(f'{txcor_p/len(list_of_wlts)}s per template.')
+    # print('DONE')
+    # print(f'Time spent in serial xcor: {txcor}s')
+    # print(f'{txcor/len(list_of_wlts)}s per template.')
+    # print('')
+    # print(f'Time spent in parallel xcor: {txcor_p}s')
+    # print(f'{txcor_p/len(list_of_wlts)}s per template.')
 
 
     #Now repeat it all for the model injection.
@@ -696,13 +728,12 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                         'templates in sequence.')
 
                     t1 = ut.start()
-
                     RV_i,list_of_CCFs_i,list_of_CCF_Es_i,list_of_T_sums_i = xcor(list_of_wls,
                     list_of_orders_normalised,list_of_wlts,list_of_templates,drv,RVrange,
                     list_of_errors=list_of_sigmas_normalised,parallel=xcor_parallel)
-
                     txcor  = ut.end(t1,silent=True)
-                    print(f'------Completed. Time spent in cross-correlation: {txcor}s.')
+                    print(f'------Completed. Time spent in cross-correlation: {np.round(txcor,1)}s '
+                    f'({np.round(txcor/len(list_of_templates),1)} per template).')
 
 
     #Save CCFs to disk, read them back in and perform cleaning steps.
@@ -778,8 +809,10 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                     # if plot_xcor == True:
                     #     print('---Plotting KpVsys with '+modelname+' injected.')
                     #     analysis.plot_KpVsys(rv_i,Kp_i,KpVsys,dp,injected=KpVsys_i)
-
-            """
+    print('')
+    print('---Tayph run completed successfully.')
+    print('')
+    """
             def do_xcor_inj_parallel(i, do_xcor=do_xcor, skip_doppler_model=skip_doppler_model, dsmask=dsmask, f_w=f_w):
                 templatename = templatelist[i]
                 wlt = list_of_wlts[i]
@@ -861,7 +894,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                 return 0
 
             result = Parallel(n_jobs=-1, verbose=5)(delayed(do_xcor_inj_parallel)(i) for i in range(len(list_of_wlts)))
-            """
+    """
 
 
 

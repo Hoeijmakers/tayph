@@ -420,7 +420,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas,p
     import tayph.functions as fun
     from tayph.vartests import dimtest,postest,typetest,nantest
     import copy
-    from joblib import Parallel, delayed
+    if parallel: from joblib import Parallel, delayed
 
     T = read_telluric_transmission_from_file(inpath)
     wlT=T[0]
@@ -472,9 +472,11 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas,p
 
     # executing all No jobs simultaneously
     if parallel:
-        list_of_orders_cor, list_of_sigmas_cor = zip(*Parallel(n_jobs=No)(delayed(telluric_correction_order)(i) for i in range(No)))
+        list_of_orders_cor, list_of_sigmas_cor = zip(*Parallel(n_jobs=No)(delayed(
+        telluric_correction_order)(i) for i in range(No)))
     else:
-        list_of_orders_cor, list_of_sigmas_cor = zip(*[telluric_correction_order(i) for i in range(No)])
+        list_of_orders_cor, list_of_sigmas_cor = zip(*[telluric_correction_order(i)
+        for i in range(No)])
     return(list_of_orders_cor,list_of_sigmas_cor)
 
 

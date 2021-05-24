@@ -202,7 +202,7 @@ def running_mean_2D(D,w):
 
 
 
-def running_MAD_2D(z,w,verbose=False):
+def running_MAD_2D(z,w,verbose=False,parallel=False):
     """Computers a running standard deviation of a 2-dimensional array z.
     The stddev is evaluated over the vertical block with width w pixels.
     The output is a 1D array with length equal to the width of z.
@@ -211,6 +211,7 @@ def running_MAD_2D(z,w,verbose=False):
     import numpy as np
     from tayph.vartests import typetest,dimtest,postest
     import tayph.util as ut
+    if parallel: from joblib import Parallel, delayed
     typetest(z,np.ndarray,'z in fun.running_MAD_2D()')
     dimtest(z,[0,0],'z in fun.running_MAD_2D()')
     typetest(w,[int,float],'w in fun.running_MAD_2D()')
@@ -228,13 +229,14 @@ def running_MAD_2D(z,w,verbose=False):
         if verbose: ut.statusbar(i,nx)
     return(s)
 
-def running_MAD(z,w):
+def running_MAD(z,w,parallel=False):
     """Computers a running standard deviation of a 1-dimensional array z.
     The stddev is evaluated over a range with width w pixels.
     The output is a 1D array with length equal to the width of z."""
     import astropy.stats as stats
     import numpy as np
     from tayph.vartests import typetest,dimtest,postest
+    if parallel: from joblib import Parallel, delayed
     typetest(z,np.ndarray,'z in fun.running_MAD()')
     typetest(w,[int,float],'w in fun.running_MAD()')
     postest(w,'w in fun.running_MAD_2D()')

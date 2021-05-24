@@ -203,7 +203,7 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
     skipped = np.where(np.sum(np.isnan(m)) > 0)[0]
     meanfluxes = np.sum(m[np.sum(np.isnan(m)) <= 0]) / len(m[np.sum(np.isnan(m)) <= 0])
     """
-        
+
     N_i = 0
     for i in range(N):
         m = np.nanmedian(list_of_orders[i],axis=1)#Median or mean?
@@ -801,7 +801,8 @@ def airtovac(wlnm):
     typetest(wlnm,[float,np.ndarray],'wlmn in airtovac()')
     wlA=wlnm*10.0
     s = 1e4 / wlA
-    n = 1 + 0.00008336624212083 + 0.02408926869968 / (130.1065924522 - s**2) + 0.0001599740894897 / (38.92568793293 - s**2)
+    n = 1 + (0.00008336624212083 + 0.02408926869968 / (130.1065924522 - s**2) +
+    0.0001599740894897 / (38.92568793293 - s**2))
     return(wlA*n/10.0)
 
 def vactoair(wlnm):
@@ -834,31 +835,33 @@ def vactoair(wlnm):
 
 
 
-def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True):
+def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True,parallel=False):
     """This quickly cleans a spectral block by performing trimming of zeroes at the edges,
     setting zeroes and negative values to NaN, normalising the flux along both axes, rejecting
     outlier values by using a running MAD, and optionally detrending using polynomials. This is
     intended for quick-look cross-correlation when reading in the data.
 
     The output is the trimmed wavelength axis, the outlier-rejected sequence of spectra (block),
-    and the residuals after outlier rejection. If detrend set to True, polynomials will be fit, and the
-    residuals after polyfitting are also returned. So setting detrend=True increases the number of output
-    variables from 3 to 4.
+    and the residuals after outlier rejection. If detrend set to True, polynomials will be fit, and
+    the residuals after polyfitting are also returned. So setting detrend=True increases the number
+    of output variables from 3 to 4.
 
-    I've ran mad trying to make this faster but medians simply don't collapse into nice matrix operations.
-    So what remains is to parallelise, but doing that right the first time (I don't have experience here)
-    in a platform agnostic way seems unlikely.
+    I've ran mad trying to make this faster but medians simply don't collapse into nice matrix
+    operations. So what remains is to parallelise. I've set up the keyword structure to make this
+    happen, as per Issue #64.
 
-    Set the renorm keyword to maintain the average flux in the block. If set to false, this function will return
-    spectra that have the same average as before cleaning.
+    Set the renorm keyword to maintain the average flux in the block. If set to false, this
+    function will return spectra that have the same average as before cleaning.
     """
     import numpy as np
     import tayph.functions as fun
     import warnings
     import copy
     import tayph.util as ut
+    if parallel: from joblib import Parallel, delayed
     block[np.abs(block)<1e-10*np.nanmedian(block)]=0.0#First set very small values to zero.
-    sum=np.nansum(np.abs(block),axis=0)#Anything that is zero in this sum (i.e. the all-zero columns) will be identified.
+    sum=np.nansum(np.abs(block),axis=0)#Anything that is zero in this sum (i.e. the all-zero
+    #columns) will be identified.
     npx=len(sum)
     leftsize=npx-len(np.trim_zeros(sum,'f'))#Size of zero-padding on the left.
     rightsize=npx-len(np.trim_zeros(sum,'b'))#Size of zero-padding on the right
@@ -879,7 +882,7 @@ def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True):
             avg_flux=avg_flux*0.0+1.0
 
         #Outlier rejection in the 2D residuals via a running MAD:
-        MAD=fun.running_MAD_2D(r,w,verbose=verbose)#This can take long.
+        MAD=fun.running_MAD_2D(r,w,verbose=verbose,parallel=parallel)#This can take long.
         warnings.simplefilter("ignore")
         r[np.abs(r-np.nanmean(r))/MAD>nsigma]=np.nan
         block[np.abs(r-np.nanmean(r))/MAD>nsigma]=np.nan
@@ -891,5 +894,6 @@ def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True):
             block[j]/=np.polyval(p,wl_trimmed)
             r2[j]/=np.polyval(p,wl_trimmed)
             ut.statusbar(j,len(r))
-        return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r,r2)#Avg_flux is 1 unless renorm=True.
+        return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r,r2)#Avg_flux is 1.0 unless
+        #renorm=True.
     return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r)

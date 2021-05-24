@@ -275,6 +275,17 @@ signature of these atoms in the atmosphere of KELT-9 b.
 
 Congratulations! You have now successfully installed and executed Tayph!
 
+.. note::
+    By default, various repetitive routines are processed in parallel using the `joblib` package.
+    If your architecture does not support parallel execution, you can switch off the importing and
+    usage of this package by running tayph via  :code:`tayph.run.start_run('demorun.dat',parallel=False)`.
+    In addition, if you are running Tayph on a machine with sufficient RAM, you can run
+    multiple templates in parallel by calling Tayph as
+    :code:`tayph.run.start_run('demorun.dat',xcor_parallel=True)`, to gain in
+    execution time during cross-correlation. This is only beneficial if the size of the data axis of
+    your data times the number of templates times the number of radial velocity steps is (safely) smaller
+    than your RAM, typically in the order of dozens to a hundred GB.
+
 
 Interactive processing
 **********************

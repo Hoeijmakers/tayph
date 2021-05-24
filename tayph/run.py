@@ -1714,7 +1714,7 @@ plot_spec=False):
 
 
 
-    if mode.lower() not in ['gui','batch']:
+    if mode.lower() not in ['gui','batch','both']:
         raise ValueError("Molecfit mode should be set to 'GUI', 'batch' or 'both.'")
 
 

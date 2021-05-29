@@ -598,7 +598,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         else:
             ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} templates in '
             'sequence.')
-
         t1 = ut.start()
         RV,list_of_CCFs,list_of_CCF_Es,list_of_T_sums = xcor(list_of_wls,list_of_orders_normalised,
         list_of_wlts,list_of_templates,drv,RVrange,list_of_errors=list_of_sigmas_normalised,

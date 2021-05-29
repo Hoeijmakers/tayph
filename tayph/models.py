@@ -31,6 +31,9 @@ twopass=False,template_library='models/library',verbose=False):
     typetest(resolution,[int,float],'resolution in mod.build_template()')
     typetest(twopass,bool,'twopass in mod.build_template()')
 
+
+
+
     binsize=float(binsize)
     maxfrac=float(maxfrac)
     resolution=float(resolution)
@@ -49,6 +52,8 @@ twopass=False,template_library='models/library',verbose=False):
         wlt=np.flipud(wlt)
         fxt=np.flipud(fxt)
 
+    if get_model(templatename,library=template_library,is_binary=True):#Bypass all template-specific operations.
+        return(wlt,fxt)
 
     if c_subtract == True:
         wle,fxe=ops.envelope(wlt,fxt-np.median(fxt),binsize,selfrac=maxfrac,mode=mode)#These are binpoints of the top-envelope.
@@ -79,7 +84,7 @@ twopass=False,template_library='models/library',verbose=False):
     return(wlt,T)
 
 
-def get_model(name,library='models/library',root='models'):
+def get_model(name,library='models/library',root='models',is_binary=False):
     """This program queries a model from a library file, with predefined models
     for use in model injection, cross-correlation and plotting. These models have
     a standard format. They are 2 rows by N points, where N corresponds to the
@@ -96,6 +101,8 @@ def get_model(name,library='models/library',root='models'):
 
     Example call:
     wlm,fxm = get_model('WASP-121_TiO',library='models/testlib')
+
+    Set the is_binary keyword to ask whether the file is a binary .dat file or not.
     """
 
     from tayph.vartests import typetest,dimtest
@@ -104,6 +111,7 @@ def get_model(name,library='models/library',root='models'):
     from pathlib import Path
     import errno
     import os
+    import numpy as np
     typetest(name,str,'name in mod.get_model()')
     library=check_path(library,exists=True)
 
@@ -128,13 +136,23 @@ def get_model(name,library='models/library',root='models'):
     if str(modelpath)[0]!='/':#Test if this is an absolute path.
         root=check_path(root,exists=True)
         modelpath=root/modelpath
-    try:
-        modelarray=fits.getdata(modelpath)#Two-dimensional array with wl on the first row and flux on the second row.
-    except FileNotFoundError:
-        raise FileNotFoundError(f'Model file {modelpath} from library {str(library)} does not exist.')
+    if modelpath.exists():
+        if modelpath.suffix == '.fits':
+            if is_binary: return(False)
+            modelarray=fits.getdata(modelpath)#Two-dimensional array with wl on the first row and
+            #spectral flux on the second row.
+        elif modelpath.suffix == '.dat':
+            if is_binary: return(True)
+            modelarray = np.loadtxt(modelpath).T#Two-dimensional array with wavelength positions of
+            #spectral lines on the first column and weights on the second column (transposed).
+        else:
+            raise RunTimeError(f'Model file {modelpath} from library {str(library)} is required to '
+            'have extension .fits or .dat.')
+    else:
+        raise FileNotFoundError(f'Model file {modelpath} from library {str(library)} does not '
+        'exist.')
     dimtest(modelarray,[2,0])
     return(modelarray[0,:],modelarray[1,:])
-
 
 
 def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/models'):

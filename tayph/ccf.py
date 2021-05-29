@@ -267,6 +267,7 @@ parallel=False):
 def mask_cor3D(list_of_wls,list_of_orders,wlT,T,drv=1.0,RVrange=200,fast=True):
     import numpy as np
     import astropy.constants as const
+    import pdb
     #How to deal with the edges?
     #If no_edges is True, any lines that are located beyond the edge of the wavelength range at
     #any RV shift are entirely excluded from the cross-correlation. The purpose is to make sure that
@@ -289,33 +290,34 @@ def mask_cor3D(list_of_wls,list_of_orders,wlT,T,drv=1.0,RVrange=200,fast=True):
         wl = list_of_wls[o]
         order = list_of_orders[o]
         sel_lines = (wlT>np.min(wl)*(1+np.max(RV)/c))&(wlT<np.max(wl)/(1+np.max(RV)/c))
-        wlT_order = wlT[sel_lines]#Select only the lines that actually fall into the wavelength array for all velocity shifts.
-        T_order   = T[sel_lines]
-        T_sum+=np.sum(T_order)
-        shifted_wlT = wlT_order * beta[:, np.newaxis]
-        indices = np.searchsorted(wl,shifted_wlT)#The indices to the right of each target line.
-        #Every row in indices is a list of N spectral lines.
-        #For large numbers of lines, this vectorised search is not faster than serial, but we use
-        #the 2D output to cause total vectorised mayhem next.
+        if len(sel_lines) > 0:
+            wlT_order = wlT[sel_lines]#Select only the lines that actually fall into the wavelength array for all velocity shifts.
+            T_order   = T[sel_lines]
+            T_sum+=np.sum(T_order)
+            shifted_wlT = wlT_order * beta[:, np.newaxis]
+            indices = np.searchsorted(wl,shifted_wlT)#The indices to the right of each target line.
+            #Every row in indices is a list of N spectral lines.
+            #For large numbers of lines, this vectorised search is not faster than serial, but we use
+            #the 2D output to cause total vectorised mayhem next.
 
 
-        if fast:#Witness the power of this fully armed and operational battle station!
-            w = (wl[indices]-shifted_wlT)/(wl[indices] - wl[indices-1])
-            CCF += (order[:,indices]*(1-w)+order[:,indices-1]*w)@T_order
+            if fast:#Witness the power of this fully armed and operational battle station!
+                w = (wl[indices]-shifted_wlT)/(wl[indices] - wl[indices-1])
+                CCF += (order[:,indices]*(1-w)+order[:,indices-1]*w)@T_order
 
 
 
-        else:
-            for j in range(len(beta)):#==len(indices, which is len(RV)*(N+1)).
-                #W = wl*0.0 #Activate this to plot the "template" at this value of beta..
-                for n,i in enumerate(indices[j]):
-                    bin = wl[i-1:i+1]#This selects 2 elements: wl[i-1] and wl[i]. So the : means "until".
-                    w = (bin[1]-shifted_wlT[j,n])/(bin[1]-bin[0]) #Weights are constructed onto the data line by line.
-                    #This number is small if bin[1]=wlT[n], meaning that it measures the weight on the point
-                    #left of the target line position. So wl[i] gets weight w-1, and wl[i-1] gets w.
-                    #W[i]+=1-w*T_order[n]#Activate this to plot the "template" at this value of beta.
-                    #W[i-1]+=w*T_order[n]
-                    CCF[:,j] += (order[:,i]*(1-w) + order[:,i-1]*w)*T_order[n]
+            else:
+                for j in range(len(beta)):#==len(indices, which is len(RV)*(N+1)).
+                    #W = wl*0.0 #Activate this to plot the "template" at this value of beta..
+                    for n,i in enumerate(indices[j]):
+                        bin = wl[i-1:i+1]#This selects 2 elements: wl[i-1] and wl[i]. So the : means "until".
+                        w = (bin[1]-shifted_wlT[j,n])/(bin[1]-bin[0]) #Weights are constructed onto the data line by line.
+                        #This number is small if bin[1]=wlT[n], meaning that it measures the weight on the point
+                        #left of the target line position. So wl[i] gets weight w-1, and wl[i-1] gets w.
+                        #W[i]+=1-w*T_order[n]#Activate this to plot the "template" at this value of beta.
+                        #W[i-1]+=w*T_order[n]
+                        CCF[:,j] += (order[:,i]*(1-w) + order[:,i-1]*w)*T_order[n]
     return(RV,CCF/T_sum)
 
 

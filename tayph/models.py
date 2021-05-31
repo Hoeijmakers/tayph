@@ -102,7 +102,8 @@ def get_model(name,library='models/library',root='models',is_binary=False):
     Example call:
     wlm,fxm = get_model('WASP-121_TiO',library='models/testlib')
 
-    Set the is_binary keyword to ask whether the file is a binary .dat file or not.
+    Set the is_binary keyword to ask whether the file is a binary .dat file or not, and return a
+    single boolean. Used to switch between cross-correlation and template construction modes.
     """
 
     from tayph.vartests import typetest,dimtest

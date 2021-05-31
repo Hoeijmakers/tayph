@@ -227,6 +227,7 @@ def read_carmenes(inpath,filelist,channel,construct_s1d=True):
                     gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)#Doppler factor BERV.
                     wave1d.append(wave_1d*gamma)
 
+    #AAHH
     if construct_s1d:
         output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
         'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,

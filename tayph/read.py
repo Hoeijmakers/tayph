@@ -27,6 +27,7 @@ import subprocess
 import textwrap
 from astropy.utils.data import download_file
 from .phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
+from scipy.ndimage import uniform_filter1d
 
 
 __all__ = [
@@ -178,6 +179,7 @@ def read_carmenes(inpath,filelist,channel,construct_s1d=True):
     npx=np.array([])
     norders=np.array([])
     e2ds=[]
+    blaze=[]
     s1d=[]
     wave1d=[]
     airmass=np.array([])
@@ -209,6 +211,7 @@ def read_carmenes(inpath,filelist,channel,construct_s1d=True):
                 npx=np.append(npx,spechdr['NAXIS1'])
                 norders=np.append(norders,spechdr['NAXIS2'])
                 e2ds.append(data)
+                blaze.append(data/sigma**2)
                 berv=np.append(berv,hdr[bervkeyword])
                 airmass=np.append(airmass,0.5*(hdr[Zstartkeyword]+hdr[Zendkeyword]))#This is an approximation where we take the mean airmass.
                 wave.append(wavedata)
@@ -227,7 +230,9 @@ def read_carmenes(inpath,filelist,channel,construct_s1d=True):
                     gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)#Doppler factor BERV.
                     wave1d.append(wave_1d*gamma*10)
 
-    #AAHH
+    BLAZE_Model = blaze_model(np.nanmean(blaze, axis = 0)) #Calucalting blaze model
+    e2ds = list(e2ds*BLAZE_Model[np.newaxis,:]) #Deblazing the data
+
     if construct_s1d:
         output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
         'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,

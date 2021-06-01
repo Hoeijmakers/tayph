@@ -225,7 +225,7 @@ def read_carmenes(inpath,filelist,channel,construct_s1d=True):
                     s1dmjd=np.append(s1dmjd,hdr1d['MJD-OBS'])
                     berv1d = hdr1d[bervkeyword]
                     gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)#Doppler factor BERV.
-                    wave1d.append(wave_1d*gamma)
+                    wave1d.append(wave_1d*gamma*10)
 
     #AAHH
     if construct_s1d:
@@ -239,7 +239,7 @@ def read_carmenes(inpath,filelist,channel,construct_s1d=True):
     return(output)
 
 
-def spec_stich_n_norm(spec, wave, cont, sig, step_size = 0.0001):
+def spec_stich_n_norm(spec, wave, cont, sig):
     """This stitches and continuum normalises CARMENES E2DS spectra into 1D spectra for use in
     molecfit.
     N. Borsato - 24-02-2021"""
@@ -252,6 +252,9 @@ def spec_stich_n_norm(spec, wave, cont, sig, step_size = 0.0001):
     Total_Specs = np.array([])
     Total_Waves = np.array([])
     Total_Cont = np.array([])
+
+    step_size = np.diff(wave)
+    step_size = np.min(step_size[step_size>0])/2
 
     for i in range(len(spec)-1):
 
@@ -313,6 +316,47 @@ def spec_stich_n_norm(spec, wave, cont, sig, step_size = 0.0001):
     I_T_Spectra = interp1d(Total_Waves, Total_Specs)
 
     return waves, I_T_Spectra(waves) #returns wavelength grid and the normalised flux values
+
+def blaze_model(blaze,sdev=3):
+    """Applies running average fit of the blaze order data.
+        args:
+            blaze: the average escelle blaze data
+            sdev: stanrard deviation cutoff
+
+        returns:
+            a: the mean blaze model
+    """
+
+    def nan_helper(data): #Function which allows interpolation though nans
+        return lambda z: z.nonzero()[0]
+
+    blaze = blaze.copy()
+    data = blaze.copy()
+
+    nan_mask = np.isnan(blaze)
+    no_nan = nan_helper(blaze)
+
+    #This will re-create the dataset but will interpolate though the nans giving it a place holder average value
+    blaze[nan_mask]= np.interp(no_nan(nan_mask), no_nan(~nan_mask), blaze[~nan_mask], period = 1)
+
+    a = uniform_filter1d(blaze,size=300,mode="nearest")#Applies moving averages on data
+
+    #Takes difference the replaces datavalues which fall less 3 std of mean trend with mean
+    diff = blaze - a
+    cleaned_blaze_1 = blaze
+    cleaned_blaze_1[diff<-sdev*np.std(diff)] = a[diff<-sdev*np.std(diff)]
+
+    #Repeats process on the new data but masks out datavalues which fall outside 3std in both directions
+    a = uniform_filter1d(cleaned_blaze_1,size=300,mode="nearest")
+    diff = blaze - a
+    cleaned_blaze_2 = cleaned_blaze_1
+    cleaned_blaze_2[np.absolute(diff)>sdev*np.std(diff)] = a[np.absolute(diff)>sdev*np.std(diff)]
+    a = uniform_filter1d(cleaned_blaze_1,size=300,mode="nearest")
+
+    #Replace all positions that contanined nan values initially with nans again
+    a[np.isnan(data)] = data[np.isnan(data)]
+
+    return a
 
 
 

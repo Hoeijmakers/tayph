@@ -1637,7 +1637,7 @@ save_figure=True):
             'in the config file of this dataset should be set to True.')]
 
         if mode in ['CARMENES-VIS']:
-            explanation=[('Does a set that contains all sets contain itself?')]
+            explanation=[('[No explanation provided yet need to do]')]
 
 
         for s in explanation: print(textwrap.fill(s, width=int(terminal_width)-5))

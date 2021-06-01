@@ -556,6 +556,10 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
 
+    #SOMEWHERE AT THE START, TEST THAT EACH OF THE REQUESTED TEMPLATES IS ACTUALLY BINARY OR
+    #SPECTRAL. DONT ALLOW MIXING TEMPLATES, MAKES THE XCOR CODE TOO COMPLEX, WHEN SWITCHING IN
+    #CCF.PY SOMEWHERE.
+    #is_binary = models.get_model(templatename,template_libary,is_binary=True)
 
         #Construct the cross-correlation templates in case we will be computing or plotting the CCF.
         #These will be saved in lists so that they can be used twice if necessary: once for the
@@ -566,7 +570,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,
                 template_library=template_library,c_subtract=c_subtract,verbose=verbose)
                 #Top-envelope subtraction and blurring.
-            is_binary = models.get_model(templatename,template_libary,is_binary=True)
+
             T*=(-1.0)
             if np.median(wlt) < 50.0:#This is likely in microns:
                 ut.tprint('------WARNING: The loaded template has a median wavelength less than '
@@ -579,14 +583,14 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                 ut.tprint(f"------The output location ({outpath}) didn't exist, I made it now.")
                 os.makedirs(outpath)
 
-            return (wlt, T, outpath, is_binary)
+            return (wlt, T, outpath)
 
 
         if parallel:
-            list_of_wlts, list_of_templates, outpaths, modes = zip(*Parallel(n_jobs=len(templatelist)
+            list_of_wlts, list_of_templates, outpaths = zip(*Parallel(n_jobs=len(templatelist)
             )(delayed(construct_template)(templatename) for templatename in templatelist))
         else:
-            list_of_wlts, list_of_templates, outpaths, modes = zip(*[construct_template(templatename,
+            list_of_wlts, list_of_templates, outpaths = zip(*[construct_template(templatename,
             verbose=True) for templatename in templatelist])
 
 
@@ -601,7 +605,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         t1 = ut.start()
         RV,list_of_CCFs,list_of_CCF_Es,list_of_T_sums = xcor(list_of_wls,list_of_orders_normalised,
         list_of_wlts,list_of_templates,drv,RVrange,list_of_errors=list_of_sigmas_normalised,
-        parallel=xcor_parallel,binary=modes)
+        parallel=xcor_parallel)
         txcor  = ut.end(t1,silent=True)
         print(f'------Completed. Time spent in cross-correlation: {np.round(txcor,1)}s '
         f'({np.round(txcor/len(list_of_templates),1)} per template).')

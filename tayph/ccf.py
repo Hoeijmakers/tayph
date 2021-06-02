@@ -120,12 +120,10 @@ parallel=False):
     import pdb
     if parallel: from joblib import Parallel, delayed
 
-#===FIRST ALL SORTS OF TESTS ON THE INPUT===
+    #===FIRST ALL SORTS OF TESTS ON THE INPUT===
     if len(list_of_wls) != len(list_of_orders):
         raise ValueError(f'In xcor(): List of wls and list of orders have different length '
         f'({len(list_of_wls)} & {len(list_of_orders)}).')
-
-    t_init = ut.start()
     NT = len(list_of_fxm)
     lentest(list_of_wlm,NT,'list_of_wlm in ccf.xcor()')
     typetest(drv,[int,float],'drv in ccf.xcor')
@@ -134,8 +132,6 @@ parallel=False):
     postest(drv,'drv in ccf.xcor()')
     nantest(drv,'drv in ccf.xcor()')
     nantest(RVrange,'RVrange in ccf.xcor()')
-
-
     drv = float(drv)
     N=len(list_of_wls)#Number of orders.
 
@@ -144,7 +140,7 @@ parallel=False):
     else:
         n_exp=len(list_of_orders[0][:,0])#Number of exposures.
 
-#===Then check that all orders indeed have n_exp exposures===
+    #===Then check that all orders indeed have n_exp exposures===
         for i in range(N):
             if len(list_of_orders[i][:,0]) != n_exp:
                 raise ValueError(f'In xcor(): Not all orders have {n_exp} exposures.')
@@ -214,6 +210,7 @@ parallel=False):
 
         #A wild 2D thing has appeared! It's super effective!
         T = scipy.interpolate.interp1d(wlm,fxm, bounds_error=False, fill_value=0)(shifted_wls)
+
         #... it's also massive in memory: A copy of the data's wavelength axis for EACH velocity
         #step. For the KELT-9 demo data, that's 2.7MB, times 600 velocity steps = 1.6 GB, times
         #NT templates. So if you're running 20 templates in a row, good luck!
@@ -222,12 +219,12 @@ parallel=False):
         T[:,nan_columns] = 0.0#All NaNs are assumed to be in all-NaN columns. If that is not true,
         #the below nantest will fail.
         T_sums = np.sum(T,axis = 1)
-        T = T.T/T_sums
-        CCF = stack_of_orders @ T#Here it the entire cross-correlation. Over all orders and
+        CCF = stack_of_orders @ T.T/T_sums#Here it the entire cross-correlation. Over all orders and
         #velocity steps. No forloops.
         CCF_E = CCF*0.0
         #If the errors were provided, we do the same to those:
-        if list_of_errors is not None: CCF_E = np.sqrt(stack_of_errors2 @ T**2)#This has been
+        if list_of_errors is not None: CCF_E = np.sqrt(stack_of_errors2 @ (T.T/T_sums)**2)#This has been
+        del(T)
         #mathematically proven: E^2 = e^2 * T^2
 
 
@@ -244,8 +241,8 @@ parallel=False):
         list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*[do_xcor(i) for i in range(NT)])
 
     if list_of_errors != None:
-        return(RV,list_of_CCFs,list_of_CCF_Es,list_of_T_sums)
-    return(RV,list_of_CCFs,list_of_T_sums)
+        return(RV,list(list_of_CCFs),list(list_of_CCF_Es),list(list_of_T_sums))
+    return(RV,list(list_of_CCFs),list(list_of_T_sums))
 
 
 
@@ -264,11 +261,24 @@ parallel=False):
 #cross-correlation in one go for each order. That is nearly unreadable, so I have left the
 #non-vectorised, for-loopy version hidden behind the fast=False keyword, so that you can verify that
 #the vectorised and the loopy version yield the same answer.
-def mask_cor3D(list_of_wls,list_of_orders,wlT,T,drv=1.0,RVrange=200,fast=True):
-    import numpy as np
+
+def mask_cor3D(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_errors=None,
+parallel=False,fast=True,strict_edges=True):
+    import tayph.functions as fun
     import astropy.constants as const
+    import tayph.util as ut
+    from tayph.vartests import typetest,dimtest,postest,nantest,lentest
+    import numpy as np
+    import scipy.interpolate
+    import astropy.io.fits as fits
+    import matplotlib.pyplot as plt
+    import sys
     import pdb
-    #How to deal with the edges?
+    if parallel: from joblib import Parallel, delayed
+    import matplotlib.pyplot as plt
+
+    #This is still under development:
+    #How to deal with the edges, NaNs and Errors?
     #If no_edges is True, any lines that are located beyond the edge of the wavelength range at
     #any RV shift are entirely excluded from the cross-correlation. The purpose is to make sure that
     #the cross-correlation measures the same spectral lines at all RV shifts. This means that
@@ -276,51 +286,87 @@ def mask_cor3D(list_of_wls,list_of_orders,wlT,T,drv=1.0,RVrange=200,fast=True):
     #of your spectral lines (and also make execution faster).
 
 
+    if len(list_of_wls) != len(list_of_orders):
+        raise ValueError(f'In xcor(): List of wls and list of orders have different length '
+        f'({len(list_of_wls)} & {len(list_of_orders)}).')
+    NT = len(list_of_fxm)
+    lentest(list_of_wlm,NT,'list_of_wlm in ccf.xcor()')
+    typetest(drv,[int,float],'drv in ccf.xcor')
+    typetest(RVrange,float,'RVrange in ccf.xcor()',)
+    postest(RVrange,'RVrange in ccf.xcor()')
+    postest(drv,'drv in ccf.xcor()')
+    nantest(drv,'drv in ccf.xcor()')
+    nantest(RVrange,'RVrange in ccf.xcor()')
+    drv = float(drv)
+    N=len(list_of_wls)#Number of orders.
+
+    if np.ndim(list_of_orders[0]) == 1.0:
+        n_exp=1
+    else:
+        n_exp=len(list_of_orders[0][:,0])#Number of exposures.
+
+    #===Then check that all orders indeed have n_exp exposures===
+        for i in range(N):
+            if len(list_of_orders[i][:,0]) != n_exp:
+                raise ValueError(f'In xcor(): Not all orders have {n_exp} exposures.')
+
+
     c=const.c.to('km/s').value#In km/s
     RV= np.arange(-RVrange, RVrange+drv, drv, dtype=float) #fun.findgen(2.0*RVrange/drv+1)*drv-RVrange#..... CONTINUE TO DEFINE THE VELOCITY GRID
     beta=1.0+RV/c#The doppler factor with which each wavelength is to be shifted.
     n_rv = len(RV)
-    CCF = np.zeros((len(list_of_orders[0]),len(RV)))
     #I treat binary masks as line lists. Instead of evaluating a template spectrum on the data, we
     #just search for the nearest neighbour datapoints, distributing the weight in the line over them
     #and then integrating - for each line and for each radial velocity shift.
 
-    T_sum = 0
-    for o in range(len(list_of_wls)):#Loop ove orders.
-        wl = list_of_wls[o]
-        order = list_of_orders[o]
-        sel_lines = (wlT>np.min(wl)*(1+np.max(RV)/c))&(wlT<np.max(wl)/(1+np.max(RV)/c))
-        if len(sel_lines) > 0:
-            wlT_order = wlT[sel_lines]#Select only the lines that actually fall into the wavelength array for all velocity shifts.
-            T_order   = T[sel_lines]
-            T_sum+=np.sum(T_order)
-            shifted_wlT = wlT_order * beta[:, np.newaxis]
-            indices = np.searchsorted(wl,shifted_wlT)#The indices to the right of each target line.
-            #Every row in indices is a list of N spectral lines.
-            #For large numbers of lines, this vectorised search is not faster than serial, but we use
-            #the 2D output to cause total vectorised mayhem next.
 
+    def do_template(i):
+        T_sum = 0
+        wlT = list_of_wlm[i]
+        T = list_of_fxm[i]
+        CCF = np.zeros((len(list_of_orders[0]),len(RV)))
+        for o in range(len(list_of_wls)):#Loop over orders.
+            wl = list_of_wls[o]
+            order = list_of_orders[o]
+            # pdb.set_trace()
+            if strict_edges == True:#Select only lines that are in the desired wavelength range
+                #for all velocity shifts.
+                sel_lines = (wlT>np.min(wl)/(1+np.min(RV)/c))&(wlT<np.max(wl)/(1+np.max(RV)/c))
+            else:#Select all lines that are in the desired wavelength range at any velocity shift:
+                sel_lines = (wlT>np.min(wl)/(1+np.max(RV)/c))&(wlT<np.max(wl)/(1+np.min(RV)/c))
+            if len(sel_lines) > 0:
+                wlT_order = wlT[sel_lines]
+                T_order   = T[sel_lines]
+                T_sum+=np.sum(T_order)
+                shifted_wlT = wlT_order * beta[:, np.newaxis]
+                indices = np.searchsorted(wl,shifted_wlT)#The indices to the right of each target line.
+                #Every row in indices is a list of N spectral lines.
+                #For large numbers of lines, this vectorised search is not faster than serial, but we use
+                #the 2D output to cause total vectorised mayhem next.
+                if fast:#Witness the power of this fully armed and operational battle station!
+                    w = (wl[indices]-shifted_wlT)/(wl[indices] - wl[indices-1])
+                    CCF += (order[:,indices]*(1-w)+order[:,indices-1]*w)@T_order
+                else:
+                    for j in range(len(beta)):#==len(indices, which is len(RV)*(N+1)).
+                        #W = wl*0.0 #Activate this to plot the "template" at this value of beta..
+                        for n,i in enumerate(indices[j]):
+                            bin = wl[i-1:i+1]#This selects 2 elements: wl[i-1] and wl[i]. So the : means "until".
+                            w = (bin[1]-shifted_wlT[j,n])/(bin[1]-bin[0]) #Weights are constructed onto the data line by line.
+                            #This number is small if bin[1]=wlT[n], meaning that it measures the weight on the point
+                            #left of the target line position. So wl[i] gets weight w-1, and wl[i-1] gets w.
+                            #W[i]+=1-w*T_order[n]#Activate this to plot the "template" at this value of beta.
+                            #W[i-1]+=w*T_order[n]
+                            CCF[:,j] += (order[:,i]*(1-w) + order[:,i-1]*w)*T_order[n]
+        return(CCF/T_sum,CCF*0.0,T_sum)
 
-            if fast:#Witness the power of this fully armed and operational battle station!
-                w = (wl[indices]-shifted_wlT)/(wl[indices] - wl[indices-1])
-                CCF += (order[:,indices]*(1-w)+order[:,indices-1]*w)@T_order
-
-
-
-            else:
-                for j in range(len(beta)):#==len(indices, which is len(RV)*(N+1)).
-                    #W = wl*0.0 #Activate this to plot the "template" at this value of beta..
-                    for n,i in enumerate(indices[j]):
-                        bin = wl[i-1:i+1]#This selects 2 elements: wl[i-1] and wl[i]. So the : means "until".
-                        w = (bin[1]-shifted_wlT[j,n])/(bin[1]-bin[0]) #Weights are constructed onto the data line by line.
-                        #This number is small if bin[1]=wlT[n], meaning that it measures the weight on the point
-                        #left of the target line position. So wl[i] gets weight w-1, and wl[i-1] gets w.
-                        #W[i]+=1-w*T_order[n]#Activate this to plot the "template" at this value of beta.
-                        #W[i-1]+=w*T_order[n]
-                        CCF[:,j] += (order[:,i]*(1-w) + order[:,i-1]*w)*T_order[n]
-    return(RV,CCF/T_sum)
-
-
+    if parallel:#This here takes a lot of memory.
+        list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*Parallel(n_jobs=
+        NT)(delayed(do_template)(i) for i in range(NT)))
+    else:
+        list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*[do_template(i) for i in range(NT)])
+    if list_of_errors != None:
+        return(RV,list(list_of_CCFs),list(list_of_CCF_Es),list(list_of_T_sums))
+    return(RV,list(list_of_CCFs),list(list_of_T_sums))
 
 
 

@@ -1636,6 +1636,9 @@ save_figure=True):
             'the Tayph runfile of this dataset, do_berv_correction should be set to True and air '
             'in the config file of this dataset should be set to True.')]
 
+        if mode in ['CARMENES-VIS']:
+            explanation=[('[No explanation provided yet need to do]')]
+
 
         for s in explanation: print(textwrap.fill(s, width=int(terminal_width)-5))
         print('\n \n \n')

@@ -263,7 +263,7 @@ parallel=False):
 #the vectorised and the loopy version yield the same answer.
 
 def mask_cor3D(list_of_wls,list_of_orders,list_of_wlm,list_of_fxm,drv,RVrange,list_of_errors=None,
-parallel=False,fast=True,strict_edges=True):
+parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0):
     import tayph.functions as fun
     import astropy.constants as const
     import tayph.util as ut
@@ -315,58 +315,153 @@ parallel=False,fast=True,strict_edges=True):
     RV= np.arange(-RVrange, RVrange+drv, drv, dtype=float) #fun.findgen(2.0*RVrange/drv+1)*drv-RVrange#..... CONTINUE TO DEFINE THE VELOCITY GRID
     beta=1.0+RV/c#The doppler factor with which each wavelength is to be shifted.
     n_rv = len(RV)
+
+    if zero_point == 0:
+        zero_point = int((n_rv-1)/2)#Index of RV zero-point.
+    else:
+        zero_point = np.argmin(np.abs(RV-zero_point))
     #I treat binary masks as line lists. Instead of evaluating a template spectrum on the data, we
     #just search for the nearest neighbour datapoints, distributing the weight in the line over them
     #and then integrating - for each line and for each radial velocity shift.
 
 
+    #From here you will witness the final destruction of the Alliance and the end of your
+    #insigificant rebellion.
     def do_template(i):
         T_sum = 0
+        T_sum = [0]*n_rv
         wlT = list_of_wlm[i]
         T = list_of_fxm[i]
         CCF = np.zeros((len(list_of_orders[0]),len(RV)))
+        W = []#List of weight functions of each order.
+        L = []#List of lines in each order.
         for o in range(len(list_of_wls)):#Loop over orders.
             wl = list_of_wls[o]
             order = list_of_orders[o]
+            if return_templates: Wo=wl*0.0
             # pdb.set_trace()
+            if return_templates: Wo = wl*0.0#Weight function in this order, to be filled in.
             if strict_edges == True:#Select only lines that are in the desired wavelength range
                 #for all velocity shifts.
                 sel_lines = (wlT>np.min(wl)/(1+np.min(RV)/c))&(wlT<np.max(wl)/(1+np.max(RV)/c))
             else:#Select all lines that are in the desired wavelength range at any velocity shift:
                 sel_lines = (wlT>np.min(wl)/(1+np.max(RV)/c))&(wlT<np.max(wl)/(1+np.min(RV)/c))
+
             if len(sel_lines) > 0:
                 wlT_order = wlT[sel_lines]
                 T_order   = T[sel_lines]
-                T_sum+=np.sum(T_order)
                 shifted_wlT = wlT_order * beta[:, np.newaxis]
                 indices = np.searchsorted(wl,shifted_wlT)#The indices to the right of each target line.
                 #Every row in indices is a list of N spectral lines.
                 #For large numbers of lines, this vectorised search is not faster than serial, but we use
                 #the 2D output to cause total vectorised mayhem next.
-                if fast:#Witness the power of this fully armed and operational battle station!
-                    w = (wl[indices]-shifted_wlT)/(wl[indices] - wl[indices-1])
-                    CCF += (order[:,indices]*(1-w)+order[:,indices-1]*w)@T_order
-                else:
+
+
+
+
+                #To make the most meaningful measurement of the "average line depth" in the planet
+                #spectrum, spectral lines should not be allowed to appear or disappear as a function
+                #of radial velocity shift. That means: Lines should not be allowed to travel over
+                #an edge; and lines should not be allowed to travel into NaN regions.
+
+                #To implement this I have introduced the strict_edges keyword that discards all
+                #lines that travel beyond an edge, given the RV excursion requested. In this case,
+                #the array T_order (containing the line weights) is the same for each RV shift.
+                #That means that the cross-correlation over all velocities can be expressed as a
+                #matrix multiplication. Which is especially fast.
+
+                #Alternatively, you might want to still do a cross-correlation, but allowing lines
+                #to travel through NaN regions and edges. That will make the measured average
+                #planetary spectral line (slightly) time-dependent, because whenever the planet
+                #spectrum intersects with an edge or a NaN region, that line cannot be counted
+                #towards the weighted average, and therefore the sample over which the average is
+                #taken, changes. However, there will be more lines available in this approach,
+                #meaning that detection SNR's could be higher.
+
+                #To deal with lines that go over the edge.
+                #The template, i.e. w, and T need to be zero there. There are two cases:
+                #Lines that go over the left edge result in indices=0. Lines that go over the right
+                #edge result in indices=len(wl). Both of these give indexing errors below when
+                #wl[indices] and wl[indices-1] are requested.
+                #I therefore say indices[indices==0] = -1 and indices[indices==len(wl)] = -1.
+                #That places all lines on the edge in the last column of order.
+                #Then I need to set the w of those lines (and only those lines) to 0, as:
+                #w[indices==-1] = 0.0
+                #then make a new variable for (w-1) and also set that to zero, and then adjust
+                #T_sum by using a 2D version of T_order, corresponding to indices and w.
+
+
+                if fast:#Now witness the power of this fully armed and operational battle station!
+                    if not strict_edges:
+                        indices[indices == len(wl)] = -1
+                        indices[indices == 0] = -1
+                        w = (wl[indices]-shifted_wlT)/(wl[indices] - wl[indices-1])
+                        w_inv = 1-w
+                        w[indices==-1]=0.0
+                        w_inv[indices==-1]=0.0
+                        T_order_matrix = np.tile(T_order,(n_rv,1))
+                        T_order_matrix[indices==-1]=0.0
+                        T_sum+=np.sum(T_order_matrix,axis=1)
+                        CCF +=np.sum((order[:,indices]*w_inv+order[:,indices-1]*w)*T_order_matrix,axis=2)
+                        if return_templates:
+                            Wo[indices[zero_point]]+=(1-w[zero_point])*T_order_matrix[zero_point]
+                            Wo[indices[zero_point]-1]+=w[zero_point]*T_order_matrix[zero_point]
+                            W.append(Wo)#The template at RV=0 of each order is appended.
+                            L.append(shifted_wlT[zero_point])
+
+
+                    else:#Fire at will, commander!
+                        w = (wl[indices]-shifted_wlT)/(wl[indices] - wl[indices-1])
+                        CCF += (order[:,indices]*(1-w)+order[:,indices-1]*w)@T_order
+                        T_sum+=np.sum(T_order)
+                        if return_templates:
+                            Wo[indices[zero_point]]+=(1-w[zero_point])*T_order
+                            Wo[indices[zero_point]-1]+=w[zero_point]*T_order
+                            W.append(Wo)#The template at RV=0 of each order is appended.
+                            L.append(shifted_wlT[zero_point])
+
+
+                else:#Single reactor ignition:
+                    T_order_matrix = np.tile(T_order,(n_rv,1))
                     for j in range(len(beta)):#==len(indices, which is len(RV)*(N+1)).
-                        #W = wl*0.0 #Activate this to plot the "template" at this value of beta..
                         for n,i in enumerate(indices[j]):
-                            bin = wl[i-1:i+1]#This selects 2 elements: wl[i-1] and wl[i]. So the : means "until".
-                            w = (bin[1]-shifted_wlT[j,n])/(bin[1]-bin[0]) #Weights are constructed onto the data line by line.
-                            #This number is small if bin[1]=wlT[n], meaning that it measures the weight on the point
-                            #left of the target line position. So wl[i] gets weight w-1, and wl[i-1] gets w.
-                            #W[i]+=1-w*T_order[n]#Activate this to plot the "template" at this value of beta.
-                            #W[i-1]+=w*T_order[n]
-                            CCF[:,j] += (order[:,i]*(1-w) + order[:,i-1]*w)*T_order[n]
-        return(CCF/T_sum,CCF*0.0,T_sum)
+                            if i > 0 and i < len(wl):
+                                bin = wl[i-1:i+1]#This selects 2 elements: wl[i-1] and wl[i]. So the : means "until".
+                                w = (wl[i]-shifted_wlT[j,n])/(wl[i] - wl[i-1]) #Weights are constructed onto the data line by line.
+                                #This number is small if bin[1]=wlT[n], meaning that it measures the weight on the point
+                                #left of the target line position. So wl[i] gets weight w-1, and wl[i-1] gets w.
+                                CCF[:,j] += (order[:,i]*(1-w) + order[:,i-1]*w)*T_order_matrix[j,n]
+                                T_sum[j] += T_order_matrix[j,n]
+                                if return_templates and j == zero_point:
+                                    Wo[i]+=(1-w)*T_order[n]#Activate this to plot the "template" at this value of beta.
+                                    Wo[i-1]+=w*T_order[n]
+                        if return_templates and j == zero_point:
+                            W.append(Wo)
+                            L.append(wlT_order)
+        return(CCF/T_sum,CCF*0.0,T_sum,W,L)
 
     if parallel:#This here takes a lot of memory.
-        list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*Parallel(n_jobs=
-        NT)(delayed(do_template)(i) for i in range(NT)))
+        list_of_CCFs, list_of_CCF_Es, list_of_T_sums,list_of_weights,list_of_lines = zip(*Parallel(
+        n_jobs=NT)(delayed(do_template)(i) for i in range(NT)))
     else:
-        list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*[do_template(i) for i in range(NT)])
+        list_of_CCFs, list_of_CCF_Es, list_of_T_sums,list_of_weights,list_of_lines = zip(
+        *[do_template(i) for i in range(NT)])
+
+
+
+    #Return errors on CCF if errors on spectrum are given; and return the weight function (at RV=0)
+    #for each spectral order and each template, if requested.
     if list_of_errors != None:
-        return(RV,list(list_of_CCFs),list(list_of_CCF_Es),list(list_of_T_sums))
-    return(RV,list(list_of_CCFs),list(list_of_T_sums))
+        if return_templates:
+            return(RV,list(list_of_CCFs),list(list_of_CCF_Es),list(list_of_T_sums),list(list_of_weights),list(list_of_lines))
+        else:
+            return(RV,list(list_of_CCFs),list(list_of_CCF_Es),list(list_of_T_sums))
+    else:
+        if return_templates:
+            return(RV,list(list_of_CCFs),list(list_of_T_sums),list(list_of_weights),list(list_of_lines))
+        else:
+            return(RV,list(list_of_CCFs),list(list_of_T_sums))
+
 
 
 

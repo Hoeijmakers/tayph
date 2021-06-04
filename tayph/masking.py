@@ -662,7 +662,7 @@ class mask_maker(object):
             self.img3[0].set_ydata(self.meanspec)
 
 
-        self.ax[0].set_title(f'Spectral order {self.N}  ({round(np.min(self.wl),1)} - {round(np.max(self.wl),1))} nm)')
+        self.ax[0].set_title(f'Spectral order {self.N}  ({round(np.min(self.wl),1)} - {round(np.max(self.wl),1)} nm)')
         self.ax[2].set_ylim(0,self.img_max)
         self.draw_masked_areas()
         self.fig.canvas.draw_idle()

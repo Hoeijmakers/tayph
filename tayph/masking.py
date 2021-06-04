@@ -222,7 +222,7 @@ class mask_maker(object):
         plt.subplots_adjust(left=0.05)#Make them more tight, we need all the space we can get.
         plt.subplots_adjust(right=0.75)
 
-        self.ax[0].set_title(f'Spectral order %s  ({self.N,round(np.min(self.wl),1)} - '
+        self.ax[0].set_title(f'Spectral order {self.N}  ({round(np.min(self.wl),1)} - '
         f'{round(np.max(self.wl),1)} nm)')
         self.ax[1].set_title('Residual of time-average')
         self.ax[2].set_title('Time average 1D spectrum')
@@ -406,7 +406,7 @@ class mask_maker(object):
             if event.inaxes in [self.ax[0],self.ax[1],self.ax[2]]:#Check that it occurs in one of the subplots.
                 ci = event.xdata*1.0#xdata is the column that is selected.
                 selmin = max([int(ci-0.5*self.MW),0])#Select all columns in a range of self.HW from that click.
-                selmax = min([int(ci+0.5*self.MW),self.npx-1])
+                selmax = min([int(ci+0.5*self.MW),self.npx])
                 sel = self.x_axis[selmin:selmax]
                 if self.apply_to_all == True:
                     for o in range(self.N_orders):#Loop through all orders.
@@ -456,7 +456,7 @@ class mask_maker(object):
             if event.inaxes in [self.ax[0],self.ax[1],self.ax[2]]:#Check that it occurs in one of the subplots.
                 ci = event.xdata*1.0
                 selmin = max([int(ci-0.5*self.MW),0])
-                selmax = min([int(ci+0.5*self.MW),self.npx-1])
+                selmax = min([int(ci+0.5*self.MW),self.npx])
                 sel = self.x_axis[selmin:selmax]
                 if self.apply_to_all == True:
                     for o in range(self.N_orders):#Loop through all orders.
@@ -662,7 +662,7 @@ class mask_maker(object):
             self.img3[0].set_ydata(self.meanspec)
 
 
-        self.ax[0].set_title('Spectral order %s  (%s - %s nm)' % (self.N,round(np.min(self.wl),1),round(np.max(self.wl),1)))
+        self.ax[0].set_title(f'Spectral order {self.N}  ({round(np.min(self.wl),1)} - {round(np.max(self.wl),1))} nm)'
         self.ax[2].set_ylim(0,self.img_max)
         self.draw_masked_areas()
         self.fig.canvas.draw_idle()
@@ -1073,7 +1073,7 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False):
             list_of_masks.append(order*0.0)
             ut.statusbar(i,void)
 
-        print(f'%s outliers identified and set to NaN ({N_NaN}/{round(N_NaN/N_total*100.0,3)}).')
+        print(f'{N_NaN} outliers identified and set to NaN ({round(N_NaN/N_total*100.0,3)}%).')
     else:
         print('------Skipping sigma-clipping (c_thres <= 0)')
         #Do nothing to list_of_masks. It is now an empty list.

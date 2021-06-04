@@ -431,7 +431,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     if do_keplerian_correction == True:
         rv_cor-=sp.RV_star(dp)*(1.0)
 
-    gamma = 1.0+(rv_cor*u.km/u.s/const.c)#Doppler factor.
+    gamma = len(list_of_orders[0])*[1.0]+(rv_cor*u.km/u.s/const.c)#Doppler factor.
     if type(rv_cor) != int:
         print('---Reinterpolating data to correct velocities')
     else:

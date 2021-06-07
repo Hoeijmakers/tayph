@@ -1,6 +1,6 @@
 __all__ = [
     "xcor",
-    "mask_cor3D"
+    "mask_cor",
     "clean_ccf",
     "filter_ccf",
     "shift_ccf",
@@ -461,6 +461,11 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
     #===========================================
     #NOW WE DEAL WITH MASKED COLUMNS, I.E. NANS:
     #===========================================
+    # list_of_wls_clipped = []
+    # list_of_orders_clipped = []
+    # if list_of_errors is not None:
+    #     list_of_errors_clipped = []
+    to_pop = []
     for o in range(len(list_of_wls)):#Loop over orders.
         wl = list_of_wls[o]
         order = list_of_orders[o]
@@ -490,9 +495,10 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
             if np.min(nans)==0:#If there are indeed masked edge columns, we clip from the first to
             #the last non-zero is-this-not-a-NaN index. Else, we leave the order arrays as they are.
                 list_of_orders[o]=order[:,np.nonzero(nans)[0][0]:np.nonzero(nans)[0][-1]+1]
-                list_of_wls[o] = wl[:,np.nonzero(nans)[0][0]:np.nonzero(nans)[0][-1]+1]
+                list_of_wls[o] = wl[np.nonzero(nans)[0][0]:np.nonzero(nans)[0][-1]+1]
                 if list_of_errors is not None:
                     list_of_errors[o] = error[:,np.nonzero(nans)[0][0]:np.nonzero(nans)[0][-1]+1]
+
             #If clipping the order edges has not removed all the nans, there are still NaN columns
             #left in the middle of the orders. If strict_edges is set, this raises an error:
             if strict_edges and np.min(nans[np.nonzero(nans)[0][0]:np.nonzero(nans)[0][-1]+1])!=1:
@@ -500,21 +506,32 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
                 f"order {o} that are not continuously connected to the order edge. This is not "
                 f" allowed. Remove those.")
         else:#If there are no non_nan columns at all, we simply delete that order from the list.
-            list_of_orders.pop(o)
-            list_of_wls.pop(o)
-            if list_of_errors is not None:
-                list_of_errors.pop(o)
+            to_pop.append(o)
+
+    to_pop.sort(reverse=True)
+    for i in to_pop:
+        list_of_orders.pop(i)
+        list_of_wls.pop(i)
+        if list_of_errors is not None:
+            list_of_errors.pop(i)
 
     #Now we should have ended up with lists of orders, wavelengths and optionally errors, that are
     #clipped to exclude NaN-masked edges, that dont have isolated NaNs in them, and that have no
     #all-NaN orders in them. And if strict_edges was set, there are no more NaNs in columns in the
     #middle of the orders either.
-
+    #Test that the latter statement is true:
+    if strict_edges:
+        for i in range(len(list_of_orders)):
+            nantest(list_of_orders[i],f'list_of_orders in ccf.mask_cor() after rejecting NaNs.')
+            lentest(list_of_wls,len(list_of_orders),'list_of_wls in ccf.mask_cor() after '
+            'rejecting NaNs.')
+            if list_of_errors is not None:
+                nantest(list_of_errors[i],f'list_of_orders in ccf.mask_cor() after rejecting NaNs.')
+                lentest(list_of_errors,len(list_of_orders),'list_of_errors in ccf.mask_cor() '
+                'after rejecting NaNs.')
 
 
     #Proceed with the calculation.
-
-
     def do_template(i):
         """
         From here you will witness the final destruction of the Alliance and the end of your
@@ -839,7 +856,7 @@ def shift_ccf(RV,CCF,drv):
     return(CCF_new)
 
 
-def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
+def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True):
     """The name says it all. Do good tests."""
     import tayph.functions as fun
     import tayph.operations as ops
@@ -866,10 +883,13 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0):
         ccf_e_shifted = shift_ccf(rv,ccf_e,dRV)
         return (np.nansum(transitblock * ccf_shifted,axis=0), (np.nansum((transitblock*ccf_e_shifted)**2.0,axis=0))**0.5)
 
-    KpVsys, KpVsys_e = zip(*Parallel(n_jobs=-1)(delayed(Kp_parallel)(i) for i in Kp))
+    if parallel:
+        KpVsys, KpVsys_e = zip(*Parallel(n_jobs=-1)(delayed(Kp_parallel)(i) for i in Kp))
+    else:
+        KpVsys, KpVsys_e = zip(*[Kp_parallel(i) for i in Kp])
 
 
-    return(Kp,KpVsys,KpVsys_e)
+    return(np.array(Kp),np.array(KpVsys),np.array(KpVsys_e))
 
     # CCF_total = np.zeros((n_exp,n_rv))
     #

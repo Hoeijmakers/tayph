@@ -159,7 +159,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     import tayph.tellurics as telcor
     import tayph.masking as masking
     import tayph.models as models
-    from tayph.ccf import xcor,clean_ccf,filter_ccf,construct_KpVsys
+    from tayph.ccf import xcor,clean_ccf,filter_ccf,construct_KpVsys,mask_cor
     from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest
     import tayph.shadow as shadow
 
@@ -426,16 +426,24 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 #Then if you start to move the spectra around before removing the time-average,
 #each masked column becomes slanted. Bad deal.
     rv_cor = 0#This initialises as an int. If any of the following is true, it becomes a float.
-    if do_berv_correction == True:
+    if do_berv_correction:
         rv_cor += sp.berv(dp)
-    if do_keplerian_correction == True:
+    if do_keplerian_correction:
         rv_cor-=sp.RV_star(dp)*(1.0)
 
-    gamma = len(list_of_orders[0])*[1.0]+(rv_cor*u.km/u.s/const.c)#Doppler factor.
-    if type(rv_cor) != int:
-        print('---Reinterpolating data to correct velocities')
-    else:
-        print('---Reinterpolating data to equalize wavelength axes')
+    gamma = 1.0+(rv_cor*u.km/u.s/const.c)#Doppler factor.
+
+    if type(rv_cor) != int:#If rv_cor is populated:
+        if do_berv_correction == True and do_keplerian_correction == False:
+            ut.tprint('---Reinterpolating data to correct BERV velocities')
+        elif do_berv_correction == False and do_keplerian_correction == True:
+            ut.tprint('---Reinterpolating data to correct Keplerian velocities')
+        else:
+            ut.tprint('---Reinterpolating data to correct BERV and Keplerian velocities')
+        ut.tprint(f'------From {np.round(rv_cor[0],3)} to {np.round(rv_cor[-1],3)} km/s')
+    elif list_of_wls[0].ndim==2:#Else, if wavelength grid is 2D:
+        ut.tprint('---Reinterpolating 2D data onto a common wavelength axis')
+
     list_of_orders_cor = []
     list_of_sigmas_cor = []
     list_of_wls_cor = []
@@ -452,25 +460,28 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             raise Exception(f'Wavelength axis of order {i} is neither 1D nor 2D.')
 
         for j in range(len(list_of_orders[0])):
-            # gamma = 1.0+(rv_cor[j]*u.km/u.s/const.c)#Doppler factor.
-            # wl_cor = list_of_wls[i][j]*(1.0-(rv_cor[j]*u.km/u.s/const.c))#The minus sign was
-            #tested on a slow-rotator.
             if list_of_wls[i].ndim==2:
-                order_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma[j],order[j],
-                bounds_error=False)(wl_cor)
-                sigma_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma[j],sigma[j],
-                bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
-                #SNR, apart from wavelength-shifting it.
-            elif type(rv_cor) != int:
-                order_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j],order[j],
-                bounds_error=False)(wl_cor)
-                sigma_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j],sigma[j],
-                bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect the
-                #SNR, apart from wavelength-shifting it.
+                if type(rv_cor) != int:#If wl 2D and rv_cor is non-zero:
+                    order_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma[j],order[j],
+                    bounds_error=False)(wl_cor)
+                    sigma_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma[j],sigma[j],
+                    bounds_error=False)(wl_cor)#I checked that this works because it doesn't affect
+                    #the SNR, apart from wavelength-shifting it.
+                else:#If wl is 2D and rv_cor is not populated, there is no multiplication with gamma
+                    order_cor[j] = interp.interp1d(list_of_wls[i][j],order[j],
+                    bounds_error=False)(wl_cor)
+                    sigma_cor[j] = interp.interp1d(list_of_wls[i][j],sigma[j],
+                    bounds_error=False)(wl_cor)
             else:
-                #No interpolation at all:
-                order_cor[j]=order[j]
-                sigma_cor[j]=sigma[j]
+                if type(rv_cor) != int:#If wl 1D and rv_cor is non-zero:
+                    order_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j],order[j],
+                    bounds_error=False)(wl_cor)
+                    sigma_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j],sigma[j],
+                    bounds_error=False)(wl_cor)
+                else:
+                    #No interpolation at all:
+                    order_cor[j]=order[j]
+                    sigma_cor[j]=sigma[j]
         list_of_orders_cor.append(order_cor)
         list_of_sigmas_cor.append(sigma_cor)
         list_of_wls_cor.append(wl_cor)
@@ -478,7 +489,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     # plt.plot(list_of_wls[60][3],list_of_orders[60][3]/list_of_sigmas[60][3],color='blue')
     # plt.plot(list_of_wls_cor[60],list_of_orders_cor[60][3]/list_of_sigmas_cor[60][3],color='red')
     # plt.show()
-
     list_of_orders = list_of_orders_cor
     list_of_sigmas = list_of_sigmas_cor
     list_of_wls = list_of_wls_cor
@@ -567,7 +577,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     if do_xcor == True or plot_xcor == True:
 
         def construct_template(templatename,verbose=False):#For use in parallelised iterator.
-            wlt,T=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,
+            wlt,T,is_binary=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,
                 template_library=template_library,c_subtract=c_subtract,verbose=verbose)
                 #Top-envelope subtraction and blurring.
 
@@ -583,32 +593,84 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                 ut.tprint(f"------The output location ({outpath}) didn't exist, I made it now.")
                 os.makedirs(outpath)
 
-            return (wlt, T, outpath)
+            return (wlt, T, is_binary, outpath)
 
 
         if parallel:
-            list_of_wlts, list_of_templates, outpaths = zip(*Parallel(n_jobs=len(templatelist)
-            )(delayed(construct_template)(templatename) for templatename in templatelist))
+            list_of_wlts, list_of_templates, binary_flags, outpaths = zip(*Parallel(
+            n_jobs=len(templatelist))(delayed(construct_template)(A) for A in templatelist))
         else:
-            list_of_wlts, list_of_templates, outpaths = zip(*[construct_template(templatename,
-            verbose=True) for templatename in templatelist])
+            list_of_wlts, list_of_templates, binary_flags, outpaths = zip(
+            *[construct_template(A,verbose=True) for A in templatelist])
+
+
+    #Divide templates up into spectral and mask templates:
+    wlTs_S,T_S,outpaths_S,names_S,wlTs_M,T_M,outpaths_M,names_M = [],[],[],[],[],[],[],[]
+    for i in range(len(binary_flags)):
+        if binary_flags[i]:#Mask templates
+            wlTs_M.append(list_of_wlts[i])
+            T_M.append(list_of_templates[i])
+            outpaths_M.append(outpaths[i])
+            names_M.append(templatelist[i])#The names of the templates that are masks.
+        else:#Spectral templates
+            wlTs_S.append(list_of_wlts[i])
+            T_S.append(list_of_templates[i])
+            outpaths_S.append(outpaths[i])
+            names_S.append(templatelist[i])#The names of the templates that are spectral.
 
 
     if do_xcor:#Perform the cross-correlation on the entire list of orders and the entire list of
     #templates, in parallel or sequentially.
         if xcor_parallel:
-            ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} templates in '
-            'parallel.')
+            ut.tprint(f'---Performing cross-correlation with {len(list_of_templates)} '
+            'templates in parallel.')
         else:
-            ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} templates in '
-            'sequence.')
-        t1 = ut.start()
-        RV,list_of_CCFs,list_of_CCF_Es,list_of_T_sums = xcor(list_of_wls,list_of_orders_normalised,
-        list_of_wlts,list_of_templates,drv,RVrange,list_of_errors=list_of_sigmas_normalised,
-        parallel=xcor_parallel)
-        txcor  = ut.end(t1,silent=True)
-        print(f'------Completed. Time spent in cross-correlation: {np.round(txcor,1)}s '
-        f'({np.round(txcor/len(list_of_templates),1)} per template).')
+            ut.tprint(f'---Performing cross-correlation with {len(list_of_templates)} '
+            'templates in sequence.')
+
+        #First we do all the spectral templates (case 1):
+        if len(wlTs_S) > 0:
+            t1 = ut.start()
+            RV,CCFs1,CCF_Es1,T_sums1 = xcor(list_of_wls,list_of_orders_normalised,wlTs_S,
+            T_S,drv,RVrange,list_of_errors=list_of_sigmas_normalised,parallel=xcor_parallel)
+            txcor  = ut.end(t1,silent=True)
+            print(f'------Spectral correlation completed. Time spent: {np.round(txcor,1)}s '
+            f'({np.round(txcor/len(T_S),1)} per template).')
+
+        #Then all the mask templates (case 2):
+        if len(wlTs_M) > 0:
+            t1 = ut.start()
+            RV,CCFs2,CCF_Es2,T_sums2 = mask_cor(list_of_wls,list_of_orders_normalised,wlTs_M,
+            T_M,drv,RVrange,list_of_errors=list_of_sigmas_normalised,parallel=parallel)
+            tmcor  = ut.end(t1,silent=True)
+            print(f'------Line-list correlation completed. Time spent: {np.round(tmcor,1)}s '
+            f'({np.round(tmcor/len(T_M),1)} per template).')
+
+        #Now merge the outcome in single arrays:
+        if len(wlTs_S) > 0 and len(wlTs_M) > 0:#and make 100% sure that these are lists and not
+            #e.g. arrays.
+            CCFs = list(CCFs1)+list(CCFs2)
+            CCF_Es = list(CCF_Es1)+list(CCF_Es2)
+            T_sums = list(T_sums1)+list(T_sums2)
+            outpaths = list(outpaths_S)+list(outpaths_M)
+            T_names = list(names_S)+list(names_M)
+        elif len(wlTs_S) > 0 and len(wlTs_M) == 0:
+            CCFs = CCFs1
+            CCF_Es = CCF_Es1
+            T_sums = T_sums1
+            outpaths = outpaths_S
+            T_names = names_S
+        elif len(wlTs_S) == 0 and len(wlTs_M) > 0:
+            RV = RV2
+            CCFs = CCFs2
+            CCF_Es = CCF_Es2
+            T_sums = T_sums2
+            outpaths = outpaths_M
+            T_names = names_M
+        else:
+            raise(RuntimeError(f"Error in length of wlTs_S ({len(wlTs_S)}) and/or the length of "
+            f" wlTs_M ({len(wlTs_M)}). One or both of these should be greater than 0, and up to "
+            "one of these may be zero."))
 
         #The following is to compare time spent in parallel computation.
         # txxx2 = ut.start()
@@ -621,21 +683,21 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
     #Save CCFs to disk, read them back in and perform cleaning steps.
     ut.tprint('---Writing CCFs to file and peforming cleaning steps.')
-    for i in range(len(templatelist)):
+    for i in range(len(T_names)):
         outpath = outpaths[i]
         if do_xcor:
-            ut.tprint(f'------Writing CCF of {templatelist[i]} to {str(outpath)}')
-            ut.writefits(outpath/'ccf.fits',list_of_CCFs[i])
-            ut.writefits(outpath/'ccf_e.fits',list_of_CCF_Es[i])
+            ut.tprint(f'------Writing CCF of {T_names[i]} to {str(outpath)}')
+            ut.writefits(outpath/'ccf.fits',CCFs[i])
+            ut.writefits(outpath/'ccf_e.fits',CCF_Es[i])
             ut.writefits(outpath/'RV.fits',RV)
-            ut.writefits(outpath/'Tsum.fits',list_of_T_sums[i])
+            ut.writefits(outpath/'Tsum.fits',T_sums[i])
         else:
-            ut.tprint(f'---Reading CCF of template {templatename[i]} from {str(outpath)}.')
+            ut.tprint(f'---Reading CCF of template {T_names[i]} from {str(outpath)}.')
             if os.path.isfile(outpath/'ccf.fits') == False:
                 raise FileNotFoundError(f'CCF output not located at {outpath}. Rerun with '
                 'do_xcor=True to create these files.')
 
-        #Read regardless of whether XCOR was performed or not.
+        #Read regardless of whether XCOR was performed or not. Less code to duplicate...
         rv=fits.getdata(outpath/'RV.fits')
         ccf = fits.getdata(outpath/'ccf.fits')
         ccf_e = fits.getdata(outpath/'ccf_e.fits')
@@ -684,12 +746,13 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         ut.writefits(outpath/'ccf_cleaned.fits',ccf_clean_weighted)
         ut.writefits(outpath/'ccf_cleaned_error.fits',ccf_nne)
 
+        # pdb.set_trace()
         #Turn off KpVsys for now.
-        # ut.tprint('---Constructing KpVsys')
-        # Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp)
-        # ut.writefits(outpath/'KpVsys.fits',KpVsys)
-        # ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
-        # ut.writefits(outpath/'Kp.fits',Kp)
+        ut.tprint('---Constructing KpVsys')
+        Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp,parallel=False)
+        ut.writefits(outpath/'KpVsys.fits',KpVsys)
+        ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
+        ut.writefits(outpath/'Kp.fits',Kp)
 
 
     # print('DONE')
@@ -717,8 +780,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                     meanfluxes_norm_injected = meanfluxes_injected/np.mean(meanfluxes_injected)
                 else:
                     meanfluxes_norm_injected = np.ones(len(list_of_orders_injected[0])) #fun.findgen(len(list_of_orders_injected[0]))*0.0+1.0
-
-
 
 
                 if do_xcor:#Perform the cross-correlation on the entire list of orders and the entire list of

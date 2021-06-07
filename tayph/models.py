@@ -13,7 +13,8 @@ def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0
 twopass=False,template_library='models/library',verbose=False):
     """This routine reads a specified model from the library and turns it into a
     cross-correlation template by subtracting the top-envelope (or bottom envelope),
-    if c_subtract is set to True."""
+    if c_subtract is set to True. Returns the wavelength axis and flux axis of the template,
+    and whether the template is a binary mask (True) or a spectrum (False)."""
 
     import tayph.util as ut
     from tayph.vartests import typetest,postest,notnegativetest
@@ -53,7 +54,7 @@ twopass=False,template_library='models/library',verbose=False):
         fxt=np.flipud(fxt)
 
     if get_model(templatename,library=template_library,is_binary=True):#Bypass all template-specific operations.
-        return(wlt,fxt)
+        return(wlt,fxt,True)
 
     if c_subtract == True:
         wle,fxe=ops.envelope(wlt,fxt-np.median(fxt),binsize,selfrac=maxfrac,mode=mode)#These are binpoints of the top-envelope.
@@ -81,7 +82,7 @@ twopass=False,template_library='models/library',verbose=False):
         T_b=ops.smooth(T_cv,dRV/vstep,mode='gaussian')
         wlt = wlt_cv*1.0
         T = T_b*1.0
-    return(wlt,T)
+    return(wlt,T,False)
 
 
 def get_model(name,library='models/library',root='models',is_binary=False):

@@ -661,7 +661,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             outpaths = outpaths_S
             T_names = names_S
         elif len(wlTs_S) == 0 and len(wlTs_M) > 0:
-            RV = RV2
             CCFs = CCFs2
             CCF_Es = CCF_Es2
             T_sums = T_sums2
@@ -748,11 +747,11 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
         # pdb.set_trace()
         #Turn off KpVsys for now.
-        ut.tprint('---Constructing KpVsys')
-        Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp,parallel=False)
-        ut.writefits(outpath/'KpVsys.fits',KpVsys)
-        ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
-        ut.writefits(outpath/'Kp.fits',Kp)
+        # ut.tprint('---Constructing KpVsys')
+        # Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp,parallel=False)
+        # ut.writefits(outpath/'KpVsys.fits',KpVsys)
+        # ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
+        # ut.writefits(outpath/'Kp.fits',Kp)
 
 
     # print('DONE')
@@ -781,48 +780,85 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                 else:
                     meanfluxes_norm_injected = np.ones(len(list_of_orders_injected[0])) #fun.findgen(len(list_of_orders_injected[0]))*0.0+1.0
 
+                if xcor_parallel:
+                    ut.tprint(f'---Performing cross-correlation with {len(list_of_templates)} '
+                    'templates in parallel.')
+                else:
+                    ut.tprint(f'---Performing cross-correlation with {len(list_of_templates)} '
+                    'templates in sequence.')
 
-                if do_xcor:#Perform the cross-correlation on the entire list of orders and the entire list of
-                    #templates, in parallel or sequentially.
-                    if xcor_parallel:
-                        ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} '
-                        'templates in parallel.')
-                    else:
-                        ut.tprint(f'---Performing cross-correlation with {len(list_of_wlts)} '
-                        'templates in sequence.')
-
+                #First we do all the spectral templates (case 1):
+                if len(wlTs_S) > 0:
                     t1 = ut.start()
-                    RV_i,list_of_CCFs_i,list_of_CCF_Es_i,list_of_T_sums_i = xcor(list_of_wls,
-                    list_of_orders_normalised,list_of_wlts,list_of_templates,drv,RVrange,
-                    list_of_errors=list_of_sigmas_normalised,parallel=xcor_parallel)
+                    RV_i,CCFs1_i,CCF_Es1_i,T_sums1_i = xcor(list_of_wls,list_of_orders_injected,
+                    wlTs_S,T_S,drv,RVrange,list_of_errors=list_of_sigmas_injected,
+                    parallel=xcor_parallel)
                     txcor  = ut.end(t1,silent=True)
-                    print(f'------Completed. Time spent in cross-correlation: {np.round(txcor,1)}s '
-                    f'({np.round(txcor/len(list_of_templates),1)} per template).')
+                    print(f'------Spectral correlation completed. Time spent: '
+                    f'{np.round(txcor,1)}s ({np.round(txcor/len(T_S),1)} per template).')
 
+                #Then all the mask templates (case 2):
+                if len(wlTs_M) > 0:
+                    t1 = ut.start()
+                    RV_i,CCFs2_i,CCF_Es2_i,T_sums2_i = mask_cor(list_of_wls,
+                    list_of_orders_injected,wlTs_M,T_M,drv,RVrange,
+                    list_of_errors=list_of_sigmas_injected,parallel=parallel)
+                    tmcor  = ut.end(t1,silent=True)
+                    print(f'------Line-list correlation completed. Time spent: '
+                    f'{np.round(tmcor,1)}s ({np.round(tmcor/len(T_M),1)} per template).')
 
-    #Save CCFs to disk, read them back in and perform cleaning steps.
+                #Now merge the outcome in single arrays:
+                if len(wlTs_S) > 0 and len(wlTs_M) > 0:#and make 100% sure that these are lists
+                    #and not e.g. arrays.
+                    CCFs_i = list(CCFs1_i)+list(CCFs2_i)
+                    CCF_Es_i = list(CCF_Es1_i)+list(CCF_Es2_i)
+                    T_sums_i = list(T_sums1_i)+list(T_sums2_i)
+                    outpaths = list(outpaths_S)+list(outpaths_M)
+                    T_names = list(names_S)+list(names_M)
+                elif len(wlTs_S) > 0 and len(wlTs_M) == 0:
+                    CCFs_i = CCFs1_i
+                    CCF_Es_i = CCF_Es1_i
+                    T_sums_i = T_sums1_i
+                    outpaths = outpaths_S
+                    T_names = names_S
+                elif len(wlTs_S) == 0 and len(wlTs_M) > 0:
+                    CCFs_i = CCFs2_i
+                    CCF_Es_i = CCF_Es2_i
+                    T_sums_i = T_sums2_i
+                    outpaths = outpaths_M
+                    T_names = names_M
+                else:
+                    raise(RuntimeError(f"Error in length of wlTs_S ({len(wlTs_S)}) and/or the "
+                    f"length of wlTs_M ({len(wlTs_M)}). One or both of these should be greater "
+                    "than 0, and only up to one of these may be zero."))
+
+                #Save CCFs to disk, read them back in and perform cleaning steps.
                 ut.tprint('---Writing CCFs to file and peforming cleaning steps.')
-                for i in range(len(templatelist)):
+                for i in range(len(T_names)):
                     outpath_i = outpaths[i]/modelname
                     if do_xcor:
-                        ut.tprint(f'------Writing {modelname}-injected CCF of {templatelist[i]} '
+                        ut.tprint(f'------Writing {modelname}-injected CCF of {T_names[i]} '
                         f'to {str(outpath)}.')
                         if not os.path.exists(outpath_i):
                             ut.tprint("---------That path didn't exist, I made it now.")
                             os.makedirs(outpath_i)
-                        ut.writefits(outpath_i/'ccf_i.fits',list_of_CCFs_i[i])
-                        ut.writefits(outpath_i/'ccf_e_i.fits',list_of_CCF_Es_i[i])
-                        ut.writefits(outpath_i/'RV.fits',RV_i)
-                        ut.writefits(outpath_i/'Tsum.fits',list_of_T_sums_i[i])
 
+
+                        ut.writefits(outpath_i/'ccf.fits',CCFs_i[i])
+                        ut.writefits(outpath_i/'ccf_e.fits',CCF_Es_i[i])
+                        ut.writefits(outpath_i/'RV.fits',RV)
+                        ut.writefits(outpath_i/'Tsum.fits',T_sums_i[i])
                     else:
-                        ut.tprint(f'---Reading injected CCF from {outpath_i}')
-                        if os.path.isfile(outpath_i/'ccf_i.fits') == False:
-                            raise FileNotFoundError(f'Injected CCF not located at {str(outpath_i)} '
-                            'Rerun do_xcor=True and inject_model=True to create these files.')
-                    rv_i = fits.getdata(outpath_i/'RV.fits')
-                    ccf_i = fits.getdata(outpath_i/'ccf_i.fits')
-                    ccf_e_i = fits.getdata(outpath_i/'ccf_e_i.fits')
+                        ut.tprint(f'---Reading CCF of template {T_names[i]} from '
+                        f'{str(outpath_i)}.')
+                        if os.path.isfile(outpath_i/'ccf.fits') == False:
+                            raise FileNotFoundError(f'Injected CCF not located at '
+                            f'{str(outpath_i)}. Rerun with do_xcor=True to create these files.')
+
+                    #Read regardless of whether XCOR was performed or not. Less code to duplicate...
+                    rv_i=fits.getdata(outpath_i/'RV.fits')
+                    ccf_i = fits.getdata(outpath_i/'ccf.fits')
+                    ccf_e_i = fits.getdata(outpath_i/'ccf_e.fits')
                     Tsums_i = fits.getdata(outpath_i/'Tsum.fits')
 
 

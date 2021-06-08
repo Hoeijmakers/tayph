@@ -450,7 +450,11 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
 
 
 
-
+    #Copy the input to prevent backward propagation of modifications:
+    list_of_orders = copy.deepcopy(list_of_orders)
+    list_of_wls = copy.deepcopy(list_of_wls)
+    if list_of_errors is not None:
+        list_of_errors = copy.deepcopy(list_of_errors)
 
 
 

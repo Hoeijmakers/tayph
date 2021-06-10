@@ -133,7 +133,7 @@ def envelope(wlm,fxm,binsize,selfrac=0.05,mode='top',threshold=''):
         fxm*=-1.0
     return wlcs,fxcs
 
-def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
+def normalize_orders(list_of_orders,list_of_sigmas,deg=0,nsigma=4,sinusoid=False):
     """
     If deg is set to 1, this function will normalise based on the mean flux in each order.
     If set higher, it will remove the average spectrum in each order and fit a polynomial
@@ -173,7 +173,9 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
     import numpy as np
     import tayph.functions as fun
     from tayph.vartests import dimtest,postest,typetest
+    import tayph.util as ut
     import warnings
+    import pdb
     typetest(list_of_orders,list,'list_of_orders in ops.normalize_orders()')
     typetest(list_of_sigmas,list,'list_of_sigmas in ops.normalize_orders()')
 
@@ -214,7 +216,7 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
             meanfluxes+=m#These contain the exposure-to-exposure variability of the time-series.
     meanfluxes/=N_i#These are the weights.
 
-    if deg == 1:
+    if deg == 0:
 
         ### suggestion for improvement: (no loop needed)!
         """
@@ -222,9 +224,7 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
         meanblock = m / np.nanmean(meanflux)
         out_list_of_orders.append((list_of_orders[i].T/meanblock).T)
         """
-
         for i in range(N):
-
             #What I'm doing here is probably stupid and numpy division will probably work just fine without
             #IDL-relics.
             n_px=np.shape(list_of_orders[i])[1]
@@ -251,12 +251,15 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore", category=RuntimeWarning)
                         w[np.abs(res)>nsigma*sigma] = 0.0
-                    w = x*0.0+1.0#Start with a weight function that is 1.0 everywhere.
-                    p2 = np.poly1d(np.polyfit(x[idx],colour[j][idx],deg,w=w[idx]))(x)#Second, weighted polynomial fit to the colour variation.
+                    if sinusoid == False:
+                        p2 = np.poly1d(np.polyfit(x[idx],colour[j][idx],deg,w=w[idx]))(x)#Second, weighted polynomial fit to the colour variation.
+                    else:
+                        p2 = fun.polysin(x,*fun.polysinfit(x[idx],colour[j][idx],deg,stepsize=1,polyprimer=True,lmfit=True,w=w[idx]))
                     poly_block[j] = p2
 
             out_list_of_orders.append(list_of_orders[i]/poly_block)
             out_list_of_sigmas.append(list_of_sigmas[i]/poly_block)
+            ut.statusbar(i,N)
     return(out_list_of_orders,out_list_of_sigmas,meanfluxes)
 
 

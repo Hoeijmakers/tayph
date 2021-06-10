@@ -221,9 +221,13 @@ def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/
 
 
 
-    if np.min(wlm) > np.min(list_of_wls)-1.0 or np.max(wlm) < np.max(list_of_wls)+1.0:
-        ut.tprint('WARNING in model injection: Data grid falls (partly) outside of model range. '
-        'Setting missing area to 1.0. (meaning, no planet absorption.)')
+    wl_mins = []
+    for wlo in list_of_wls:
+        wl_mins.append(wlo)
+
+    if np.min(wlm) > np.min(wl_mins)-1.0 or np.max(wlm) < np.max(wl_mins)+1.0:
+        raise RunTimeError('in model injection: Data grid falls (partly) outside of model range. '
+        'Use a model with a wavelength range that encapsulates the data fully.')
 
     modelsel=[(wlm >= np.min(list_of_wls)-1.0) & (wlm <= np.max(list_of_wls)+1.0)]
 

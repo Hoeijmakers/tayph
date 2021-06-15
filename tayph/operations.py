@@ -187,7 +187,7 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=0,nsigma=4,sinusoid=False
         dimtest(list_of_sigmas[i],np.shape(list_of_orders[i]))
     typetest(deg,int,'degree in ops.normalize_orders()')
     typetest(nsigma,[int,float],'nsigma in ops.normalize_orders()')
-    postest(deg,'degree in ops.normalize_orders()')
+    # postest(deg,'degree in ops.normalize_orders()')
     postest(nsigma,'degree in ops.normalize_orders()')
 
 

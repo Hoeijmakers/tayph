@@ -860,7 +860,7 @@ def shift_ccf(RV,CCF,drv):
     return(CCF_new)
 
 
-def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True):
+def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,notransit=False):
     """The name says it all. Do good tests."""
     import tayph.functions as fun
     import tayph.operations as ops
@@ -878,8 +878,12 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True):
     KpVsys = np.zeros((len(Kp),len(rv)))
     KpVsys_e = np.zeros((len(Kp),len(rv)))
     transit = sp.transit(dp)-1.0
-    transit /= np.nansum(transit)
-    transitblock = fun.rebinreform(transit,len(rv)).T
+
+    if not notransit:
+        transit /= np.nansum(transit)
+        transitblock = fun.rebinreform(transit,len(rv)).T
+    else:
+        transitblock = fun.rebinreform(transit,len(rv)).T * 0.0 + 1.0
 
     def Kp_parallel(i):
         dRV = sp.RV(dp,vorb=i)*(-1.0)

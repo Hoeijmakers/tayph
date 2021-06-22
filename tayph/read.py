@@ -201,7 +201,7 @@ def read_carmenes(inpath,filelist,channel,construct_s1d=True):
             del hdul[2].data
             del hdul[3].data
             del hdul[4].data
-            if hdr[catkeyword] == 'SCIENCE':
+            if hdr[catkeyword] == 'SCIENCE' or hdr[catkeyword] == "Science":
                 framename.append(filelist[i])
                 header.append(hdr)
                 obstype.append(hdr[catkeyword])

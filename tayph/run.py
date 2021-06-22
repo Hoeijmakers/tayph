@@ -1537,7 +1537,7 @@ save_figure=True):
         print(f'---The wavelength axes of the spectra will be shown here as they were saved by read_e2ds.')
         print(f'---Cleaning 1D spectra for cross-correlation.')
 
-        if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS']:
+        if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','CARMENES-NIR']:
             #gamma = (1.0-(berv[0]*u.km/u.s/const.c).decompose().value)
             wave_1d = wave1d[0]/10.0#*gamma#Universal berv-un-corrected wavelength axis in nm in air.
             s1d_block=np.zeros((len(s1d),len(wave_1d)))
@@ -1733,7 +1733,7 @@ save_figure=True):
             'the Tayph runfile of this dataset, do_berv_correction should be set to True and air '
             'in the config file of this dataset should be set to True.')]
 
-        if mode in ['CARMENES-VIS']:
+        if mode in ['CARMENES-VIS', 'CARMENES-NIR']:
             explanation=[('[No explanation provided yet need to do]')]
 
 

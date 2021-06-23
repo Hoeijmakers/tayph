@@ -1734,7 +1734,18 @@ save_figure=True):
             'in the config file of this dataset should be set to True.')]
 
         if mode in ['CARMENES-VIS', 'CARMENES-NIR']:
-            explanation=[('[No explanation provided yet need to do]')]
+            explanation=[('Both CARMENES arms only provide e2ds spectra, in vacuum in the observatory. '
+            'rest frame. The read in corrects this to be in air before running the analysis. During '
+            'the read phase the e2ds spectra are stiched together to create a s1d spectrum to allow '
+            'for telluric correction.'),'', (' Therefore, you should see following values for the '
+            ' measured line centers:'),('- The 1D spectra correlated with PHOENIX should peak at the '
+            f'systemic velocity minus the BERV correction (equal to {np.round(np.nanmean(berv),2)} '
+            ' km/s on average).'),('- The 1D spectra correlated with the telluric model should peak '
+            'at 0 km/s.'),('- The 2D spectra correlated with PHOENIX should peak the systemic velocity '
+            f'minus the BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).'
+            ''),('- The 2D spectra correlated with the tellurics should peak at 0 km/s.'),'',('If '
+            'this is correct, in the Tayph runfile of this dataset, do_berv_correction should '
+            'be set to True and air in the config file of this dataset should be set to True.')]
 
 
         for s in explanation: print(textwrap.fill(s, width=int(terminal_width)-5))

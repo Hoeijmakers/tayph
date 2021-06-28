@@ -900,3 +900,65 @@ def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True,parall
         return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r,r2)#Avg_flux is 1.0 unless
         #renorm=True.
     return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r)
+
+def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
+    """Runs through the exposures of a night and removes any bad ones which exist.
+        args:
+            uncleandirectory: the directory where the raw fits files are kept
+            cleandirectory: the directroy where the clean files will go
+            night: the name of the night you use (try to keep it consistent with your CC
+            mode: visable or infrared modes (CARMENES-VIS, CARMENES-NIR)
+            cut_off: the decimal cut off value for the exposures
+        returns:
+            No variables are returned but the well behaved files are copied to a new directroy
+    """
+    from os import listdir, mkdir, path
+    import shutil
+    import numpy as np
+    from astropy.io import fits
+    from tayph.read import spec_stich_n_norm #import the stich algorithm from tayph
+
+    #Each "mode" needs to be cleaned seperately but will go to the same directory
+    if mode == "CARMENES-VIS":
+        mode_ext = "vis_A"
+    elif mode == "CARMENES-NIR":
+        mode_ext = "nir_A"
+
+    file_list = listdir(uncleandirectory + night) #obtains the file list from the night in question
+    vis_files = []
+    sum_vals = []
+    for i in range(0,len(file_list)):
+        # Prints the current file being read out of the total made in the night
+        print("Scanning through files and opening the relevent ones")
+        print("File #" + str(i) + " of " + str(len(file_list)), end="\r")
+
+        if file_list[i][-10:-5] == mode_ext: #Takes the explosures from the mode and night in question
+
+            vis_files.append(file_list[i])
+            hdul = fits.open(uncleandirectory + night + file_list[i])
+            spec = hdul[1].data
+            cont = hdul[2].data
+            sig  = hdul[3].data
+            wave = hdul[4].data
+            wav_len, spec_1d = spec_stich_n_norm(spec, wave, cont, sig) #Stiches all the orders together to make 1d spec
+
+            #All flux values get summed here, bad exposrues have lower values big several orders of magnitude
+            if mode_ext == "vis_A":
+                sum_val = np.nansum(spec_1d[wav_len<8000])
+
+            if mode_ext == "nir_A":
+                sum_val = np.nansum(spec_1d)
+
+            sum_vals.append(sum_val)
+
+    sum_vals = sum_vals / np.median(sum_vals)#Normalise the summed values
+    mask = sum_vals > cut_off #Creates a mask based on a specified cutoff
+
+    if path.isdir(cleandir + night) == False:
+        #This checks if the directory for the night in the cleaned spectra has been made
+        mkdir(cleandir + night)
+
+    #All good exposures are moved to this new directory
+    for i in range(len(vis_files)):
+        if mask[i] == True:
+            shutil.copy(uncleandirectory + night + vis_files[i], cleandirectory + night + vis_files[i])

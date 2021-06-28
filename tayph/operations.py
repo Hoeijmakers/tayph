@@ -929,7 +929,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
     sum_vals = []
     for i in range(0,len(file_list)):
         # Prints the current file being read out of the total made in the night
-        print("Scanning through files and opening the relevent ones")
+        print("Scanning through files and opening the relevent ones", end="\r")
         print("File #" + str(i) + " of " + str(len(file_list)), end="\r")
 
         if file_list[i][-10:-5] == mode_ext: #Takes the explosures from the mode and night in question
@@ -954,9 +954,9 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
     sum_vals = sum_vals / np.median(sum_vals)#Normalise the summed values
     mask = sum_vals > cut_off #Creates a mask based on a specified cutoff
 
-    if path.isdir(cleandir + night) == False:
+    if path.isdir(cleandirectory + night) == False:
         #This checks if the directory for the night in the cleaned spectra has been made
-        mkdir(cleandir + night)
+        mkdir(cleandirectory + night)
 
     #All good exposures are moved to this new directory
     for i in range(len(vis_files)):

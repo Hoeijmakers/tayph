@@ -927,10 +927,10 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
     file_list = listdir(uncleandirectory + night) #obtains the file list from the night in question
     vis_files = []
     sum_vals = []
+    print("Scanning through files and opening the relevent ones.")
     for i in range(0,len(file_list)):
         # Prints the current file being read out of the total made in the night
-        #print("Scanning through files and opening the relevent ones", end="\r")
-        print("Scanning through files and opening the relevent ones" + "\rFile #" + str(i) + " of " + str(len(file_list)), end="\r")
+        print("File #" + str(i) + " of " + str(len(file_list)), end="\r")
 
         if file_list[i][-10:-5] == mode_ext: #Takes the explosures from the mode and night in question
 

@@ -949,10 +949,6 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
 
     file_list = list(t["files"])
 
-    print(file_list)
-
-
-    quit()
     vis_files = []
     sum_vals = []
     print("Scanning through files and opening the relevent ones.")

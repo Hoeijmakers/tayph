@@ -926,7 +926,12 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
         mode_ext = "nir_A"
 
     file_list = listdir(uncleandirectory + night) #obtains the file list from the night in question
-    file_list = [e[2:] for e in file_list]
+
+    for e in file_list:
+        if e[0] == ".":
+            e = e[2:]
+
+    #file_list = [e[2:] for e in file_list]
     print(file_list)
     vis_files = []
     sum_vals = []

@@ -956,7 +956,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
         print("File #" + str(i) + " of " + str(len(file_list)), end="\r")
 
         if file_list[i][-10:-5] == mode_ext: #Takes the explosures from the mode and night in question
-
+            print(file_list[i])
             vis_files.append(file_list[i])
             hdul = fits.open(uncleandirectory + night + file_list[i])
             spec = hdul[1].data

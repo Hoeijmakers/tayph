@@ -927,6 +927,8 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, file_list = 0, c
 
     if file_list == 0:
         file_list = listdir(uncleandirectory + night) #obtains the file list from the night in question
+
+    print(file_list)
     vis_files = []
     sum_vals = []
     print("Scanning through files and opening the relevent ones.")

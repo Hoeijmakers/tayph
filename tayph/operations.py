@@ -930,6 +930,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
     for e in file_list:
         if e[0] == ".":
             e = e[2:]
+            print(e)
     print(file_list)
     #file_list = [e[2:] for e in file_list]
     vis_files = []

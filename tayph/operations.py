@@ -925,8 +925,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, file_list = 0, c
     elif mode == "CARMENES-NIR":
         mode_ext = "nir_A"
 
-    if file_list == 0:
-        file_list = listdir(uncleandirectory + night) #obtains the file list from the night in question
+    file_list = listdir(uncleandirectory + night) #obtains the file list from the night in question
 
     print(file_list)
     vis_files = []

@@ -902,7 +902,7 @@ def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True,parall
         #renorm=True.
     return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r)
 
-def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
+def fits_cleaner(uncleandirectory, cleandirectory, night, mode, file_list = 0, cut_off = 0.1):
     """Runs through the exposures of a night and removes any bad ones which exist.
         args:
             uncleandirectory: the directory where the raw fits files are kept
@@ -925,7 +925,8 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
     elif mode == "CARMENES-NIR":
         mode_ext = "nir_A"
 
-    file_list = listdir(uncleandirectory + night) #obtains the file list from the night in question
+    if file_list == 0:
+        file_list = listdir(uncleandirectory + night) #obtains the file list from the night in question
     vis_files = []
     sum_vals = []
     print("Scanning through files and opening the relevent ones.")

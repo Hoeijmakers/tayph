@@ -917,6 +917,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
     import shutil
     import numpy as np
     from astropy.io import fits
+    from astropy.table import Table, Column
     from tayph.read import spec_stich_n_norm #import the stich algorithm from tayph
 
     #Each "mode" needs to be cleaned seperately but will go to the same directory
@@ -926,13 +927,16 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
         mode_ext = "nir_A"
 
     file_list = listdir(uncleandirectory + night) #obtains the file list from the night in question
+    non_cached_file_list = []
+    times = []
     #print(file_list)
     for e in file_list:
-        if e[0] == ".":
-            #e = e[2:]
-            print(e)
-    #print(file_list)
-    #file_list = [e[2:] for e in file_list]
+        if e[0] == "c":
+            print(e[4:18])
+            non_cached_file_list.append(e)
+            times.append(e[4:18])
+    non_cached_file_list = Column(non_cached_file_list, "files")
+
     vis_files = []
     sum_vals = []
     print("Scanning through files and opening the relevent ones.")

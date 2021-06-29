@@ -10,7 +10,8 @@ __all__ = [
     "blur_rotate",
     "airtovac",
     "vactoair",
-    "clean_block"
+    "clean_block",
+    "fits_cleaner"
 ]
 
 

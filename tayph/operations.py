@@ -946,7 +946,10 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
     t.add_column(times)
     t.add_column(non_cached_file_list)
     t.sort("times")
-    print(t)
+
+    file_list = list(t["files"])
+
+    print(file_list)
 
 
     quit()

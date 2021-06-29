@@ -959,8 +959,11 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
         #This checks if the directory for the night in the cleaned spectra has been made
         mkdir(cleandirectory + night)
 
+    print(mask)
+
     #All good exposures are moved to this new directory
     for i in range(len(vis_files)):
+        print(i)
         if mask[i] == True:
             shutil.copy(uncleandirectory + night + vis_files[i], cleandirectory + night + vis_files[i])
         elif mask[i] == False:

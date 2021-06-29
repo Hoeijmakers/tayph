@@ -918,6 +918,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
     import numpy as np
     from astropy.io import fits
     from astropy.table import Table, Column
+    from astropy.time import Time
     from tayph.read import spec_stich_n_norm #import the stich algorithm from tayph
 
     #Each "mode" needs to be cleaned seperately but will go to the same directory
@@ -938,9 +939,17 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
             t = t.replace("m",":")
             t = t[:4] + "-" + t[4:6] + "-" + t[6:]
             print(t)
-            times.append(t)
+            times.append(Time(t, scale = "utc"))
     non_cached_file_list = Column(non_cached_file_list, "files")
+    times = Column(times, "times")
+    t = Table()
+    t.add_column(times)
+    t.add_column(non_cached_file_list)
+    t.sort("times")
+    print(t)
 
+
+    quit()
     vis_files = []
     sum_vals = []
     print("Scanning through files and opening the relevent ones.")

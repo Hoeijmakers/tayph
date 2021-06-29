@@ -990,4 +990,4 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
             shutil.copy(uncleandirectory + night + vis_files[i], cleandirectory + night + vis_files[i])
         elif mask[i] == False:
             print("Stopping Code")
-            #exit()
+            shutil.copy(uncleandirectory + night + vis_files[i], cleandirectory + night + vis_files[i])

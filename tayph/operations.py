@@ -934,6 +934,8 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
         if e[0] == "c":
             print(e[4:21])
             non_cached_file_list.append(e)
+            e[4:21] = e[4:21].replace("h", ":")
+            e[4:21] = e[4:21].replace("m",":")
             times.append(e[4:21])
     non_cached_file_list = Column(non_cached_file_list, "files")
 

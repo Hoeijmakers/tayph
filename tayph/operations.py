@@ -936,7 +936,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
             non_cached_file_list.append(e)
             t = t.replace("h",":")
             t = t.replace("m",":")
-            t.insert(4,"-")
+            t = t[:4] + "-" + t[4:6] + "-" + t[6:]
             print(t)
             times.append(t)
     non_cached_file_list = Column(non_cached_file_list, "files")

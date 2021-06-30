@@ -416,6 +416,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas,p
     """
     import scipy.interpolate as interp
     import numpy as np
+    import pdb
     import tayph.util as ut
     import tayph.functions as fun
     from tayph.vartests import dimtest,postest,typetest,nantest
@@ -436,6 +437,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas,p
     No = len(list_of_wls)#Number of orders.
     x = np.arange(No, dtype=float) #fun.findgen(No)
     Nexp = len(wlT)
+    pdb.set_trace()
 
 
     #Test dimensions

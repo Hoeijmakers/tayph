@@ -401,7 +401,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     ##plot corrected spectra
     # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='red',alpha=0.5)
     ##plot SNR
-    pdb.set_trace()
     if do_telluric_correction == True and n_orders > 0:
         print('---Applying telluric correction')
         telpath = dp/'telluric_transmission_spectra.pkl'

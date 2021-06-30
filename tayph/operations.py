@@ -977,13 +977,13 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1, i
     mask = sum_vals > cut_off #Creates a mask based on a specified cutoff
     print()
     val = (path.isdir(cleandirectory))
-    print(val.type())
+
     print(path.isdir(cleandirectory))
     if path.isdir(cleandirectory) == False:
         #This checks if the directory for the night in the cleaned spectra has been made
-        print(cleandirectory + night)
-        mkdir(cleandirectory + night)
-        print("This should ping")
+        #print(cleandirectory + night)
+        mkdir(cleandirectory)
+    mkdir(cleandirectory + night)
 
     #print(mask)
     #count = 0

@@ -975,22 +975,22 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
 
     sum_vals = sum_vals / np.median(sum_vals)#Normalise the summed values
     mask = sum_vals > cut_off #Creates a mask based on a specified cutoff
-    print()
-    print(len(sum_vals))
+    #print()
+    #print(len(sum_vals))
     if path.isdir(cleandirectory + night) == False:
         #This checks if the directory for the night in the cleaned spectra has been made
         mkdir(cleandirectory + night)
 
     #print(mask)
-    count = 0
+    #count = 0
     #All good exposures are moved to this new directory
     for i in range(len(vis_files)):
         #print(i)
         if mask[i] == True:
-            count = count + 1
+            #count = count + 1
             shutil.copy(uncleandirectory + night + vis_files[i], cleandirectory + night + vis_files[i])
         elif mask[i] == False:
             print("Bad Exposure dectected")
             #quit()
             #shutil.copy(uncleandirectory + night + vis_files[i], cleandirectory + night + vis_files[i])
-    print(count)
+    #print(count)

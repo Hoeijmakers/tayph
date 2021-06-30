@@ -437,7 +437,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas,p
     No = len(list_of_wls)#Number of orders.
     x = np.arange(No, dtype=float) #fun.findgen(No)
     Nexp = len(wlT)
-    #pdb.set_trace()
+    pdb.set_trace()
 
     #Test dimensions
     if No != len(list_of_orders):

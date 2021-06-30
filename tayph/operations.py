@@ -976,7 +976,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1, i
     sum_vals = sum_vals / np.median(sum_vals)#Normalise the summed values
     mask = sum_vals > cut_off #Creates a mask based on a specified cutoff
     #print()
-    #print(len(sum_vals))
+    print(path.isdir(cleandirectory))
     if path.isdir(cleandirectory) == False:
         #This checks if the directory for the night in the cleaned spectra has been made
         mkdir(cleandirectory + night)

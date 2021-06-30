@@ -902,7 +902,7 @@ def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True,parall
         #renorm=True.
     return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r)
 
-def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
+def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1, incbad = False):
     """Runs through the exposures of a night and removes any bad ones which exist.
         args:
             uncleandirectory: the directory where the raw fits files are kept
@@ -992,5 +992,6 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
         elif mask[i] == False:
             print("Bad Exposure dectected")
             #quit()
-            #shutil.copy(uncleandirectory + night + vis_files[i], cleandirectory + night + vis_files[i])
+            if incbad == True: #allows the user to include the bas exposures
+                shutil.copy(uncleandirectory + night + vis_files[i], cleandirectory + night + vis_files[i])
     #print(count)

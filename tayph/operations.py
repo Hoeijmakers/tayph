@@ -993,3 +993,4 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1):
             print("Bad Exposure dectected")
             #quit()
             #shutil.copy(uncleandirectory + night + vis_files[i], cleandirectory + night + vis_files[i])
+    print(count)

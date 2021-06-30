@@ -980,6 +980,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1, i
     if path.isdir(cleandirectory) == False:
         #This checks if the directory for the night in the cleaned spectra has been made
         mkdir(cleandirectory + night)
+        print("This should ping")
 
     #print(mask)
     #count = 0

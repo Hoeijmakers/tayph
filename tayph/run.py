@@ -240,7 +240,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
     #We start by defining constants and preparing for generating output.
     c=const.c.value/1000.0#in km/s
-    colourdeg = 3#A fitting degree for the colour correction. #should be set in the config file?
+    colourdeg = 3 #A fitting degree for the colour correction. #should be set in the config file?
 
 
     ut.tprint('---Passed parameter input tests. Initiating output folder tree in '
@@ -419,8 +419,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
 
-
-
 #Do velocity correction of wl-solution. Explicitly after telluric correction
 #but before masking. Because the cross-correlation relies on columns being masked.
 #Then if you start to move the spectra around before removing the time-average,
@@ -501,8 +499,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         'was before. Something went wrong during telluric correction or velocity correction.')
 
 
-
-
     #Compute / create a mask and save it to file (or not)
     if make_mask == True and len(list_of_orders) > 0:
         if do_colour_correction == True:
@@ -563,8 +559,23 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     if len(list_of_orders) != n_orders:
         raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
             'was before. Something went wrong during masking or colour correction.')
+   
+
+#    ######################### THIS WILL BE TEMPORARY FOR WASP-189 b
+#
+#    for i in range(len(list_of_orders_normalised)):
+#        hdu = fits.PrimaryHDU(list_of_orders_normalised[i])
+#        hdul = fits.HDUList([hdu])
+#        hdul.writeto(f'/home/bibi/Projects/WASP-189b/data/night6/fixing_pattern/order_{i}_NORMALISED.fits', overwrite=True)
+#        hdu = fits.PrimaryHDU(list_of_wls[i])
+#        hdul = fits.HDUList([hdu])
+#        hdul.writeto(f'/home/bibi/Projects/WASP-189b/data/night6/fixing_pattern/wave_{i}_NORMALISED.fits', overwrite=True)
+#
+#    print('NORMALISED ORDERS DONE!')
+#    #########################
 
 
+    
 
     #SOMEWHERE AT THE START, TEST THAT EACH OF THE REQUESTED TEMPLATES IS ACTUALLY BINARY OR
     #SPECTRAL. DONT ALLOW MIXING TEMPLATES, MAKES THE XCOR CODE TOO COMPLEX, WHEN SWITCHING IN
@@ -580,7 +591,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             wlt,T,is_binary=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,
                 template_library=template_library,c_subtract=c_subtract,verbose=verbose)
                 #Top-envelope subtraction and blurring.
-
             T*=(-1.0)
             if np.median(wlt) < 50.0:#This is likely in microns:
                 ut.tprint('------WARNING: The loaded template has a median wavelength less than '
@@ -1937,7 +1947,12 @@ plot_spec=False):
             tel.execute_molecfit(molecfit_prog_folder,parfile,gui=False)
             wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
             tel.remove_output_molecfit(molecfit_input_folder,instrument)
-            list_of_wls.append(wl*1000.0)#Convert to nm.
+            #list_of_wls.append(wl*1000.0)#Convert to nm.
+            if instrument == 'ESPRESSO':
+                berv_corr =  s1dhdr_sorted[i]['HIERARCH ESO QC BERV']
+                list_of_wls.append(wl*1000.0) * ((1.0+(berv_corr*u.km/u.s/const.c))) #Convert to nm. # correct for berv.
+            else:
+                list_of_wls.append(wl*1000.0)#Convert to nm.
             list_of_fxc.append(fx/trans)
             list_of_trans.append(trans)
             ut.end(t1)
@@ -1957,12 +1972,18 @@ def check_molecfit(dp,instrument='HARPS',configfile=None):
     import tayph.util as ut
     import tayph.tellurics as tel
     from pathlib import Path
+    import pickle
+    import astropy.units as u
+    import astropy.constants as const
+    
     dp=ut.check_path(dp,exists=True)
     telpath = ut.check_path(Path(dp)/'telluric_transmission_spectra.pkl',exists=True)
     list_of_wls,list_of_trans,list_of_fxc=tel.read_telluric_transmission_from_file(telpath)
     to_do_manually = tel.check_fit_gui(list_of_wls,list_of_fxc,list_of_trans)
 
-
+    s1d_path=ut.check_path(dp/'s1ds.pkl',exists=True)
+    with open(s1d_path,"rb") as p:
+        s1dhdr_sorted,s1d_sorted,wave1d_sorted = pickle.load(p)
 
     if len(to_do_manually) > 0:
         if not configfile:
@@ -1987,8 +2008,15 @@ def check_molecfit(dp,instrument='HARPS',configfile=None):
             tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
             tel.execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
             wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
-            list_of_wls[int(i)] = wl*1000.0#Convert to nm.
+            if instrument == 'ESPRESSO':
+                berv_corr =  s1dhdr_sorted[i]['HIERARCH ESO QC BERV']
+                list_of_wls[int(i)] = wl*1000.0 * ((1.0+(berv_corr*u.km/u.s/const.c))) #Convert to nm. # correct for berv.
+            else:
+                list_of_wls[int(i)] = wl*1000.0#Convert to nm.
             list_of_fxc[int(i)] = fx/trans
             list_of_trans[int(i)] = trans
         tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,list_of_fxc,dp/'telluric_transmission_spectra.pkl')
+        
+        
     # return(list_of_wls,list_of_trans)
+

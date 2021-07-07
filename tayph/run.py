@@ -1674,10 +1674,10 @@ save_figure=True):
             centroids1d.append(rv1d[np.argmin(i)])
         for n,i in enumerate(ccfT2D):
             if n == 0:
-                ax[1].plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='navy',
+                ax[1].plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='green',
                 label='2D orders w. TELLURIC')
             else:
-                ax[1].plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='navy')
+                ax[1].plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='green')
             centroidsT2d.append(rvT2D[np.argmin(i)])
         for n,i in enumerate(ccfT):
             if n == 0:
@@ -1687,10 +1687,10 @@ save_figure=True):
                 ax[1].plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='blue')
             centroidsT1d.append(rvT[np.argmin(i)])
 
-        ax[1].axvline(np.nanmean(centroids2d),color='red',alpha=0.5)
-        ax[1].axvline(np.nanmean(centroids1d),color='orange',alpha=0.5)
-        ax[1].axvline(np.nanmean(centroidsT1d),color='blue',alpha=0.5)
-        ax[1].axvline(np.nanmean(centroidsT2d),color='navy',alpha=1.0)
+        ax[1].axvline(np.nanmedian(centroids2d),color='red',alpha=0.5)
+        ax[1].axvline(np.nanmedian(centroids1d),color='orange',alpha=0.5)
+        ax[1].axvline(np.nanmedian(centroidsT1d),color='blue',alpha=0.5)
+        ax[1].axvline(np.nanmedian(centroidsT2d),color='green',alpha=1.0)
         ax[1].set_title(f'CCF between {mode} data and {star} PHOENIX and telluric models. See commentary '
         'in terminal for details',fontsize=9)
         ax[1].set_xlabel('Radial velocity (km/s)')

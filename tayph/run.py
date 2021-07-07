@@ -559,7 +559,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     if len(list_of_orders) != n_orders:
         raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
             'was before. Something went wrong during masking or colour correction.')
-   
+
 
     #SOMEWHERE AT THE START, TEST THAT EACH OF THE REQUESTED TEMPLATES IS ACTUALLY BINARY OR
     #SPECTRAL. DONT ALLOW MIXING TEMPLATES, MAKES THE XCOR CODE TOO COMPLEX, WHEN SWITCHING IN
@@ -1619,21 +1619,32 @@ save_figure=True):
             maxwl=np.max([np.max(list_of_waves[i]),maxwl])
 
             if i == 0:
-                ax[0].plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.9,
-                alpha=0.5,label='2D echelle orders to be cross-correlated')
+                if mode=='ESPRESSO':
+                    ax[0].plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',
+                    linewidth=0.9,alpha=0.5,label='2D echelle orders to be '
+                    'cross-correlated (barycentric frame, BERV-corrected)')
+                else:
+                    ax[0].plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',
+                    linewidth=0.9,alpha=0.5,label='2D echelle orders to be '
+                    'cross-correlated (geocentric frame)')
             else:
                 ax[0].plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.7,
                 alpha=0.5)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             s1d_avg=np.nanmean(s1d_block,axis=0)
-        ax[0].plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
-            label='1D spectrum to be cross-correlated',linewidth=0.9,alpha=0.5)
-        ax[0].plot(wlt,fxtn,color='blue',linewidth=0.7,label='Skycalc telluric model',alpha=0.6)
+        if mode=='ESPRESSO':
+            ax[0].plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
+            label='1D spectrum to be cross-correlated (geo-centric frame, after undoing '
+            'BERV correction)',linewidth=0.9,alpha=0.5)
+        else:
+            ax[0].plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
+            label='1D spectrum to be cross-correlated (geo-centric frame)',linewidth=0.9,alpha=0.5)
+        ax[0].plot(wlt,fxtn,color='blue',linewidth=0.7,label='Skycalc telluric model (air)',alpha=0.6)
         ax[0].set_title(f'Time-averaged spectral orders and {star} PHOENIX model')
         ax[0].set_xlabel('Wavelength (nm)')
         ax[0].set_ylabel('Flux (normalised to order average)')
-        ax[0].plot(wlm,fxmn,color='green',linewidth=0.7,label='PHOENIX template (air, used in ccf)',
+        ax[0].plot(wlm,fxmn,color='green',linewidth=0.7,label='PHOENIX template (air)',
             alpha=0.5)
         ax[0].set_xlim(minwl-5,maxwl+5)#Always nm.
         ax[0].legend(loc='upper right',fontsize=8)
@@ -1650,28 +1661,28 @@ save_figure=True):
         for n,i in enumerate(ccf):
             if n == 0:
                 ax[1].plot(rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red',
-                label='2D orders-PHOENIX')
+                label='2D orders w. PHOENIX')
             else:
                 ax[1].plot(rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red')
             centroids2d.append(rv[np.argmin(i)])
         for n,i in enumerate(ccf1d):
             if n == 0:
                 ax[1].plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='orange',
-                label='1D spectra-PHOENIX')
+                label='1D spectraw w. PHOENIX')
             else:
                 ax[1].plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='orange')
             centroids1d.append(rv1d[np.argmin(i)])
         for n,i in enumerate(ccfT2D):
             if n == 0:
                 ax[1].plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='navy',
-                label='2D orders-TELLURIC')
+                label='2D orders w. TELLURIC')
             else:
                 ax[1].plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='navy')
             centroidsT2d.append(rvT2D[np.argmin(i)])
         for n,i in enumerate(ccfT):
             if n == 0:
                 ax[1].plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='blue',
-                label='1D spectra-TELLURIC')
+                label='1D spectra w. TELLURIC')
             else:
                 ax[1].plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='blue')
             centroidsT1d.append(rvT[np.argmin(i)])
@@ -1959,7 +1970,7 @@ def check_molecfit(dp,instrument='HARPS',configfile=None):
     import pickle
     import astropy.units as u
     import astropy.constants as const
-    
+
     dp=ut.check_path(dp,exists=True)
     telpath = ut.check_path(Path(dp)/'telluric_transmission_spectra.pkl',exists=True)
     list_of_wls,list_of_trans,list_of_fxc=tel.read_telluric_transmission_from_file(telpath)
@@ -2000,7 +2011,6 @@ def check_molecfit(dp,instrument='HARPS',configfile=None):
             list_of_fxc[int(i)] = fx/trans
             list_of_trans[int(i)] = trans
         tel.write_telluric_transmission_to_file(list_of_wls,list_of_trans,list_of_fxc,dp/'telluric_transmission_spectra.pkl')
-        
-        
-    # return(list_of_wls,list_of_trans)
 
+
+    # return(list_of_wls,list_of_trans)

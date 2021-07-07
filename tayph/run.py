@@ -561,22 +561,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             'was before. Something went wrong during masking or colour correction.')
    
 
-#    ######################### THIS WILL BE TEMPORARY FOR WASP-189 b
-#
-#    for i in range(len(list_of_orders_normalised)):
-#        hdu = fits.PrimaryHDU(list_of_orders_normalised[i])
-#        hdul = fits.HDUList([hdu])
-#        hdul.writeto(f'/home/bibi/Projects/WASP-189b/data/night6/fixing_pattern/order_{i}_NORMALISED.fits', overwrite=True)
-#        hdu = fits.PrimaryHDU(list_of_wls[i])
-#        hdul = fits.HDUList([hdu])
-#        hdul.writeto(f'/home/bibi/Projects/WASP-189b/data/night6/fixing_pattern/wave_{i}_NORMALISED.fits', overwrite=True)
-#
-#    print('NORMALISED ORDERS DONE!')
-#    #########################
-
-
-    
-
     #SOMEWHERE AT THE START, TEST THAT EACH OF THE REQUESTED TEMPLATES IS ACTUALLY BINARY OR
     #SPECTRAL. DONT ALLOW MIXING TEMPLATES, MAKES THE XCOR CODE TOO COMPLEX, WHEN SWITCHING IN
     #CCF.PY SOMEWHERE.

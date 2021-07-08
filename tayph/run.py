@@ -1532,11 +1532,9 @@ save_figure=True):
         print(f'---Cleaning 1D spectra for cross-correlation.')
 
         if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS']:
-            #gamma = (1.0-(berv[0]*u.km/u.s/const.c).decompose().value)
-            wave_1d = wave1d[0]/10.0#*gamma#Universal berv-un-corrected wavelength axis in nm in air.
-            s1d_block=np.zeros((len(s1d),len(wave_1d)))
+            wave_1d = wave1d[0]/10.0#Berv-un-corrected wavelength axis in nm in air.
+            s1d_block=np.zeros((len(s1d),len(wave1d[0])))
             for i in range(0,len(s1d)):
-                # wave = wave1d[i]#(s1dhdr[i]['CDELT1']*fun.findgen(len(s1d[i]))+s1dhdr[i]['CRVAL1'])
                 s1d_block[i]=interp.interp1d(wave1d[i]/10.0,s1d[i],bounds_error=False,
                 fill_value='extrapolate')(wave_1d)
         #
@@ -1747,26 +1745,26 @@ save_figure=True):
 
         print('The derived line positions are as follows:')
         print(f'1D spectra with PHOENIX:  Line center near RV = '
-        f'{np.round(np.nanmean(centroids1d),1)} km/s.')
+        f'{int(np.round(np.nanmedian(centroids1d),1))} km/s.')
         print(f'1D spectra with tellurics:  Line center near RV = '
-        f'{np.round(np.nanmean(centroidsT1d),1)} km/s.')
+        f'{int(np.round(np.nanmedian(centroidsT1d),1))} km/s.')
         print(f'2D orders with PHOENIX:  Line center near RV = '
-        f'{np.round(np.nanmean(centroids2d),1)} km/s.')
+        f'{int(np.round(np.nanmedian(centroids2d),1))} km/s.')
         print(f'2D orders with tellurics:  Line center near RV = '
-        f'{np.round(np.nanmean(centroidsT2d),1)} km/s.')
+        f'{int(np.round(np.nanmedian(centroidsT2d),1))} km/s.')
         print('\n \n \n')
 
         final_notes = ('Large deviations can occur if the wavelength solution from the pipeline is '
         'incorrectly assumed to be in air, or if for whatever reason, the wavelength solution is '
-        'provide in the reference frame of the star. In the former case, you need to specify in '
+        'provided in the reference frame of the star. In the former case, you need to specify in '
         'the config file of the data that the wavelength solution written by this file is in '
-        'vaccuum. This wil be read by Tayph and Molecfit. In the atter case, barycentric '
+        'vaccuum. This wil be read by Tayph and Molecfit. In the latter case, barycentric '
         'correction (and possibly Keplerian corrections) are likely implicily taken into account '
-        'in the wavelength solution, meaning that these corrections need to be sitched off when '
+        'in the wavelength solution, meaning that these corrections need to be switched off when '
         "running Tayph's cascade. Molecfit can't be run in the default way in this case, because "
         'the systemic velocity is offsetting the telluric spectrum. If no peak is visible at all, '
-        'the spectral orders are suffering from unknown velocity shifts or contnuum fluctuations '
-        'that this code was not able to take out. In this case, please inspect your daa carefully '
+        'the spectral orders are suffering from unknown velocity shifts or continuum fluctuations '
+        'that this code was not able to take out. In this case, please inspect your data carefully '
         'to determine whether you can locate the source of the problem. Continuing to run Tayph '
         'from this point on would probably make it very difficult to obtain meaningful '
         'cross-correlations.')

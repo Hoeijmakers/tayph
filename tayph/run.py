@@ -1821,6 +1821,8 @@ plot_spec=False):
     import pkg_resources
     import tayph.tellurics  as tel
     from tayph.vartests import typetest
+    import astropy.units as u
+    import astropy.constants as const
 
 
     #The DP contains the S1D files and the configile of the data (air or vaccuum)

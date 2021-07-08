@@ -1947,7 +1947,7 @@ plot_spec=False):
             #list_of_wls.append(wl*1000.0)#Convert to nm.
             if instrument == 'ESPRESSO':
                 berv_corr =  s1dhdr_sorted[i]['HIERARCH ESO QC BERV']
-                list_of_wls.append(wl*1000.0) * ((1.0+(berv_corr*u.km/u.s/const.c))) #Convert to nm. # correct for berv.
+                list_of_wls.append(wl*1000.0*(1.0+(berv_corr*u.km/u.s/const.c)))#Convert to nm. # correct for berv.
             else:
                 list_of_wls.append(wl*1000.0)#Convert to nm.
             list_of_fxc.append(fx/trans)

@@ -958,7 +958,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1, i
         if file_list[i][-10:-5] == mode_ext: #Takes the explosures from the mode and night in question
             vis_files.append(file_list[i])
             hdul = fits.open(uncleandirectory + night + file_list[i])
-            hdul.verify('fix')
+            hdul = hdul.verify('fix')
             spec = hdul[1].data
             cont = hdul[2].data
             sig  = hdul[3].data
@@ -973,6 +973,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1, i
                 sum_val = np.nansum(spec_1d)
 
             sum_vals.append(sum_val)
+            hdul.writeto(uncleandirectory + night + file_list[i])
 
     sum_vals = sum_vals / np.median(sum_vals)#Normalise the summed values
     mask = sum_vals > cut_off #Creates a mask based on a specified cutoff

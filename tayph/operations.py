@@ -959,7 +959,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1, i
             vis_files.append(file_list[i])
             hdul = fits.open(uncleandirectory + night + file_list[i])
             hdr = hdul[0].header
-            print(hdr)
+            #print(hdr)
             hdul.verify('fix')
             spec = hdul[1].data
             cont = hdul[2].data

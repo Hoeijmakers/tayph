@@ -973,7 +973,7 @@ def fits_cleaner(uncleandirectory, cleandirectory, night, mode, cut_off = 0.1, i
                 sum_val = np.nansum(spec_1d)
 
             sum_vals.append(sum_val)
-            hdul.writeto(uncleandirectory + night + file_list[i], overwite = True)
+            hdul.writeto(uncleandirectory + night + file_list[i], overwrite = True)
 
     sum_vals = sum_vals / np.median(sum_vals)#Normalise the summed values
     mask = sum_vals > cut_off #Creates a mask based on a specified cutoff

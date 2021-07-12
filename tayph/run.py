@@ -748,11 +748,11 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
         # pdb.set_trace()
         #Turn off KpVsys for now.
-        # ut.tprint('---Constructing KpVsys')
-        # Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp,parallel=False)
-        # ut.writefits(outpath/'KpVsys.fits',KpVsys)
-        # ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
-        # ut.writefits(outpath/'Kp.fits',Kp)
+        ut.tprint('---Constructing KpVsys')
+        Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp,parallel=False)
+        ut.writefits(outpath/'KpVsys.fits',KpVsys)
+        ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
+        ut.writefits(outpath/'Kp.fits',Kp)
 
 
     # print('DONE')

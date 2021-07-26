@@ -741,11 +741,11 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
         # pdb.set_trace()
         #Turn off KpVsys for now.
-        # ut.tprint('---Constructing KpVsys')
-        # Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp,parallel=False)
-        # ut.writefits(outpath/'KpVsys.fits',KpVsys)
-        # ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
-        # ut.writefits(outpath/'Kp.fits',Kp)
+        ut.tprint('---Constructing KpVsys')
+        Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp,parallel=parallel)
+        ut.writefits(outpath/'KpVsys.fits',KpVsys)
+        ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
+        ut.writefits(outpath/'Kp.fits',Kp)
 
 
     # print('DONE')
@@ -892,11 +892,11 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
                     #Disable KpVsys diagrams for now.
-                    # ut.tprint('---Constructing injected KpVsys')
-                    # Kp_i,KpVsys_i,KpVsys_e_i = construct_KpVsys(rv_i,ccf_clean_i_weighted,ccf_nne_i,dp)
-                    # ut.writefits(outpath_i/'KpVsys_i.fits',KpVsys_i)
-                    # ut.writefits(outpath_i/'KpVsys_e_i.fits',KpVsys_e_i)
-                    # ut.writefits(outpath_i/'Kp.fits',Kp)
+                    ut.tprint('---Constructing injected KpVsys')
+                    Kp_i,KpVsys_i,KpVsys_e_i = construct_KpVsys(rv_i,ccf_clean_i_weighted,ccf_nne_i,dp,parallel=parallel)
+                    ut.writefits(outpath_i/'KpVsys_i.fits',KpVsys_i)
+                    ut.writefits(outpath_i/'KpVsys_e_i.fits',KpVsys_e_i)
+                    ut.writefits(outpath_i/'Kp.fits',Kp)
 
 
                     print('')

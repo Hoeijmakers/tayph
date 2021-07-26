@@ -994,7 +994,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
 def read_e2ds(inpath,outname,read_s1d=True,instrument='HARPS',measure_RV=True,star='solar',config=False,
-save_figure=True):
+save_figure=True,skysub=True):
     """This is the workhorse for reading in a time-series of archival 2D echelle
     spectra from a couple of instrument pipelines that produce a standard output,
     and formatting these into the order-wise FITS format that Tayph uses. These
@@ -1080,6 +1080,9 @@ save_figure=True):
     data output folder, named config_empty. You can then fill in this file for your system, and
     this function will fill in the required keywords for the geographical coordinates and air,
     based on the instrument mode selected.
+
+    When reading ESPRESSO data, the user may opt out of reading sky-subtracted spectra by setting
+    the skysub keyword to False. Tayph will read the BLAZE files instead.
 
     """
     import pkg_resources
@@ -1239,9 +1242,17 @@ save_figure=True):
 
 
     #Start reading data files.
-    filelist=os.listdir(inpath)#If mode == UVES, these are folders. Else, they are fits files.
+    filelist_raw=os.listdir(inpath)#If mode == UVES, these are folders. Else, they are fits files.
+
+    #Append only the things that are fits files and files that are not hidden. Deal with UVES later.
+    filelist = []
+    for f in filelist_raw:
+        if Path(f).suffix.lower() == '.fits' and f.startswith('.') == False:
+            filelist.append(f)
+
     if len(filelist) == 0:
-        raise FileNotFoundError(f" in read_e2ds: input folder {str(inpath)} is empty.")
+        raise FileNotFoundError(f" in read_e2ds: input folder {str(inpath)} does not contain "
+        "FITS files.")
 
 
     #MODE SWITCHING AND READING:
@@ -1256,7 +1267,7 @@ save_figure=True):
     elif mode in ['UVES-red','UVES-blue']:
         DATA = read_uves(inpath,filelist,mode)
     elif mode == 'ESPRESSO':
-        DATA = read_espresso(inpath,filelist,read_s1d=read_s1d)
+        DATA = read_espresso(inpath,filelist,read_s1d=read_s1d,skysub=skysub)
     elif mode == 'CARMENES-VIS':
         DATA = read_carmenes(inpath,filelist,'vis',construct_s1d=read_s1d)
     elif mode == 'CARMENES-NIR':

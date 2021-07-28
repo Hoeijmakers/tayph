@@ -505,8 +505,8 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
             #If clipping the order edges has not removed all the nans, there are still NaN columns
             #left in the middle of the orders. If strict_edges is set, this raises an error:
             if strict_edges and np.min(nans[np.nonzero(nans)[0][0]:np.nonzero(nans)[0][-1]+1])!=1:
-                fits.writeto('order_wl_with_nan_column.fits',wl)
-                fits.writeto('order_with_nan_column.fits',order)
+                ut.writefits('order_wl_with_nan_column.fits',wl)
+                ut.writefits('order_with_nan_column.fits',order)
                 raise ValueError(f"in mask_cor: Strict_edges is True but there are NaN columns in "
                 f"order {o} that are not continuously connected to the order edge. This is not "
                 f" allowed. Remove those. The order has been written to FITS.")

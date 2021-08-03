@@ -240,7 +240,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
     #We start by defining constants and preparing for generating output.
     c=const.c.value/1000.0#in km/s
-    colourdeg = 3#A fitting degree for the colour correction. #should be set in the config file?
+    colourdeg = 3 #A fitting degree for the colour correction. #should be set in the config file?
 
 
     ut.tprint('---Passed parameter input tests. Initiating output folder tree in '

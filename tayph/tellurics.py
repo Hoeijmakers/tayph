@@ -462,8 +462,9 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas,p
         dimtest(error,np.shape(order),f'errors {i}/{No} in apply_telluric_correction()')
         for j in range(Nexp):
             T_i = interp.interp1d(wlT[j],fxT[j],fill_value="extrapolate")(wl[j])
-            postest(T_i,f'T-spec of exposure {j} in apply_telluric_correction()')
+            notnegativetest(T_i,f'T-spec of exposure {j} in apply_telluric_correction()')
             nantest(T_i,f'T-spec of exposure {j} in apply_telluric_correction()')
+            T_i[T_i<0]=np.nan
             order_cor[j]=order[j]/T_i
             error_cor[j]=error[j]/T_i #I checked that this works because the SNR before and after
             #telluric correction is identical.

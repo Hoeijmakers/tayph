@@ -3,7 +3,6 @@ __all__ = [
     "mask_cor",
     "clean_ccf",
     "filter_ccf",
-    "shift_ccf",
     "construct_KpVsys"
 ]
 
@@ -506,9 +505,11 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
             #If clipping the order edges has not removed all the nans, there are still NaN columns
             #left in the middle of the orders. If strict_edges is set, this raises an error:
             if strict_edges and np.min(nans[np.nonzero(nans)[0][0]:np.nonzero(nans)[0][-1]+1])!=1:
+                ut.writefits('order_wl_with_nan_column.fits',wl)
+                ut.writefits('order_with_nan_column.fits',order)
                 raise ValueError(f"in mask_cor: Strict_edges is True but there are NaN columns in "
                 f"order {o} that are not continuously connected to the order edge. This is not "
-                f" allowed. Remove those.")
+                f" allowed. Remove those. The order has been written to FITS.")
         else:#If there are no non_nan columns at all, we simply delete that order from the list.
             to_pop.append(o)
 
@@ -675,12 +676,6 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
 
 
 
-
-
-
-
-
-
 def clean_ccf(rv,ccf,ccf_e,dp):
     """
     This routine normalizes the CCF fluxes and subtracts the average out of
@@ -823,43 +818,6 @@ def filter_ccf(rv,ccf,v_width):
         ccf_f[i] = ccf_row-wiggle
     return(ccf_f,wiggles)
 
-def shift_ccf(RV,CCF,drv):
-    """
-    This shifts the rows of a CCF based on velocities provided in drv.
-    Improve those tests. I got functions for that.
-    """
-    import tayph.functions as fun
-    import tayph.util as ut
-    import numpy as np
-    #import matplotlib.pyplot as plt
-    import scipy.interpolate
-    import pdb
-    import astropy.io.fits as fits
-    import matplotlib.pyplot as plt
-    import sys
-    import scipy.ndimage.interpolation as scint
-
-    if np.ndim(CCF) == 1.0:
-        print("ERROR in shift_ccf: CCF should be a 2D block.")
-        sys.exit()
-    else:
-        n_exp=len(CCF[:,0])#Number of exposures.
-        n_rv=len(CCF[0,:])
-    if len(RV) != n_rv:
-        print('ERROR in shift_ccf: RV does not have the same length as the base size of the CCF block.')
-        sys.exit()
-    if len(drv) != n_exp:
-        print('ERROR in shift_ccf: drv does not have the same height as the CCF block.')
-        sys.exit()
-    dv = RV[1]-RV[0]
-    CCF_new=CCF*0.0
-    for i in range(n_exp):
-        #C_i=scipy.interpolate.interp1d(RV,CCF[i],fill_value=(0.0,0.0))
-        #CCF_new[i,:] = C_i(RV-drv[i]*2.0)
-        CCF_new[i,:] = scint.shift(CCF[i],drv[i]/dv,mode='nearest',order=1)
-    return(CCF_new)
-
-
 def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,notransit=False):
     """The name says it all. Do good tests."""
     import tayph.functions as fun
@@ -871,31 +829,41 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,notra
     import tayph.util as ut
     import sys
     import pdb
+    import copy
     from joblib import Parallel, delayed
+    import scipy.ndimage.interpolation as scint
 
     Kp = np.arange(kprange[0], kprange[1]+dkp, dkp, dtype=float) #fun.findgen((kprange[1]-kprange[0])/dkp+1)*dkp+kprange[0]
     n_exp = np.shape(ccf)[0]
     KpVsys = np.zeros((len(Kp),len(rv)))
     KpVsys_e = np.zeros((len(Kp),len(rv)))
     transit = sp.transit(dp)-1.0
-
+    dv = rv[1]-rv[0]
+    n_exp=len(ccf[:,0])#Number of exposures.
     if not notransit:
         transit /= np.nansum(transit)
         transitblock = fun.rebinreform(transit,len(rv)).T
     else:
         transitblock = fun.rebinreform(transit,len(rv)).T * 0.0 + 1.0
 
+    ccf_copy = copy.deepcopy(ccf)
+    ccf_e_copy = copy.deepcopy(ccf_e)
+
     def Kp_parallel(i):
         dRV = sp.RV(dp,vorb=i)*(-1.0)
-        ccf_shifted = shift_ccf(rv,ccf,dRV)
-        ccf_e_shifted = shift_ccf(rv,ccf_e,dRV)
+        ccf_shifted = ccf_copy*0.0
+        ccf_e_shifted = ccf_e_copy*0.0
+        for i in range(n_exp):
+            ccf_shifted[i,:] = scint.shift(ccf_copy[i],dRV[i]/dv,mode='nearest',order=1)
+            ccf_e_shifted[i,:] = scint.shift(ccf_e_copy[i],dRV[i]/dv,mode='nearest',order=1)
+        # ccf_shifted = copy.deepcopy(ccf)*0.0#shift_ccf(rv,ccf,dRV)
+        # ccf_e_shifted = copy.deepcopy(ccf_e)*0.0#shift_ccf(rv,ccf_e,dRV)
         return (np.nansum(transitblock * ccf_shifted,axis=0), (np.nansum((transitblock*ccf_e_shifted)**2.0,axis=0))**0.5)
 
     if parallel:
         KpVsys, KpVsys_e = zip(*Parallel(n_jobs=-1)(delayed(Kp_parallel)(i) for i in Kp))
     else:
         KpVsys, KpVsys_e = zip(*[Kp_parallel(i) for i in Kp])
-
 
     return(np.array(Kp),np.array(KpVsys),np.array(KpVsys_e))
 

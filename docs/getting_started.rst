@@ -515,3 +515,25 @@ where:
     through without interaction. So if you want to run Tayph on a server, it is recommended to call
     those two tasks separately and execute the batch process in the background, for example
     overnight.
+
+
+
+Calling Tayph after Molecfit
+****************************
+
+When Molecfit has run through the entire spectral time series in batch mode successfully, the telluric
+spectra will have been saved in a pickle file along with the spectral orders in the subdirectory that
+contains the associated data, i.e. :code:`data/KELT-9/night1/telluric_transmission_spectra.pkl`. To apply these
+models to the 2D spectral orders when running Tayph, simply run Tayph as above, but with the `do_telluric_correction`
+keyword in the run file set to `True`. This will interpolate and divide out the telluric transmission model
+when the spectral orders are being read in by Tayph, removing the vast majority of telluric absorption features.
+
+
+.. note::
+    You can use the pickle file containing the telluric model spectra to investigate the robustness of
+    the working of Molecfit. The file, located at e.g. :code:`data/KELT-9/night1/telluric_transmission_spectra.pkl`
+    contains a simple tuple of three arrays representing the model telluric spectra. This file can be read in using the
+    pickle module, or with a wrapper in :code:`tayph.tellurics`, called
+    as :code:`T=tayph.tellurics.read_telluric_transmission_from_file('data/KELT-9/night1/telluric_transmission_spectra.pkl')`.
+    The first element of :code:`T` contains the wavelength axis of the model spectra, the second the model spectra, and the third
+    the 1D spectra to which the model was fit to.

@@ -1,9 +1,10 @@
 __all__ = [
-    "xcor",
-    "clean_ccf",
-    "filter_ccf",
-    "shift_ccf",
-    "construct_KpVsys",
+    "prime_doppler_model",
+    "evaluate_poly",
+    "evaluate_shadow",
+    "read_shadow",
+    "mask_ccf_near_RV",
+    "match_shadow"
 ]
 
 
@@ -101,9 +102,6 @@ def prime_doppler_model(fig,ax,cbar):
 
     return([callback.top_point,callback.bottom_point])
     #Then, when we have broken out of the figure, we return the chosen points as a list.
-
-
-
 
 
 def evaluate_poly(phase,params,S,D):
@@ -254,10 +252,6 @@ def match_shadow(rv,ccf,mask,dp,doppler_model,verbose=True):
 
     matched_model = result[0][0]*doppler_model+result[0][1]
     return(ccf - matched_model,matched_model)
-
-
-
-
 
 
 

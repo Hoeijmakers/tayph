@@ -525,7 +525,7 @@ def read_uves(inpath,filelist,mode):
 
 
 
-def read_espresso(inpath,filelist,read_s1d=True):
+def read_espresso(inpath,filelist,read_s1d=True,skysub=True):
     #The following variables define lists in which all the necessary data will be stored.
     framename=[]
     header=[]
@@ -549,8 +549,14 @@ def read_espresso(inpath,filelist,read_s1d=True):
     airmass_keyword2 = ' AIRM '
     airmass_keyword3_start = 'START'
     airmass_keyword3_end = 'END'
+
+    if skysub:
+        type_suffix = 'S2D_SKYSUB_A.fits'
+    else:
+        type_suffix = 'S2D_BLAZE_A.fits'
+
     for i in range(len(filelist)):
-        if filelist[i].endswith('S2D_BLAZE_A.fits'):
+        if filelist[i].endswith(type_suffix):
             hdul = fits.open(inpath/filelist[i])
             data = copy.deepcopy(hdul[1].data)
             hdr = hdul[0].header
@@ -582,7 +588,7 @@ def read_espresso(inpath,filelist,read_s1d=True):
                 #BUT THAT IS SILLY. JUST SAVE THE WAVELENGTHS!
 
                 if read_s1d:
-                    s1d_path=inpath/Path(str(filelist[i]).replace('_S2D_BLAZE_A.fits','_S1D_A.fits'))
+                    s1d_path=inpath/Path(str(filelist[i]).replace('_'+type_suffix,'_S1D_A.fits'))
                     #Need the blazed files. Not the S2D_A's by themselves.
                     ut.check_path(s1d_path,exists=True)#Crash if the S1D doesn't exist.
                     hdul = fits.open(s1d_path)

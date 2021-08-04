@@ -418,7 +418,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas,p
     import numpy as np
     import tayph.util as ut
     import tayph.functions as fun
-    from tayph.vartests import dimtest,postest,typetest,nantest
+    from tayph.vartests import dimtest,postest,typetest,nantest,notnegativetest
     import copy
     if parallel: from joblib import Parallel, delayed
 

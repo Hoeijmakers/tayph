@@ -906,6 +906,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     print('')
     print('---Tayph run completed successfully.')
     print('')
+    print('\a')
     """
             def do_xcor_inj_parallel(i, do_xcor=do_xcor, skip_doppler_model=skip_doppler_model, dsmask=dsmask, f_w=f_w):
                 templatename = templatelist[i]

@@ -505,7 +505,7 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
             #If clipping the order edges has not removed all the nans, there are still NaN columns
             #left in the middle of the orders. If strict_edges is set, this raises an error:
             if strict_edges and np.min(nans[np.nonzero(nans)[0][0]:np.nonzero(nans)[0][-1]+1])!=1:
-                ut.writefits('order_wl_with_nan_column.fits',wl)
+                # ut.writefits('order_wl_with_nan_column.fits',wl)
                 ut.writefits('order_with_nan_column.fits',order)
                 raise ValueError(f"in mask_cor: Strict_edges is True but there are NaN columns in "
                 f"order {o} that are not continuously connected to the order edge. This is not "
@@ -611,7 +611,7 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
                         T_sum += np.sum(T_order_matrix,axis=1)
                         CCF += np.sum((order[:,indices]*w_inv+order[:,indices-1]*w)*T_order_matrix,axis=2)
                         if list_of_errors is not None:
-                            CCF_E += np.sum((error[:,indices]**2 *w_inv + error[:,indices-1]**2 *w)*T_order_matrix**2,axis=2)
+                            CCF_E += np.sum((error[:,indices]**2 *w_inv**2 + error[:,indices-1]**2 * w**2)*T_order_matrix**2,axis=2)
                         if return_templates:
                             Wo[indices[zero_point]]+=(1-w[zero_point])*T_order_matrix[zero_point]
                             Wo[indices[zero_point]-1]+=w[zero_point]*T_order_matrix[zero_point]
@@ -641,7 +641,7 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
                                 #left of the target line position. So wl[i] gets weight w-1, and wl[i-1] gets w.
                                 CCF[:,j] += (order[:,i]*(1-w) + order[:,i-1]*w)*T_order_matrix[j,n]
                                 if list_of_errors is not None:
-                                    CCF_E[:,j] += (errors[:,i]**2 *(1-w) + error[:,i-1]**2 *w)*T_order_matrix[j,n]**2
+                                    CCF_E[:,j] += (errors[:,i]**2 *(1-w)**2 + error[:,i-1]**2 * w**2 )*T_order_matrix[j,n]**2
                                 T_sum[j] += T_order_matrix[j,n]
                                 if return_templates and j == zero_point:
                                     Wo[i]+=(1-w)*T_order[n]#Activate this to plot the "template" at this value of beta.

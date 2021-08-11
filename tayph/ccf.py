@@ -545,6 +545,7 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
         wlT = list_of_wlm[i]
         T = list_of_fxm[i]
         T_sum = np.array([0.0]*n_rv)#An array of floats.
+        T_sum_error = np.array([0.0]*n_rv)#Store these separately because the w's need to be factored in.
         CCF = np.zeros((len(list_of_orders[0]),len(RV)))
         CCF_E = copy.deepcopy(CCF)#Remains all zero if list_of_errors == None.
         W = []#List of weight functions of each order.
@@ -612,6 +613,8 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
                         CCF += np.sum((order[:,indices]*w_inv+order[:,indices-1]*w)*T_order_matrix,axis=2)
                         if list_of_errors is not None:
                             CCF_E += np.sum((error[:,indices]**2 *w_inv**2 + error[:,indices-1]**2 * w**2)*T_order_matrix**2,axis=2)
+                            T_sum_error+=np.sum(((1-w)**2+w**2) * T_order_matrix**2)
+
                         if return_templates:
                             Wo[indices[zero_point]]+=(1-w[zero_point])*T_order_matrix[zero_point]
                             Wo[indices[zero_point]-1]+=w[zero_point]*T_order_matrix[zero_point]
@@ -621,8 +624,9 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
                         w = (wl[indices]-shifted_wlT)/(wl[indices] - wl[indices-1])
                         CCF += (order[:,indices]*(1-w)+order[:,indices-1]*w)@T_order
                         if list_of_errors is not None:
-                            CCF_E += (error[:,indices]**2 *(1-w) +
-                            error[:,indices-1]**2 *w)@T_order**2
+                            CCF_E += (error[:,indices]**2 *(1-w)**2 +
+                            error[:,indices-1]**2 *w**2)@T_order**2
+                            T_sum_error+=np.sum(((1-w)**2+w**2) @ T_order**2)
                         T_sum+=np.sum(T_order)
                         if return_templates:
                             Wo[indices[zero_point]]+=(1-w[zero_point])*T_order
@@ -642,6 +646,7 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
                                 CCF[:,j] += (order[:,i]*(1-w) + order[:,i-1]*w)*T_order_matrix[j,n]
                                 if list_of_errors is not None:
                                     CCF_E[:,j] += (errors[:,i]**2 *(1-w)**2 + error[:,i-1]**2 * w**2 )*T_order_matrix[j,n]**2
+                                    T_sum_error[j] += ((1-w)**2+w**2) * T_order_matrix[j,n]**2
                                 T_sum[j] += T_order_matrix[j,n]
                                 if return_templates and j == zero_point:
                                     Wo[i]+=(1-w)*T_order[n]#Activate this to plot the "template" at this value of beta.
@@ -649,7 +654,7 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
                         if return_templates and j == zero_point:
                             W.append(Wo)
                             L.append(wlT_order)
-        return(CCF/T_sum,np.sqrt(CCF_E/T_sum**2),T_sum,W,L)
+        return(CCF/T_sum,np.sqrt(CCF_E/T_sum_error),T_sum,W,L)
 
     if parallel:#This here takes a lot of memory.
         list_of_CCFs, list_of_CCF_Es, list_of_T_sums,list_of_weights,list_of_lines = zip(*Parallel(

@@ -657,6 +657,33 @@ def polysin(x,*p):
 
 
 
+def vertical_polyfilter(C,deg):
+    """This takes a block matrix and fits a polynomial of degree deg to the non-NaN values in each
+    column. This can be used to clean up a CCF or an order of residual structures. NaNs can be used
+    to mask out regions that need to be protected. If the degree is high, this operation can be
+    quite agressive. In the future, I might want to enhance this by including different fitting
+    functions, or making adjacent fits to be correlated with each other."""
+    import copy
+    import numpy as np
+
+    C_out = copy.deepcopy(C)
+    fits = copy.deepcopy(C)
+    for i in range(len(C[0])):
+        x = np.arange(len(C))
+        y = C[:,i]
+        sel = ~np.isnan(y)
+        yf = np.poly1d(np.polyfit(x[sel],y[sel],deg))(x)
+        C_out[:,i] = y-yf
+        fits[:,i] = yf
+    return(C_out,fits)
+
+
+
+
+
+
+
+
 def polysinfit(x,y,polydeg,lmfit=True,polyprimer=True,return_primer=False,stepsize=0,w=None,startparams=None):
     """This fits a polynomial modulated by a sine-wave to a 1D array of points. With a solution
     tp the hyper-sensitivity to the intial guess frequency by unsym: https://stackoverflow.com/

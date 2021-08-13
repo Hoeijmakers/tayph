@@ -436,6 +436,9 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
                 raise ValueError(f'In mask_cor(): Not all orders have {n_exp} exposures.')
 
 
+
+
+    #Definition of the velocity axis:
     c=const.c.to('km/s').value#In km/s
     RV= np.arange(-RVrange, RVrange+drv, drv, dtype=float)
     beta=1.0+RV/c#The doppler factor with which each wavelength is to be shifted.
@@ -564,9 +567,11 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
                 sel_lines = (wlT>np.min(wl)/(1+np.max(RV)/c))&(wlT<np.max(wl)/(1+np.min(RV)/c))
 
             if len(sel_lines) > 0:#And, only proceed if there are lines in this wl range.
-                wlT_order = wlT[sel_lines]
-                T_order   = T[sel_lines]
-                shifted_wlT = wlT_order * beta[:, np.newaxis]
+                wlT_order = wlT[sel_lines]#The template lines contained in this order. Selected with
+                #strict edges on or off.
+                T_order   = T[sel_lines]# 1 x N (1 row of N lines)
+                shifted_wlT = wlT_order * beta[:, np.newaxis]#Template line positions shifted to
+                #each velocity beta. Measures nRV x N.
                 indices = np.searchsorted(wl,shifted_wlT)#The indices to the right of each
                 #target line. Every row in indices is a list of N spectral lines.
                 #For large numbers of lines, this vectorised search is not faster than serial,
@@ -613,8 +618,7 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
                         CCF += np.sum((order[:,indices]*w_inv+order[:,indices-1]*w)*T_order_matrix,axis=2)
                         if list_of_errors is not None:
                             CCF_E += np.sum((error[:,indices]**2 *w_inv**2 + error[:,indices-1]**2 * w**2)*T_order_matrix**2,axis=2)
-                            T_sum_error+=np.sum(((1-w)**2+w**2) * T_order_matrix**2)
-
+                            # T_sum_error+=np.sum(T_order_matrix)**2
                         if return_templates:
                             Wo[indices[zero_point]]+=(1-w[zero_point])*T_order_matrix[zero_point]
                             Wo[indices[zero_point]-1]+=w[zero_point]*T_order_matrix[zero_point]
@@ -626,7 +630,7 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
                         if list_of_errors is not None:
                             CCF_E += (error[:,indices]**2 *(1-w)**2 +
                             error[:,indices-1]**2 *w**2)@T_order**2
-                            T_sum_error+=np.sum(((1-w)**2+w**2) @ T_order**2)
+                            # T_sum_error+=np.sum(((1-w)**2+w**2) @ T_order**2)
                         T_sum+=np.sum(T_order)
                         if return_templates:
                             Wo[indices[zero_point]]+=(1-w[zero_point])*T_order
@@ -635,26 +639,44 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
                             L.append(shifted_wlT[zero_point])
 
                 else:#Single reactor ignition:
-                    T_order_matrix = np.tile(T_order,(n_rv,1))
-                    for j in range(len(beta)):#==len(indices, which is len(RV)*(N+1)).
-                        for n,i in enumerate(indices[j]):
-                            if i > 0 and i < len(wl):
-                                bin = wl[i-1:i+1]#This selects 2 elements: wl[i-1] and wl[i]. So the : means "until".
-                                w = (wl[i]-shifted_wlT[j,n])/(wl[i] - wl[i-1]) #Weights are constructed onto the data line by line.
-                                #This number is small if bin[1]=wlT[n], meaning that it measures the weight on the point
-                                #left of the target line position. So wl[i] gets weight w-1, and wl[i-1] gets w.
-                                CCF[:,j] += (order[:,i]*(1-w) + order[:,i-1]*w)*T_order_matrix[j,n]
+                    for j in range(len(beta)):#==len(indices), because
+                        #indices is a matrix of len(RV)*N. So for each value of beta we calculate
+                        #the cross correlation function.
+                        for n,i in enumerate(indices[j]):#And we loop over all lines in the template
+                            #in this order to build up the value of the CCF at this velocity shift.
+                            if i > 0 and i < len(wl):#Select only lines that still lie within the
+                                #wavelength range. Some lines may be shifted over the edge because
+                                #of beta.
+
+                                #We selects 2 elements: wl[i-1] and wl[i].
+                                #Because indices[j] measures the indices of wl to the right of each
+                                #target line, we also select wl[i-1] to obtain the indices to the
+                                #left and to the right of each line. We then weigh each of these
+                                #based on whether the position is closer to the left or right:
+                                w = (wl[i]-shifted_wlT[j,n])/(wl[i] - wl[i-1])#This number is small
+                                #if wl[i]=wlT[n], meaning that w measures how close the line is to
+                                #the index to the left. So wl[i] gets weight w-1, and wl[i-1] gets
+                                #weight w.
+
+                                #Now we start filling in the CCF. Upon the first pass, CCF was
+                                #simply defined as an empty matrix. We now fill it in column
+                                #by column.
+                                #Because each row in the CCF corresponds to a row in the order,
+                                #column, by column filling is possible: w and T are the same for
+                                #each row in the order, yielding a column of values for each w and
+                                #T.
+                                CCF[:,j] += (order[:,i]*(1-w) + order[:,i-1]*w)*T_order[n]
                                 if list_of_errors is not None:
-                                    CCF_E[:,j] += (errors[:,i]**2 *(1-w)**2 + error[:,i-1]**2 * w**2 )*T_order_matrix[j,n]**2
-                                    T_sum_error[j] += ((1-w)**2+w**2) * T_order_matrix[j,n]**2
-                                T_sum[j] += T_order_matrix[j,n]
+                                    CCF_E[:,j] += (error[:,i]**2 *(1-w)**2 + error[:,i-1]**2 * w**2 )*T_order[n]**2
+                                    T_sum_error[j] += T_order[n]
+                                T_sum[j] += T_order[n]
                                 if return_templates and j == zero_point:
                                     Wo[i]+=(1-w)*T_order[n]#Activate this to plot the "template" at this value of beta.
                                     Wo[i-1]+=w*T_order[n]
                         if return_templates and j == zero_point:
                             W.append(Wo)
                             L.append(wlT_order)
-        return(CCF/T_sum,np.sqrt(CCF_E/T_sum_error),T_sum,W,L)
+        return(CCF/T_sum,np.sqrt(CCF_E)/T_sum,T_sum,W,L)
 
     if parallel:#This here takes a lot of memory.
         list_of_CCFs, list_of_CCF_Es, list_of_T_sums,list_of_weights,list_of_lines = zip(*Parallel(

@@ -323,7 +323,7 @@ along with the demo data. Importantly, version 1.5.9 is not pyhon 3.0 compatible
 error in the line-list of water, and so we have updated the relevant files in our repackaged version.
 
 
-You can find a compressed package of our version of Molecfit `here <https://drive.google.com/file/d/1obc3ZlnoMld7erbg_4URzM8fcYEOeQuu/view?usp=sharing>`__.
+You can find a compressed package of our version of Molecfit `here <https://drive.google.com/file/d/1I-fG2nxx78qDdMNyvEAXg-odpOu4mKKQ/view?usp=sharing>`__.
 For the rest of this tutorial, we assume that the package contents have been extracted to a folder
 called :code:`molecfit_package`, somewhere on your system.
 

@@ -845,7 +845,7 @@ def filter_ccf(rv,ccf,v_width):
         ccf_f[i] = ccf_row-wiggle
     return(ccf_f,wiggles)
 
-def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,notransit=False):
+def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,transit=True):
     """The name says it all. Do good tests."""
     import tayph.functions as fun
     import tayph.operations as ops
@@ -864,15 +864,18 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,notra
     n_exp = np.shape(ccf)[0]
     KpVsys = np.zeros((len(Kp),len(rv)))
     KpVsys_e = np.zeros((len(Kp),len(rv)))
-    transit = sp.transit(dp)-1.0
+    LC = sp.transit(dp)-1.0
     dv = rv[1]-rv[0]
     n_exp=len(ccf[:,0])#Number of exposures.
-    if not notransit:
-        transit /= np.nansum(transit)
-        transitblock = fun.rebinreform(transit,len(rv)).T
+    if transit:
+        LC /= np.nansum(LC)
+        transitblock = fun.rebinreform(LC,len(rv)).T
     else:
-        transitblock = fun.rebinreform(transit,len(rv)).T * 0.0 + 1.0
+        transitblock = fun.rebinreform(LC,len(rv)).T * 0.0 + 1.0
 
+
+
+    # pdb.set_trace()
     ccf_copy = copy.deepcopy(ccf)
     ccf_e_copy = copy.deepcopy(ccf_e)
 

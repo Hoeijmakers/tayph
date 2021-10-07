@@ -110,6 +110,7 @@ def start_run(configfile,parallel=True,xcor_parallel=False):
             'maskname':sp.paramget('maskname',cf,full_path=True),
             'RVrange':sp.paramget('RVrange',cf,full_path=True),
             'drv':sp.paramget('drv',cf,full_path=True),
+            'transit':sp.paramget('transit',cf,full_path=True),
             'f_w':sp.paramget('f_w',cf,full_path=True),
             'do_colour_correction':sp.paramget('do_colour_correction',cf,full_path=True),
             'do_telluric_correction':sp.paramget('do_telluric_correction',cf,full_path=True),
@@ -177,6 +178,10 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     maskname = p['maskname']
     RVrange = p['RVrange']
     drv = p['drv']
+    try:#Lazy way of giving this a default and creating backward compatibility with old-style config files.
+        intransit = p['transit']
+    except:
+        intransit=True
     f_w = p['f_w']
     do_colour_correction=p['do_colour_correction']
     do_telluric_correction=p['do_telluric_correction']
@@ -235,6 +240,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     typetest(make_doppler_model,bool,   'make_doppler_model in run_instance()')
     typetest(skip_doppler_model,bool,   'skip_doppler_model in run_instance()')
     typetest(air,bool,'air in run_instance()')
+    typetest(intransit,bool,'intransit in run_instance()')
 
 
 
@@ -742,7 +748,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         # pdb.set_trace()
         #Turn off KpVsys for now.
         ut.tprint('---Constructing KpVsys')
-        Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp,parallel=parallel)
+        Kp,KpVsys,KpVsys_e = construct_KpVsys(rv,ccf_clean_weighted,ccf_nne,dp,parallel=parallel,transit=intransit)
         ut.writefits(outpath/'KpVsys.fits',KpVsys)
         ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
         ut.writefits(outpath/'Kp.fits',Kp)
@@ -893,7 +899,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
                     #Disable KpVsys diagrams for now.
                     ut.tprint('---Constructing injected KpVsys')
-                    Kp_i,KpVsys_i,KpVsys_e_i = construct_KpVsys(rv_i,ccf_clean_i_weighted,ccf_nne_i,dp,parallel=parallel)
+                    Kp_i,KpVsys_i,KpVsys_e_i = construct_KpVsys(rv_i,ccf_clean_i_weighted,ccf_nne_i,dp,parallel=parallel,transit=intransit)
                     ut.writefits(outpath_i/'KpVsys_i.fits',KpVsys_i)
                     ut.writefits(outpath_i/'KpVsys_e_i.fits',KpVsys_e_i)
                     ut.writefits(outpath_i/'Kp.fits',Kp)

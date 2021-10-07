@@ -38,6 +38,34 @@ python interpreter and importing Tayph::
 
 If no errors are raised, Tayph has been successfully installed on your system.
 
+
+A note on terms used
+####################
+
+High resolution spectroscopy is often made more challenging by the fact that this small community uses
+their own lingo. This is true for Tayph as well. The following terms are used frequently within Tayph,
+and it helps to have these clear as you go through the rest of this tutorial:
+
+- Data: A time-series of high-resolution spectra, pipeline reduced, obtained by e.g. HARPS or ESPRESSO.
+- Template: A spectrum, often numerically modelled, with which the data is cross-correlated, acting as a weight function for spectral lines in the data.
+- Model: A numerical model for the emergent spectrum of the star (e.g. from PHOENIX), the exoplanet (transmission or emission) or the Earths atmosphere (telluric). A model is used to compare the data to. A cross-correlation template may therefore be a "model spectrum", but a model is not necessarily used as a cross-correlation template.
+- e2ds/s2d: Naming of the primary pipeline dataproduct used by Tayph, containing 2-dimensional extracted echelle orders that Tayph reads in via the read_e2ds() function.
+- Configuration file (data): A file that holds fundamental parameters regarding the dataset Tayph is reading, and the exoplanet system in question.
+- Configuration file (molecfit): A file that tells Tayph where your Molecfit installation and the desired scratch folder are located.
+- Runfile: A file that holds parameter settings for the execution of Tayph, instructing which dataset to analyse and in what way.
+- Library: An ASCII table that contains filepaths and shorthands for model spectra, to be used as cross correlation templates or models for comparison.
+- Mask/masking: A collection of wavelength channels that are to be ignored during the data analysis, due to artefacts or systematic noise.
+- Doppler shadow: Residual signature obtained by dividing in-transit spectra by out-of-transit spectra, caused by the passage of the planet in front of the rotating host star. This effect is modelled and removed by Tayph after cross-correlation.
+- Binary mask: An ASCII table forming a list of line positions and relative strengths, to be used as a cross-correlation templates but with lines that are as narrow as the spectral sampling rate of the data.
+- BERV correction: Shifting of spectra from the rest-frame of the observatory on Earth to the rest-frame of the center of the solar system. The main component is the radial velocity of the Earth towards the target star, caused by the Earth's orbital motion.
+- Keplerian correction: Shifting of stellar spectra to the rest-frame of the star by correcting for the small velocity excursion caused by the orbiting planet (on the order of 10's to 100's of m/s).
+- Telluric correction: Removal of the Earth's transmission spectrum from the high-resolution data.
+
+
+
+
+
+
 Setting up Tayph with demo data
 ###############################
 

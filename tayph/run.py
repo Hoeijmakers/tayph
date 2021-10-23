@@ -1000,7 +1000,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
 
-def read_e2ds(inpath,outname,read_s1d=True,instrument='HARPS',measure_RV=True,star='solar',config=False,
+def read_e2ds(inpath,outname,instrument='HARPS',measure_RV=True,star='solar',config=False,
 save_figure=True,skysub=True):
     """This is the workhorse for reading in a time-series of archival 2D echelle
     spectra from a couple of instrument pipelines that produce a standard output,
@@ -1149,6 +1149,12 @@ save_figure=True,skysub=True):
         raise ValueError("in read_e2ds: instrument needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
             "CARMENES-VIS, CARMENES-NIR or ESPRESSO.")
 
+
+
+    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS']:
+        read_s1d = True
+    else:
+        read_s1d = False
 
     #if outname[0] in ['/','.']:#Test that this is an absolute path. If so, we trigger a warning.
         #ut.tprint(f'ERROR: The name of the dataset {outname} appears to be set as an absolute path.'
@@ -1549,24 +1555,28 @@ save_figure=True,skysub=True):
         print(f'---The wavelength axes of the spectra will be shown here as they were saved by read_e2ds.')
         print(f'---Cleaning 1D spectra for cross-correlation.')
 
-        if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS']:
+        if read_s1d:
             wave_1d = wave1d[0]/10.0#Berv-un-corrected wavelength axis in nm in air.
             s1d_block=np.zeros((len(s1d),len(wave1d[0])))
             for i in range(0,len(s1d)):
                 s1d_block[i]=interp.interp1d(wave1d[i]/10.0,s1d[i],bounds_error=False,
                 fill_value='extrapolate')(wave_1d)
-        #
-        # plt.plot(wave_1d,s1d[0]/np.mean(s1d[0]),linewidth=0.5,label='Berv-un-corrected in nm.')
-        # plt.plot(wave1d[1]/10.0,s1d[1]/np.mean(s1d[1]),linewidth=0.5,label=('Original '
-        #'(bervcorrected) from A to nm.'))
-        # plt.plot(wlt,fxtn,label='Telluric')
-        # plt.legend()
-        # plt.show()
-        # pdb.set_trace()
-        wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False,
-        w=np.max([np.min([800/len(s1d),200]),20]))#Make the window dependent on how many exposures there are,
-        #such that the block has a total number of 800 pixels. Don't make the window wider than 200,
-        #and don't make it smaller than 20 either (in case there are many spectra).
+            #
+            # plt.plot(wave_1d,s1d[0]/np.mean(s1d[0]),linewidth=0.5,label='Berv-un-corrected in nm.')
+            # plt.plot(wave1d[1]/10.0,s1d[1]/np.mean(s1d[1]),linewidth=0.5,label=('Original '
+            #'(bervcorrected) from A to nm.'))
+            # plt.plot(wlt,fxtn,label='Telluric')
+            # plt.legend()
+            # plt.show()
+            # pdb.set_trace()
+            wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False,
+            w=np.max([np.min([800/len(s1d),200]),20]))#Make the window dependent on how many exposures there are,
+            #such that the block has a total number of 800 pixels. Don't make the window wider than 200,
+            #and don't make it smaller than 20 either (in case there are many spectra).
+            s1d_block=masking.interpolate_over_NaNs([s1d_block])[0]
+
+
+
 
         if mode in ['UVES-red','UVES-blue']:
             pdb.set_trace()
@@ -1600,19 +1610,24 @@ save_figure=True,skysub=True):
         print(f"---Interpolating over NaN's")
         list_of_orders_trimmed = masking.interpolate_over_NaNs(list_of_orders_trimmed)
         #Slow, also needs parallelising.
-        s1d_block=masking.interpolate_over_NaNs([s1d_block])[0]
         print(f'---Performing cross-correlation and plotting output.')
         rv,ccf,Tsums=xcor(list_of_waves_trimmed,list_of_orders_trimmed,[wlm],
         [fxmn-1.0],drv,RVrange)
-        rv1d,ccf1d,Tsums1d=xcor([wave_1d],[s1d_block],[wlm],[fxmn-1.0],drv,RVrange)
-        rvT,ccfT,TsusmT=xcor([wave_1d],[s1d_block],[wlt],[fxtn-1.0],drv,RVrange)
         rvT2D,ccfT2D,TsusmT2D=xcor(list_of_waves_trimmed,list_of_orders_trimmed,[wlt],[fxtn-1.0],
         drv,RVrange)
-
         ccf=ccf[0]
-        ccf1d=ccf1d[0]
-        ccfT=ccfT[0]
         ccfT2D=ccfT2D[0]
+
+
+
+
+
+        if read_s1d:
+            rv1d,ccf1d,Tsums1d=xcor([wave_1d],[s1d_block],[wlm],[fxmn-1.0],drv,RVrange)
+            rvT,ccfT,TsusmT=xcor([wave_1d],[s1d_block],[wlt],[fxtn-1.0],drv,RVrange)
+            ccf1d=ccf1d[0]
+            ccfT=ccfT[0]
+
 
 
 
@@ -1649,13 +1664,19 @@ save_figure=True,skysub=True):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             s1d_avg=np.nanmean(s1d_block,axis=0)
-        if mode=='ESPRESSO':
-            ax[0].plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
-            label='1D spectrum to be cross-correlated (geo-centric frame, after undoing '
-            'BERV correction)',linewidth=0.9,alpha=0.5)
-        else:
-            ax[0].plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
-            label='1D spectrum to be cross-correlated (geo-centric frame)',linewidth=0.9,alpha=0.5)
+
+
+        if read_s1d:
+            if mode=='ESPRESSO':
+                ax[0].plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
+                label='1D spectrum to be cross-correlated (geo-centric frame, after undoing '
+                'BERV correction)',linewidth=0.9,alpha=0.5)
+            else:
+                ax[0].plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
+                label='1D spectrum to be cross-correlated (geo-centric frame)',linewidth=0.9,alpha=0.5)
+
+
+
         ax[0].plot(wlt,fxtn,color='blue',linewidth=0.7,label='Skycalc telluric model (air)',alpha=0.6)
         ax[0].set_title(f'Time-averaged spectral orders and {star} PHOENIX model')
         ax[0].set_xlabel('Wavelength (nm)')
@@ -1667,11 +1688,7 @@ save_figure=True,skysub=True):
 
 
         centroids2d=[]
-        centroids1d=[]
         centroidsT2d=[]
-        centroidsT1d=[]
-
-
 
 
         for n,i in enumerate(ccf):
@@ -1681,13 +1698,6 @@ save_figure=True,skysub=True):
             else:
                 ax[1].plot(rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red')
             centroids2d.append(rv[np.argmin(i)])
-        for n,i in enumerate(ccf1d):
-            if n == 0:
-                ax[1].plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='orange',
-                label='1D spectraw w. PHOENIX')
-            else:
-                ax[1].plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='orange')
-            centroids1d.append(rv1d[np.argmin(i)])
         for n,i in enumerate(ccfT2D):
             if n == 0:
                 ax[1].plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='green',
@@ -1695,18 +1705,36 @@ save_figure=True,skysub=True):
             else:
                 ax[1].plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='green')
             centroidsT2d.append(rvT2D[np.argmin(i)])
-        for n,i in enumerate(ccfT):
-            if n == 0:
-                ax[1].plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='blue',
-                label='1D spectra w. TELLURIC')
-            else:
-                ax[1].plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='blue')
-            centroidsT1d.append(rvT[np.argmin(i)])
+
 
         ax[1].axvline(np.nanmedian(centroids2d),color='red',alpha=0.5)
-        ax[1].axvline(np.nanmedian(centroids1d),color='orange',alpha=0.5)
-        ax[1].axvline(np.nanmedian(centroidsT1d),color='blue',alpha=0.5)
         ax[1].axvline(np.nanmedian(centroidsT2d),color='green',alpha=1.0)
+
+
+
+        if read_s1d:
+            centroids1d=[]
+            centroidsT1d=[]
+            for n,i in enumerate(ccf1d):
+                if n == 0:
+                    ax[1].plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='orange',
+                    label='1D spectraw w. PHOENIX')
+                else:
+                    ax[1].plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='orange')
+                centroids1d.append(rv1d[np.argmin(i)])
+            for n,i in enumerate(ccfT):
+                if n == 0:
+                    ax[1].plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='blue',
+                    label='1D spectra w. TELLURIC')
+                else:
+                    ax[1].plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='blue')
+                centroidsT1d.append(rvT[np.argmin(i)])
+
+
+            ax[1].axvline(np.nanmedian(centroids1d),color='orange',alpha=0.5)
+            ax[1].axvline(np.nanmedian(centroidsT1d),color='blue',alpha=0.5)
+
+
         ax[1].set_title(f'CCF between {mode} data and {star} PHOENIX and telluric models. See commentary '
         'in terminal for details',fontsize=9)
         ax[1].set_xlabel('Radial velocity (km/s)')
@@ -1755,17 +1783,23 @@ save_figure=True,skysub=True):
             'in the config file of this dataset should be set to True.')]
 
         if mode in ['CARMENES-VIS']:
-            explanation=[('[No explanation provided yet need to do]')]
+            explanation=[('[No explanation provided yet.]')]
+
+        if mode in ['SPIROU']:
+            explanation=[('[No explanation provided yet.]')]
+
 
 
         for s in explanation: print(textwrap.fill(s, width=int(terminal_width)-5))
         print('\n \n \n')
 
         print('The derived line positions are as follows:')
-        print(f'1D spectra with PHOENIX:  Line center near RV = '
-        f'{int(np.round(np.nanmedian(centroids1d),1))} km/s.')
-        print(f'1D spectra with tellurics:  Line center near RV = '
-        f'{int(np.round(np.nanmedian(centroidsT1d),1))} km/s.')
+
+        if read_s1d:
+            print(f'1D spectra with PHOENIX:  Line center near RV = '
+            f'{int(np.round(np.nanmedian(centroids1d),1))} km/s.')
+            print(f'1D spectra with tellurics:  Line center near RV = '
+            f'{int(np.round(np.nanmedian(centroidsT1d),1))} km/s.')
         print(f'2D orders with PHOENIX:  Line center near RV = '
         f'{int(np.round(np.nanmedian(centroids2d),1))} km/s.')
         print(f'2D orders with tellurics:  Line center near RV = '

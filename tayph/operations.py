@@ -50,7 +50,7 @@ def smooth(fx,w,mode='box',edge_degree=1):
     #elements, and that it is symmetric around zero.
         kw+=1
 
-    kx=fun.findgen(kw)
+    kx=np.arange(kw,dtype=float) #fun.findgen(kw)
     kx-=np.mean(kx)#This must be centered around zero. Doing a hardcoded check:
     if (-1.0)*kx[-1] != kx[0]:
         print(kx)
@@ -133,7 +133,7 @@ def envelope(wlm,fxm,binsize,selfrac=0.05,mode='top',threshold=''):
         fxm*=-1.0
     return wlcs,fxcs
 
-def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
+def normalize_orders(list_of_orders,list_of_sigmas,deg=0,nsigma=4,sinusoid=False):
     """
     If deg is set to 1, this function will normalise based on the mean flux in each order.
     If set higher, it will remove the average spectrum in each order and fit a polynomial
@@ -173,7 +173,9 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
     import numpy as np
     import tayph.functions as fun
     from tayph.vartests import dimtest,postest,typetest
+    import tayph.util as ut
     import warnings
+    import pdb
     typetest(list_of_orders,list,'list_of_orders in ops.normalize_orders()')
     typetest(list_of_sigmas,list,'list_of_sigmas in ops.normalize_orders()')
 
@@ -185,7 +187,7 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
         dimtest(list_of_sigmas[i],np.shape(list_of_orders[i]))
     typetest(deg,int,'degree in ops.normalize_orders()')
     typetest(nsigma,[int,float],'nsigma in ops.normalize_orders()')
-    postest(deg,'degree in ops.normalize_orders()')
+    # postest(deg,'degree in ops.normalize_orders()')
     postest(nsigma,'degree in ops.normalize_orders()')
 
 
@@ -195,7 +197,15 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
 
 
     #First compute the exposure-to-exposure flux variations to be used as weights.
-    meanfluxes = fun.findgen(n_exp)*0.0
+    meanfluxes = np.zeros(n_exp) #fun.findgen(n_exp)*0.0
+
+    ### suggestions for improvement
+    """
+    m = [np.nanmedian(list_of_orders[i], axis=1) for i in range(N)]
+    skipped = np.where(np.sum(np.isnan(m)) > 0)[0]
+    meanfluxes = np.sum(m[np.sum(np.isnan(m)) <= 0]) / len(m[np.sum(np.isnan(m)) <= 0])
+    """
+
     N_i = 0
     for i in range(N):
         m = np.nanmedian(list_of_orders[i],axis=1)#Median or mean?
@@ -206,13 +216,19 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
             meanfluxes+=m#These contain the exposure-to-exposure variability of the time-series.
     meanfluxes/=N_i#These are the weights.
 
-    if deg == 1:
-        for i in range(N):
+    if deg == 0:
 
+        ### suggestion for improvement: (no loop needed)!
+        """
+        #meanflux = m # we already did that above!
+        meanblock = m / np.nanmean(meanflux)
+        out_list_of_orders.append((list_of_orders[i].T/meanblock).T)
+        """
+        for i in range(N):
             #What I'm doing here is probably stupid and numpy division will probably work just fine without
             #IDL-relics.
             n_px=np.shape(list_of_orders[i])[1]
-            meanflux=np.nanmedian(list_of_orders[i],axis=1)#Average flux in each order. Median or mean?
+            meanflux=np.nanmedian(list_of_orders[i],axis=1) #Average flux in each order. Median or mean?
             meanblock=fun.rebinreform(meanflux/np.nanmean(meanflux),n_px).T#This is a slow operation. Row-by-row division is better done using a double-transpose...
             out_list_of_orders.append(list_of_orders[i]/meanblock)
             out_list_of_sigmas.append(list_of_sigmas[i]/meanblock)
@@ -235,12 +251,15 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4):
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore", category=RuntimeWarning)
                         w[np.abs(res)>nsigma*sigma] = 0.0
-                    w = x*0.0+1.0#Start with a weight function that is 1.0 everywhere.
-                    p2 = np.poly1d(np.polyfit(x[idx],colour[j][idx],deg,w=w[idx]))(x)#Second, weighted polynomial fit to the colour variation.
+                    if sinusoid == False:
+                        p2 = np.poly1d(np.polyfit(x[idx],colour[j][idx],deg,w=w[idx]))(x)#Second, weighted polynomial fit to the colour variation.
+                    else:
+                        p2 = fun.polysin(x,*fun.polysinfit(x[idx],colour[j][idx],deg,stepsize=1,polyprimer=True,lmfit=True,w=w[idx]))
                     poly_block[j] = p2
 
             out_list_of_orders.append(list_of_orders[i]/poly_block)
             out_list_of_sigmas.append(list_of_sigmas[i]/poly_block)
+            ut.statusbar(i,N)
     return(out_list_of_orders,out_list_of_sigmas,meanfluxes)
 
 
@@ -431,13 +450,13 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
         raise Exception('Error in ops.convolve(): Kernel needs to have an odd number of elements.')
 
     #Perform polynomial fits at the edges.
-    x=fun.findgen(len(array))
+    x= np.arange(len(array), dtype=float) # fun.findgen(len(array))
     fit_left=np.polyfit(x[0:len(kernel)*2],array[0:len(kernel)*2],edge_degree)
     fit_right=np.polyfit(x[-2*len(kernel)-1:-1],array[-2*len(kernel)-1:-1],edge_degree)
 
     #Pad both the x-grid (onto which the polynomial is defined)
     #and the data array.
-    pad=fun.findgen((len(kernel)-1)/2)
+    pad= np.arange((len(kernel)-1)/2, dtype=float) #fun.findgen((len(kernel)-1)/2)
     left_pad=pad-(len(kernel)-1)/2
     right_pad=np.max(x)+pad+1
     left_array_pad=np.polyval(fit_left,left_pad)
@@ -557,7 +576,7 @@ def constant_velocity_wl_grid(wl,fx,oversampling=1.0):
     #range from min(wl) to max(wl), it will add 100,000 more; until it's enough.
     n=len(wl)
     while np.max(wl_new) < np.max(wl):
-        x=fun.findgen(n)
+        x=np.arange(n, dtype=float) #fun.findgen(n)
         wl_new=np.exp(a/c * x)*np.min(wl)
         n+=len(wl)
     wl_new[0]=np.min(wl)#Artificially set to zero to avoid making a small round
@@ -697,7 +716,7 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
     sig_px=sig_wl/deriv
 
     n=1000.0
-    a=fun.findgen(n)/(n-1)*np.pi
+    a=np.arange(n, dtype=float)/(n-1)*np.pi #fun.findgen(n)/(n-1)*np.pi
     rv=np.cos(a)*np.sin(np.radians(inclination))*(2.0*np.pi*Rp*const.R_jup/(P*u.day)).to('km/s').value #in km/s
     trunc_dist=np.round(sig_px*truncsize+np.max(rv)*wl/(const.c.to('km/s').value)/deriv).astype(int)
     # print('Maximum rotational rv: %s' % max(rv))
@@ -706,8 +725,7 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
 
     rvgrid_max=(np.max(trunc_dist)+1.0)*sig_dv+np.max(rv)
     rvgrid_n=rvgrid_max / dv * 100.0 #100 samples per lsf fwhm.
-    rvgrid=(fun.findgen(2*rvgrid_n+1)-rvgrid_n)/rvgrid_n*rvgrid_max#Need to make sure that this is wider than the truncation bin and more finely sampled than wl - everywhere.
-
+    rvgrid=np.arange(-rvgrid_n, rvgrid_n, dtype=float)/rvgrid_n*rvgrid_max #(fun.findgen(2*rvgrid_n+1)-rvgrid_n)/rvgrid_n*rvgrid_max#Need to make sure that this is wider than the truncation bin and more finely sampled than wl - everywhere.
     lsf=rvgrid*0.0
     #We loop through velocities in the velocity grid to build up the sum of Gaussians
     #that is the LSF.
@@ -723,7 +741,7 @@ def blur_rotate(wl,order,dv,Rp,P,inclination,status=False,fast=False):
         # print(len_rv_grid_low%2)
         if len_rv_grid_low%2 == 0:
             len_rv_grid_low -= 1
-        rvgrid_low = fun.findgen(len_rv_grid_low)*dv#Slightly smaller than the original grid.
+        rvgrid_low = np.arange(len_rv_grid_low)*dv #fun.findgen(len_rv_grid_low)*dv#Slightly smaller than the original grid.
         rvgrid_low -=0.5*np.max(rvgrid_low)
         lsf_low = interpolate.interp1d(rvgrid,lsf)(rvgrid_low)
         lsf_low /=np.sum(lsf_low)#This is now an LSF on a grid with the same spacing as the data has.
@@ -786,7 +804,8 @@ def airtovac(wlnm):
     typetest(wlnm,[float,np.ndarray],'wlmn in airtovac()')
     wlA=wlnm*10.0
     s = 1e4 / wlA
-    n = 1 + 0.00008336624212083 + 0.02408926869968 / (130.1065924522 - s**2) + 0.0001599740894897 / (38.92568793293 - s**2)
+    n = 1 + (0.00008336624212083 + 0.02408926869968 / (130.1065924522 - s**2) +
+    0.0001599740894897 / (38.92568793293 - s**2))
     return(wlA*n/10.0)
 
 def vactoair(wlnm):
@@ -819,31 +838,33 @@ def vactoair(wlnm):
 
 
 
-def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True):
+def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True,parallel=False):
     """This quickly cleans a spectral block by performing trimming of zeroes at the edges,
     setting zeroes and negative values to NaN, normalising the flux along both axes, rejecting
     outlier values by using a running MAD, and optionally detrending using polynomials. This is
     intended for quick-look cross-correlation when reading in the data.
 
     The output is the trimmed wavelength axis, the outlier-rejected sequence of spectra (block),
-    and the residuals after outlier rejection. If detrend set to True, polynomials will be fit, and the
-    residuals after polyfitting are also returned. So setting detrend=True increases the number of output
-    variables from 3 to 4.
+    and the residuals after outlier rejection. If detrend set to True, polynomials will be fit, and
+    the residuals after polyfitting are also returned. So setting detrend=True increases the number
+    of output variables from 3 to 4.
 
-    I've ran mad trying to make this faster but medians simply don't collapse into nice matrix operations.
-    So what remains is to parallelise, but doing that right the first time (I don't have experience here)
-    in a platform agnostic way seems unlikely.
+    I've ran mad trying to make this faster but medians simply don't collapse into nice matrix
+    operations. So what remains is to parallelise. I've set up the keyword structure to make this
+    happen, as per Issue #64.
 
-    Set the renorm keyword to maintain the average flux in the block. If set to false, this function will return
-    spectra that have the same average as before cleaning.
+    Set the renorm keyword to maintain the average flux in the block. If set to false, this
+    function will return spectra that have the same average as before cleaning.
     """
     import numpy as np
     import tayph.functions as fun
     import warnings
     import copy
     import tayph.util as ut
+    if parallel: from joblib import Parallel, delayed
     block[np.abs(block)<1e-10*np.nanmedian(block)]=0.0#First set very small values to zero.
-    sum=np.nansum(np.abs(block),axis=0)#Anything that is zero in this sum (i.e. the all-zero columns) will be identified.
+    sum=np.nansum(np.abs(block),axis=0)#Anything that is zero in this sum (i.e. the all-zero
+    #columns) will be identified.
     npx=len(sum)
     leftsize=npx-len(np.trim_zeros(sum,'f'))#Size of zero-padding on the left.
     rightsize=npx-len(np.trim_zeros(sum,'b'))#Size of zero-padding on the right
@@ -864,7 +885,7 @@ def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True):
             avg_flux=avg_flux*0.0+1.0
 
         #Outlier rejection in the 2D residuals via a running MAD:
-        MAD=fun.running_MAD_2D(r,w,verbose=verbose)#This can take long.
+        MAD=fun.running_MAD_2D(r,w,verbose=verbose,parallel=parallel)#This can take long.
         warnings.simplefilter("ignore")
         r[np.abs(r-np.nanmean(r))/MAD>nsigma]=np.nan
         block[np.abs(r-np.nanmean(r))/MAD>nsigma]=np.nan
@@ -876,5 +897,6 @@ def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True):
             block[j]/=np.polyval(p,wl_trimmed)
             r2[j]/=np.polyval(p,wl_trimmed)
             ut.statusbar(j,len(r))
-        return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r,r2)#Avg_flux is 1 unless renorm=True.
+        return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r,r2)#Avg_flux is 1.0 unless
+        #renorm=True.
     return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r)

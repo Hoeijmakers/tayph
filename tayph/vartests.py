@@ -161,9 +161,10 @@ def lentest(var,length,varname='var'):
     import numpy as np
     typetest(length,[int])
     typetest(varname,str)
-    typetest(var,list)
+    typetest(var,[list,tuple])
     if len(var) != length:
-        raise ValueError(f"Wrong length of {varname}:  len = {len(var)} but was required to be {ndim}.")
+        raise ValueError(f"Wrong length of {varname}:  len = {len(var)} but was required to be "
+        f"{length}.")
 
 
 

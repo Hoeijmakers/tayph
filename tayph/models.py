@@ -9,10 +9,12 @@ __all__ = [
 
 
 
-def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0.0,c_subtract=True,twopass=False,template_library='models/library'):
+def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0.0,c_subtract=True,
+twopass=False,template_library='models/library',verbose=False):
     """This routine reads a specified model from the library and turns it into a
     cross-correlation template by subtracting the top-envelope (or bottom envelope),
-    if c_subtract is set to True."""
+    if c_subtract is set to True. Returns the wavelength axis and flux axis of the template,
+    and whether the template is a binary mask (True) or a spectrum (False)."""
 
     import tayph.util as ut
     from tayph.vartests import typetest,postest,notnegativetest
@@ -29,6 +31,9 @@ def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0
     typetest(mode,str,'mode mod.build_template()',)
     typetest(resolution,[int,float],'resolution in mod.build_template()')
     typetest(twopass,bool,'twopass in mod.build_template()')
+
+
+
 
     binsize=float(binsize)
     maxfrac=float(maxfrac)
@@ -48,6 +53,8 @@ def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0
         wlt=np.flipud(wlt)
         fxt=np.flipud(fxt)
 
+    if get_model(templatename,library=template_library,is_binary=True):#Bypass all template-specific operations.
+        return(wlt,fxt,True)
 
     if c_subtract == True:
         wle,fxe=ops.envelope(wlt,fxt-np.median(fxt),binsize,selfrac=maxfrac,mode=mode)#These are binpoints of the top-envelope.
@@ -66,17 +73,19 @@ def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0
 
     if resolution !=0.0:
         dRV = c/resolution
-        print(f'------Blurring template to resolution of data ({round(resolution,0)}, {round(dRV,2)} km/s)')
+        if verbose:
+            ut.tprint(f'------Blurring template to resolution of data ({round(resolution,0)}, {round(dRV,2)} km/s)')
         wlt_cv,T_cv,vstep=ops.constant_velocity_wl_grid(wlt,T,oversampling=2.0)
-        print(f'---------v_step is {np.round(vstep,3)} km/s')
-        print(f'---------So the resolution blurkernel has an avg width of {np.round(dRV/vstep,3)} px.')
+        if verbose:
+            ut.tprint(f'---------v_step is {np.round(vstep,3)} km/s')
+            ut.tprint(f'---------So the resolution blurkernel has an avg width of {np.round(dRV/vstep,3)} px.')
         T_b=ops.smooth(T_cv,dRV/vstep,mode='gaussian')
         wlt = wlt_cv*1.0
         T = T_b*1.0
-    return(wlt,T)
+    return(wlt,T,False)
 
 
-def get_model(name,library='models/library',root='models'):
+def get_model(name,library='models/library',root='models',is_binary=False):
     """This program queries a model from a library file, with predefined models
     for use in model injection, cross-correlation and plotting. These models have
     a standard format. They are 2 rows by N points, where N corresponds to the
@@ -93,6 +102,9 @@ def get_model(name,library='models/library',root='models'):
 
     Example call:
     wlm,fxm = get_model('WASP-121_TiO',library='models/testlib')
+
+    Set the is_binary keyword to ask whether the file is a binary .dat file or not, and return a
+    single boolean. Used to switch between cross-correlation and template construction modes.
     """
 
     from tayph.vartests import typetest,dimtest
@@ -101,6 +113,7 @@ def get_model(name,library='models/library',root='models'):
     from pathlib import Path
     import errno
     import os
+    import numpy as np
     typetest(name,str,'name in mod.get_model()')
     library=check_path(library,exists=True)
 
@@ -125,13 +138,23 @@ def get_model(name,library='models/library',root='models'):
     if str(modelpath)[0]!='/':#Test if this is an absolute path.
         root=check_path(root,exists=True)
         modelpath=root/modelpath
-    try:
-        modelarray=fits.getdata(modelpath)#Two-dimensional array with wl on the first row and flux on the second row.
-    except FileNotFoundError:
-        raise FileNotFoundError(f'Model file {modelpath} from library {str(library)} does not exist.')
+    if modelpath.exists():
+        if modelpath.suffix == '.fits':
+            if is_binary: return(False)
+            modelarray=fits.getdata(modelpath)#Two-dimensional array with wl on the first row and
+            #spectral flux on the second row.
+        elif modelpath.suffix == '.dat':
+            if is_binary: return(True)
+            modelarray = np.loadtxt(modelpath).T#Two-dimensional array with wavelength positions of
+            #spectral lines on the first column and weights on the second column (transposed).
+        else:
+            raise RunTimeError(f'Model file {modelpath} from library {str(library)} is required to '
+            'have extension .fits or .dat.')
+    else:
+        raise FileNotFoundError(f'Model file {modelpath} from library {str(library)} does not '
+        'exist.')
     dimtest(modelarray,[2,0])
     return(modelarray[0,:],modelarray[1,:])
-
 
 
 def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/models'):
@@ -198,9 +221,13 @@ def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/
 
 
 
-    if np.min(wlm) > np.min(list_of_wls)-1.0 or np.max(wlm) < np.max(list_of_wls)+1.0:
-        ut.tprint('WARNING in model injection: Data grid falls (partly) outside of model range. '
-        'Setting missing area to 1.0. (meaning, no planet absorption.)')
+    wl_mins = []
+    for wlo in list_of_wls:
+        wl_mins.append(wlo)
+
+    if np.min(wlm) > np.min(wl_mins)-1.0 or np.max(wlm) < np.max(wl_mins)+1.0:
+        raise RunTimeError('in model injection: Data grid falls (partly) outside of model range. '
+        'Use a model with a wavelength range that encapsulates the data fully.')
 
     modelsel=[(wlm >= np.min(list_of_wls)-1.0) & (wlm <= np.max(list_of_wls)+1.0)]
 

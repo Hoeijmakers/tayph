@@ -38,6 +38,34 @@ python interpreter and importing Tayph::
 
 If no errors are raised, Tayph has been successfully installed on your system.
 
+
+A note on terms used
+####################
+
+High resolution spectroscopy is often made more challenging by the fact that this small community uses
+their own lingo. This is true for Tayph as well. The following terms are used frequently within Tayph,
+and it helps to have these clear as you go through the rest of this tutorial:
+
+- Data: A time-series of high-resolution spectra, pipeline reduced, obtained by e.g. HARPS or ESPRESSO.
+- Template: A spectrum, often numerically modelled, with which the data is cross-correlated, acting as a weight function for spectral lines in the data.
+- Model: A numerical model for the emergent spectrum of the star (e.g. from PHOENIX), the exoplanet (transmission or emission) or the Earths atmosphere (telluric). A model is used to compare the data to. A cross-correlation template may therefore be a "model spectrum", but a model is not necessarily used as a cross-correlation template.
+- e2ds/s2d: Naming of the primary pipeline dataproduct used by Tayph, containing 2-dimensional extracted echelle orders that Tayph reads in via the read_e2ds() function.
+- Configuration file (data): A file that holds fundamental parameters regarding the dataset Tayph is reading, and the exoplanet system in question.
+- Configuration file (molecfit): A file that tells Tayph where your Molecfit installation and the desired scratch folder are located.
+- Runfile: A file that holds parameter settings for the execution of Tayph, instructing which dataset to analyse and in what way.
+- Library: An ASCII table that contains filepaths and shorthands for model spectra, to be used as cross correlation templates or models for comparison.
+- Mask/masking: A collection of wavelength channels that are to be ignored during the data analysis, due to artefacts or systematic noise.
+- Doppler shadow: Residual signature obtained by dividing in-transit spectra by out-of-transit spectra, caused by the passage of the planet in front of the rotating host star. This effect is modelled and removed by Tayph after cross-correlation.
+- Binary mask: An ASCII table forming a list of line positions and relative strengths, to be used as a cross-correlation templates but with lines that are as narrow as the spectral sampling rate of the data.
+- BERV correction: Shifting of spectra from the rest-frame of the observatory on Earth to the rest-frame of the center of the solar system. The main component is the radial velocity of the Earth towards the target star, caused by the Earth's orbital motion.
+- Keplerian correction: Shifting of stellar spectra to the rest-frame of the star by correcting for the small velocity excursion caused by the orbiting planet (on the order of 10's to 100's of m/s).
+- Telluric correction: Removal of the Earth's transmission spectrum from the high-resolution data.
+
+
+
+
+
+
 Setting up Tayph with demo data
 ###############################
 
@@ -275,6 +303,17 @@ signature of these atoms in the atmosphere of KELT-9 b.
 
 Congratulations! You have now successfully installed and executed Tayph!
 
+.. note::
+    By default, various repetitive routines are processed in parallel using the `joblib` package.
+    If your architecture does not support parallel execution, you can switch off the importing and
+    usage of this package by running tayph via  :code:`tayph.run.start_run('demorun.dat',parallel=False)`.
+    In addition, if you are running Tayph on a machine with sufficient RAM, you can run
+    multiple templates in parallel by calling Tayph as
+    :code:`tayph.run.start_run('demorun.dat',xcor_parallel=True)`, to gain in
+    execution time during cross-correlation. This is only beneficial if the size of the data axis of
+    your data times the number of templates times the number of radial velocity steps is (safely) smaller
+    than your RAM, typically in the order of dozens to a hundred GB.
+
 
 Interactive processing
 **********************
@@ -312,7 +351,7 @@ along with the demo data. Importantly, version 1.5.9 is not pyhon 3.0 compatible
 error in the line-list of water, and so we have updated the relevant files in our repackaged version.
 
 
-You can find a compressed package of our version of Molecfit `here <https://drive.google.com/file/d/1obc3ZlnoMld7erbg_4URzM8fcYEOeQuu/view?usp=sharing>`__.
+You can find a compressed package of our version of Molecfit `here <https://drive.google.com/file/d/1I-fG2nxx78qDdMNyvEAXg-odpOu4mKKQ/view?usp=sharing>`__.
 For the rest of this tutorial, we assume that the package contents have been extracted to a folder
 called :code:`molecfit_package`, somewhere on your system.
 
@@ -467,14 +506,15 @@ of reading in the data followed by telluric correction, call::
 
     import tayph.run as run
     run.read_e2ds('/Users/tayph/downloads/demo_data/kelt-9-spectra','KELT-9/night1',instrument='HARPSN',measure_RV=False)
-    run.molecfit('KELT-9/night1',instrument='HARPSN')
+    run.molecfit('KELT-9/night1',instrument='HARPSN',configfile='/Users/tayph/xcor_project/molecfit/molecfit_config.dat')
 
 This will read in the data (which is not necessary if you did so before, but it is shown here for
-clarity), and start the the molecfit GUI. The spectrum shown is the middle spectrum of your
-time series, and you will use this spectrum to choose your fitting regions and parameters. These are
-then saved to the output directory that was indicated in the parameter file, and applied to the
-rest of the time-series. This can take hours or even a day, depending on how many spectra you have
-and how fast your system is. Don't worry, ideally you'll only need to do this once per dataset.
+clarity), and start the the molecfit GUI using the configuration file that you just made.
+The spectrum shown is the middle spectrum of your time series, and you will use this spectrum to
+choose your fitting regions and parameters. These are then saved to the output directory that was
+indicated in the parameter file, and applied to the rest of the time-series. This can take hours or
+even a day, depending on how many spectra you have and how fast your system is. Don't worry,
+ideally you'll only need to do this once per dataset.
 
 
 Starting Molecfit in GUI mode requires access to an X-window, while the hours-long fitting
@@ -503,3 +543,25 @@ where:
     through without interaction. So if you want to run Tayph on a server, it is recommended to call
     those two tasks separately and execute the batch process in the background, for example
     overnight.
+
+
+
+Calling Tayph after Molecfit
+****************************
+
+When Molecfit has run through the entire spectral time series in batch mode successfully, the telluric
+spectra will have been saved in a pickle file along with the spectral orders in the subdirectory that
+contains the associated data, i.e. :code:`data/KELT-9/night1/telluric_transmission_spectra.pkl`. To apply these
+models to the 2D spectral orders when running Tayph, simply run Tayph as above, but with the `do_telluric_correction`
+keyword in the run file set to `True`. This will interpolate and divide out the telluric transmission model
+when the spectral orders are being read in by Tayph, removing the vast majority of telluric absorption features.
+
+
+.. note::
+    You can use the pickle file containing the telluric model spectra to investigate the robustness of
+    the working of Molecfit. The file, located at e.g. :code:`data/KELT-9/night1/telluric_transmission_spectra.pkl`
+    contains a simple tuple of three arrays representing the model telluric spectra. This file can be read in using the
+    pickle module, or with a wrapper in :code:`tayph.tellurics`, called
+    as :code:`T=tayph.tellurics.read_telluric_transmission_from_file('data/KELT-9/night1/telluric_transmission_spectra.pkl')`.
+    The first element of :code:`T` contains the wavelength axis of the model spectra, the second the model spectra, and the third
+    the 1D spectra to which the model was fit to.

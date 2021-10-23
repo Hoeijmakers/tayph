@@ -167,14 +167,14 @@ def plot_ccf(rv,ccf,dp,xrange=[-200,200],yrange=[0,0],Nxticks=10.0,Nyticks=10.0,
     if all(v == 0 for v in yrange):
         yrange=[0,nexp-1]
 
-    x2,y2,z,rv_sel,y_sel,xticks,yticks,vmin,vmax = plotting_scales_2D(rv,fun.findgen(nexp),ccf,xrange,yrange,Nxticks=Nxticks,Nyticks=Nyticks,nsigma=3.0)
+    x2,y2,z,rv_sel,y_sel,xticks,yticks,vmin,vmax = plotting_scales_2D(rv,np.arange(nexp,dtype=float),ccf,xrange,yrange,Nxticks=Nxticks,Nyticks=Nyticks,nsigma=3.0)
     #The plotting
     fig,ax = plt.subplots(figsize=(12,6))
     img=ax.pcolormesh(x2,y2,z,vmin=vmin,vmax=vmax,cmap='hot')
     ax.axis([x2.min(),x2.max(),y2.min(),y2.max()])
-    line1, = ax.plot(RVp,fun.findgen(nexp),'--',color='black',label='Planet rest-frame')
+    line1, = ax.plot(RVp,np.arange(nexp,dtype=float),'--',color='black',label='Planet rest-frame')
     if len(doppler_model) > 0:
-        line2, = ax.plot(doppler_model+vsys,fun.findgen(nexp),'--',color='black',label='Doppler shadow')
+        line2, = ax.plot(doppler_model+vsys,np.arange(nexp,dtype=float),'--',color='black',label='Doppler shadow')
     ax.set_xticks(xticks)
     ax.set_yticks(yticks)
     ax.set_title(title)

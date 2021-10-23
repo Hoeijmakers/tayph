@@ -1,9 +1,10 @@
 __all__ = [
-    "xcor",
-    "clean_ccf",
-    "filter_ccf",
-    "shift_ccf",
-    "construct_KpVsys",
+    "prime_doppler_model",
+    "evaluate_poly",
+    "evaluate_shadow",
+    "read_shadow",
+    "mask_ccf_near_RV",
+    "match_shadow"
 ]
 
 
@@ -101,9 +102,6 @@ def prime_doppler_model(fig,ax,cbar):
 
     return([callback.top_point,callback.bottom_point])
     #Then, when we have broken out of the figure, we return the chosen points as a list.
-
-
-
 
 
 def evaluate_poly(phase,params,S,D):
@@ -225,8 +223,7 @@ def mask_ccf_near_RV(rv,ccf,RVp,hw):
         ccf_mask[i,sel] = np.nan
     return(ccf_mask)
 
-def match_shadow(rv,ccf,mask,dp,doppler_model):
-    #THIS NEEDS TO BE DEBUGGED OR SIMPLIFIED (FOLDED INTO THE CLASS BELOW) ALTOGETHER
+def match_shadow(rv,ccf,mask,dp,doppler_model,verbose=True):
     import scipy.optimize
     # import pdb
     import numpy as np
@@ -249,15 +246,12 @@ def match_shadow(rv,ccf,mask,dp,doppler_model):
         diff[np.isnan(diff)] = 0.0
         return(diff.flatten())
     result = scipy.optimize.leastsq(scale_shadow,[0.5,0.0],args = (doppler_model,ccf*mask))
-    print(f'------Obtained scaling and offset: {np.round(result[0][0],3)}, '+format(result[0][1],'.2e'))
-    print('------If the scaling is not nearly exactly 1 for the species for which the model was made, there is a problem.')
+    if verbose:
+        print(f'------Obtained scaling and offset of shadow model: {np.round(result[0][0],3)}, '+format(result[0][1],'.2e'))
+    # print('------If the scaling is not nearly exactly 1 for the species for which the model was made, there is a problem.')
 
     matched_model = result[0][0]*doppler_model+result[0][1]
     return(ccf - matched_model,matched_model)
-
-
-
-
 
 
 
@@ -303,7 +297,7 @@ class fit_doppler_model(object):
         self.outpath=self.dp/(outname+'.pkl')
         #Translate the pivot to RV-phase points.
         #Need to interpolate on phase only, because the primer was already defined in RV space.
-        p_i = interpol.interp1d(fun.findgen(nexp),self.p)
+        p_i = interpol.interp1d(np.arange(nexp, dtype=float),self.p)
         p1 = float(p_i(primer[0][1]))
         p2 = float(p_i(primer[1][1]))
         v1 = primer[0][0]
@@ -478,7 +472,7 @@ class fit_pulsation_model(object):
         self.outpath=self.dp/(outname+'_pulsations.pkl')
         #Translate the pivot to RV-phase points.
         #Need to interpolate on phase only, because the primer was already defined in RV space.
-        p_i = interpol.interp1d(fun.findgen(nexp),self.p)
+        p_i = interpol.interp1d(np.arange(nexp, dtype=float),self.p)
         # p1 = float(p_i(primer[0][1]))
         # p2 = float(p_i(primer[1][1]))
         # v1 = primer[0][0]
@@ -578,7 +572,7 @@ def construct_doppler_model(rv,ccf,dp,shadowname,xrange=[-200,200],Nxticks=20.0,
     #This is for setting plot axes in the call to plotting_scales_2D below.
     nexp = np.shape(ccf)[0]
     yrange=[0,nexp-1]
-    y_axis = fun.findgen(nexp)
+    y_axis = np.arange(nexp, dtype=float) #fun.findgen(nexp)
     #And for adding the planet line:
     vsys = sp.paramget('vsys',dp)
     vsini = sp.paramget('vsini',dp)

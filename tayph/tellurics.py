@@ -319,8 +319,7 @@ def check_fit_gui(wls,fxc,trans):
     M.selec.spines['top'].set_color('white')
     M.selec.spines['left'].set_color('white')
     M.selec.spines['right'].set_color('white')
-    vlines = fun.findgen(M.N-1)+0.5
-
+    vlines = np.arange(0.5, M.N-0.5) # fun.findgen(M.N-1)+0.5
     row = M.nrows
     offset = 0
     for i in range(M.N):
@@ -385,7 +384,7 @@ def read_telluric_transmission_from_file(inpath):
     return(pickle.load(pickle_in))#This is a tuple that can be unpacked into 2 elements.
 
 
-def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
+def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas,parallel=False):
     """
     This applies a set of telluric spectra (computed by molecfit) for each exposure
     in our time series that were written to a pickle file by write_telluric_transmission_to_file.
@@ -419,8 +418,9 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
     import numpy as np
     import tayph.util as ut
     import tayph.functions as fun
-    from tayph.vartests import dimtest,postest,typetest,nantest
+    from tayph.vartests import dimtest,postest,typetest,nantest,notnegativetest
     import copy
+    if parallel: from joblib import Parallel, delayed
 
     T = read_telluric_transmission_from_file(inpath)
     wlT=T[0]
@@ -434,7 +434,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
 
 
     No = len(list_of_wls)#Number of orders.
-    x = fun.findgen(No)
+    x = np.arange(No, dtype=float) #fun.findgen(No)
     Nexp = len(wlT)
 
 
@@ -449,14 +449,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
         raise Exception(f'Runtime error in telluric correction: List of telluric spectra and data'
         f'spectra read from file do not have the same length ({Nexp} vs {len(list_of_orders[0])}).')
 
-
-    #Corrected orders will be stored here.
-    list_of_orders_cor = []
-    list_of_sigmas_cor = []
-
-
-    #Do the correction order by order:
-    for i in range(No):
+    def telluric_correction_order(i):
         order = list_of_orders[i]
         order_cor = order*0.0
         error  = list_of_sigmas[i]
@@ -464,20 +457,27 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas):
         wl = copy.deepcopy(list_of_wls[i])#input wl axis, either 1D or 2D.
         #If it is 1D, we make it 2D by tiling it vertically:
         if wl.ndim == 1: wl=np.tile(wl,(Nexp,1))#Tile it into a 2D thing.
-
         #If read (2D) or tiled (1D) correctly, wl and order should have the same shape:
         dimtest(wl,np.shape(order),f'Wl axis of order {i}/{No} in apply_telluric_correction()')
         dimtest(error,np.shape(order),f'errors {i}/{No} in apply_telluric_correction()')
         for j in range(Nexp):
             T_i = interp.interp1d(wlT[j],fxT[j],fill_value="extrapolate")(wl[j])
-            postest(T_i,f'T-spec of exposure {j} in apply_telluric_correction()')
+            notnegativetest(T_i,f'T-spec of exposure {j} in apply_telluric_correction()')
             nantest(T_i,f'T-spec of exposure {j} in apply_telluric_correction()')
+            T_i[T_i<0]=np.nan
             order_cor[j]=order[j]/T_i
-            error_cor[j]=error[j]/T_i#I checked that this works because the SNR before and after
+            error_cor[j]=error[j]/T_i #I checked that this works because the SNR before and after
             #telluric correction is identical.
-        list_of_orders_cor.append(order_cor)
-        list_of_sigmas_cor.append(error_cor)
-        ut.statusbar(i,x)
+
+        return (order_cor, error_cor)
+
+    # executing all No jobs simultaneously
+    if parallel:
+        list_of_orders_cor, list_of_sigmas_cor = zip(*Parallel(n_jobs=No)(delayed(
+        telluric_correction_order)(i) for i in range(No)))
+    else:
+        list_of_orders_cor, list_of_sigmas_cor = zip(*[telluric_correction_order(i)
+        for i in range(No)])
     return(list_of_orders_cor,list_of_sigmas_cor)
 
 
@@ -565,7 +565,9 @@ def test_molecfit_config(molecfit_config):
     except:
         err_msg = (f'ERROR in initialising Molecfit. The molecfit configuration file '
         f'({molecfit_config}) exists, but it does not contain the right keywords. The required '
-        'parameters are molecfit_input_folder, molecfit_prog_folder and python_alias')
+        'parameters are molecfit_input_folder, molecfit_prog_folder and python_alias. '
+        'Alternatively, check that you have set the configfile parameter in run.molecfit() '
+        'correctly.')
         ut.tprint(err_msg)
         sys.exit()
 
@@ -574,7 +576,8 @@ def test_molecfit_config(molecfit_config):
             f"({molecfit_config}) exists and it has the correct parameter keywords "
             f"(molecfit_input_folder, molecfit_prog_folder and python_alias), but the "
             f"molecfit_input_folder path ({molecfit_input_folder}) does not exist. Please run "
-            f"tayph.tellurics.set_molecfit_config() to resolve this.")
+            f"tayph.tellurics.set_molecfit_config() to resolve this. Alternatively, check that "
+            f"you have set the configfile parameter in run.molecfit() correctly.")
         ut.tprint(err_msg)
         sys.exit()
 
@@ -583,7 +586,8 @@ def test_molecfit_config(molecfit_config):
             f"({molecfit_config}) exists and it has the correct parameter keywords "
             f"(molecfit_input_folder, molecfit_prog_folder and python_alias), but the "
             f"molecfit_prog_folder path ({molecfit_prog_folder}) does not exist. Please run "
-            f"tayph.tellurics.set_molecfit_config() to resolve this.")
+            f"tayph.tellurics.set_molecfit_config() to resolve this. Alternatively, check that "
+            f"you have set the configfile parameter in run.molecfit() correctly.")
         ut.tprint(err_msg)
         sys.exit()
     binarypath=molecfit_prog_folder/'molecfit'
@@ -594,7 +598,8 @@ def test_molecfit_config(molecfit_config):
                 f"({molecfit_config}) exists and it has the correct parameter keywords "
                 f"(molecfit_input_folder, molecfit_prog_folder and python_alias), but the molecfit "
                 f"binary ({binarypath}) does not exist. Please run "
-                f"tayph.tellurics.set_molecfit_config() to resolve this.")
+                f"tayph.tellurics.set_molecfit_config() to resolve this. Alternatively, check that "
+                f"you have set the configfile parameter in run.molecfit() correctly.")
         ut.tprint(err_msg)
         sys.exit()
 
@@ -603,7 +608,8 @@ def test_molecfit_config(molecfit_config):
                 f"({molecfit_config}) exists and it has the correct parameter keywords "
                 f"(molecfit_input_folder, molecfit_prog_folder and python_alias), but the molecfit "
                 f"gui binary ({guipath}) does not exist. Please run "
-                f"tayph.tellurics.set_molecfit_config() to resolve this.")
+                f"tayph.tellurics.set_molecfit_config() to resolve this. Alternatively, check that "
+                f"you have set the configfile parameter in run.molecfit() correctly.")
         ut.tprint(err_msg)
         sys.exit()
 
@@ -612,7 +618,8 @@ def test_molecfit_config(molecfit_config):
                 f'({molecfit_config}) exists and it has the correct parameter keywords '
                 f'(molecfit_input_folder, molecfit_prog_folder and python_alias), but the python '
                 f'alias ({python_alias}) does not exist. Please run '
-                f'tayph.tellurics.set_molecfit_config() to resolve this.')
+                f'tayph.tellurics.set_molecfit_config() to resolve this. Alternatively, check that '
+                f"you have set the configfile parameter in run.molecfit() correctly.")
         ut.tprint(err_msg)
         sys.exit()
 

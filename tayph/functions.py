@@ -13,7 +13,8 @@ __all__ = [
     'gaussian',
     'gaussfit',
     'sigma_clip',
-    'local_v_star'
+    'local_v_star',
+    'polysinfit'
 ]
 
 
@@ -202,7 +203,7 @@ def running_mean_2D(D,w):
 
 
 
-def running_MAD_2D(z,w,verbose=False):
+def running_MAD_2D(z,w,verbose=False,parallel=False):
     """Computers a running standard deviation of a 2-dimensional array z.
     The stddev is evaluated over the vertical block with width w pixels.
     The output is a 1D array with length equal to the width of z.
@@ -211,6 +212,7 @@ def running_MAD_2D(z,w,verbose=False):
     import numpy as np
     from tayph.vartests import typetest,dimtest,postest
     import tayph.util as ut
+    if parallel: from joblib import Parallel, delayed
     typetest(z,np.ndarray,'z in fun.running_MAD_2D()')
     dimtest(z,[0,0],'z in fun.running_MAD_2D()')
     typetest(w,[int,float],'w in fun.running_MAD_2D()')
@@ -228,13 +230,14 @@ def running_MAD_2D(z,w,verbose=False):
         if verbose: ut.statusbar(i,nx)
     return(s)
 
-def running_MAD(z,w):
+def running_MAD(z,w,parallel=False):
     """Computers a running standard deviation of a 1-dimensional array z.
     The stddev is evaluated over a range with width w pixels.
     The output is a 1D array with length equal to the width of z."""
     import astropy.stats as stats
     import numpy as np
     from tayph.vartests import typetest,dimtest,postest
+    if parallel: from joblib import Parallel, delayed
     typetest(z,np.ndarray,'z in fun.running_MAD()')
     typetest(w,[int,float],'w in fun.running_MAD()')
     postest(w,'w in fun.running_MAD_2D()')
@@ -642,3 +645,152 @@ def local_v_star(phase,aRstar,inclination,vsini,l):
     yp = (-1.0)*aRstar * np.cos(2.0*np.pi*phase) * np.cos(np.deg2rad(inclination))
     x_per = xp*np.cos(np.deg2rad(l)) - yp*np.sin(np.deg2rad(l))
     return(x_per*vsini)
+
+def polysin(x,*p):
+    """
+    Evaluates a function of the form:
+    y =  A*sin(2*pi*x/B+C) + an*x**n + ... + a1*x + a0
+    """
+    import numpy as np
+    return(p[0]*np.sin(2*np.pi*x/p[1]+p[2]) + np.poly1d(p[3:])(x))
+
+
+
+
+def vertical_polyfilter(C,deg):
+    """This takes a block matrix and fits a polynomial of degree deg to the non-NaN values in each
+    column. This can be used to clean up a CCF or an order of residual structures. NaNs can be used
+    to mask out regions that need to be protected. If the degree is high, this operation can be
+    quite agressive. In the future, I might want to enhance this by including different fitting
+    functions, or making adjacent fits to be correlated with each other."""
+    import copy
+    import numpy as np
+
+    C_out = copy.deepcopy(C)
+    fits = copy.deepcopy(C)
+    for i in range(len(C[0])):
+        x = np.arange(len(C))
+        y = C[:,i]
+        sel = ~np.isnan(y)
+        yf = np.poly1d(np.polyfit(x[sel],y[sel],deg))(x)
+        C_out[:,i] = y-yf
+        fits[:,i] = yf
+    return(C_out,fits)
+
+
+
+
+
+
+
+
+def polysinfit(x,y,polydeg,lmfit=True,polyprimer=True,return_primer=False,stepsize=0,w=None,startparams=None):
+    """This fits a polynomial modulated by a sine-wave to a 1D array of points. With a solution
+    tp the hyper-sensitivity to the intial guess frequency by unsym: https://stackoverflow.com/
+    questions/16716302/how-do-i-fit-a-sine-curve-to-my-data-with-pylab-and-numpy
+
+
+    polyprimer is ignored if startparams is set.
+    """
+    from scipy.optimize import curve_fit
+    from scipy.interpolate import interp1d
+    from lmfit import Minimizer, Parameters, report_fit
+    import numpy as np
+    import pdb
+    import matplotlib.pyplot as plt
+
+    x = np.array(x)
+    y = np.array(y)
+
+    if polyprimer and polydeg>0:
+        primer = np.polyfit(x,y,polydeg,w=w)
+        p = np.poly1d(primer)(x)#First-guess polynomial
+        yy=y-p
+    else:
+        yy=y*1.0
+
+    if stepsize == 0:
+        dx = (np.max(x)-np.min(x))/len(x)
+    else:
+        dx = stepsize*1.0
+
+    if w is None:
+        w=x*0.0+1.0#Equal weights.
+    elif len(x[w<=0]) > 0:
+        # plt.plot(x,yy)
+        try:
+            yy[w<=0]=interp1d(x[w>0],y[w>0],bounds_error=False,fill_value='extrapolate')(x[w<=0])
+        except:
+            pdb.set_trace()
+        # plt.plot(x,yy)
+        # plt.show()
+
+
+    if startparams is None:
+        ff = np.fft.fftfreq(len(x),dx)   # assume uniform spacing
+        Fy = abs(np.fft.fft(yy))
+        guess_freq = abs(ff[np.argmax(Fy[1:])+1])   # excluding the zero frequency
+        guess_amp = np.std(yy) * 2.**0.5
+        guess_offset = np.mean(yy)
+
+        if polyprimer and polydeg>0:
+            startparams = [guess_amp,1/guess_freq,0] + list(primer)
+        else:
+            startparams = [guess_amp,1/guess_freq,0]+[0]*polydeg+[guess_offset]
+    if not lmfit:
+        pars,cov = curve_fit(polysin, x, y, p0=startparams)
+        return(pars)
+    else:
+
+        # pass the Parameters
+        params = Parameters()
+        nparams = len(startparams)#Startparams overrides the nparams keyword.
+        paramnames = ['A','B','C']
+        if nparams > 3:
+            for i in range(3,nparams):
+                paramnames.append(f"c{i-2}")
+        if isinstance(startparams,list):
+            startparams=np.array(startparams)
+
+        for i in range(len(paramnames)):
+            params.add(paramnames[i],value=startparams[i])
+
+        def fcn2min(params, x, y, w):
+            """
+            Model the polysin and subtract data. The square of the outcome of this
+            will be minimized.
+            """
+            A = params['A']
+            B = params['B']
+            C = params['C']
+            trigger = 0
+            i=1
+            p = [A,B,C]
+            while trigger == 0:
+                try:
+                    p.append(params[f'c{i}'])
+                except KeyError:
+                    trigger = 1
+                i+=1
+            model = polysin(x,*p)
+            return((model - y)*w)
+
+        minner = Minimizer(fcn2min, params, fcn_args=(x, y, w),nan_policy='omit')
+        result = minner.minimize()
+
+        # write error report
+        verbose=False
+        if verbose:
+            report_fit(result)
+
+        # calculate final result
+        final = y + result.residual
+
+        out_res = []
+        for i in range(len(paramnames)):
+            out_res.append(result.params[paramnames[i]].value)
+
+        if return_primer:
+            return(out_res,startparams)
+        else:
+            return(out_res)

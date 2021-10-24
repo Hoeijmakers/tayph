@@ -1000,7 +1000,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
 
-def read_e2ds(inpath,outname,instrument='HARPS',measure_RV=True,star='solar',config=False,
+def read_e2ds(inpath,outname,read_s1d=True,instrument='HARPS',measure_RV=True,star='solar',config=False,
 save_figure=True,skysub=True):
     """This is the workhorse for reading in a time-series of archival 2D echelle
     spectra from a couple of instrument pipelines that produce a standard output,
@@ -1055,8 +1055,8 @@ save_figure=True,skysub=True):
     relevant fitting regions and parameters, after which it is repeated
     automatically for the entire time series.
 
-    The read_s1d keyword is ignored when reading UVES pipeline data, because the s1d and
-    e2ds files are saved in a complex way that I see no point in disentangling.
+    The read_s1d keyword is currently ignored. This switch is now done based on the mode keyword
+    alone, but left in for compatibility purposes.
 
     The processing of HARPS, HARPS-N and ESPRESSO data is executed in an almost
     identical manner, because the pipeline-reduced products are almost identical.

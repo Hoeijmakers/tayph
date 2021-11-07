@@ -33,7 +33,8 @@ from scipy.ndimage import uniform_filter1d
 __all__ = [
     "read_harpslike",
     "read_espresso",
-    "read_uves"
+    "read_uves",
+    "read_spirou"
 ]
 
 
@@ -628,4 +629,94 @@ def read_espresso(inpath,filelist,read_s1d=True,skysub=True):
         output = {'wave':wave,'e2ds':e2ds,'header':header,
         'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
         'norders':norders,'berv':berv,'airmass':airmass}
+    return(output)
+
+
+
+def read_spirou(inpath,filelist,read_s1d=False):
+    """
+    This reads a folder of SPIROU spectra expecting *t.fits for telluric reduce spectra to exists
+
+    As this data is already telluric reduced no effort is done for creating the s1d data structures
+    """
+
+    if read_s1d:
+        wrn_msg = ('read s1d files not implemented yet for SPIROU, read_s1d reset to false!')
+        ut.tprint(wrn_msg)
+        read_s1d = False
+
+    #The following variables define lists in which all the necessary data will be stored.
+    framename=[]
+    header=[]
+    s1dhdr=[]
+    obstype=[]
+    texp=np.array([])
+    date=[]
+    mjd=np.array([])
+    s1dmjd=np.array([])
+    npx=np.array([])
+    norders=np.array([])
+    e2ds=[]
+    s1d=[]
+    wave1d=[]
+    airmass=np.array([])
+    berv=np.array([])
+    wave=[]
+    for i in range(len(filelist)):
+        if filelist[i].endswith('t.fits'):
+            print(f'------{filelist[i]}', end="\r")
+            hdul = fits.open(inpath/filelist[i])
+            fluxdata = copy.deepcopy(hdul[1].data)
+            wavedata = copy.deepcopy(hdul[2].data)
+            blazedata = copy.deepcopy(hdul[3].data)
+            teldata = copy.deepcopy(hdul[4].data)
+            hdr = hdul[0].header
+            fluxhdr = hdul[1].header
+            wavehdr = hdul[2].header
+            blazehdr = hdul[3].header
+            telhdr = hdul[4].header
+            hdul.close()
+            del hdul[1].data
+            del hdul[2].data
+            del hdul[3].data
+            del hdul[4].data
+
+            __npx = fluxhdr['NAXIS1']
+            __norders = fluxhdr['NAXIS2']
+            idxfilter = []
+            for idx in range(__norders):
+                numberofNaN = np.count_nonzero(np.isnan(fluxdata[idx]))
+                idxfilter.append(numberofNaN != fluxdata[idx].size)
+#                __ratio = float(numberofNaN) / float(fluxdata[idx].size)
+#                idxfilter.append(__ratio < 1.0)
+#                print("numberofNaN"+str(numberofNaN)+"  fluxdata:"+str(fluxdata[idx].size)+"   ratio:"+str(__ratio))
+            fluxdata = fluxdata[idxfilter]
+            wavedata = wavedata[idxfilter]
+            blazedata = blazedata[idxfilter]
+            teldata = teldata[idxfilter]
+#            print("dropped count of orders: "+str(np.size(idxfilter) - np.sum(idxfilter)))
+            __norders = __norders - np.size(idxfilter) + np.sum(idxfilter)  # subtracts number of False
+
+            framename.append(filelist[i])
+            header.append(hdr)
+            obstype.append(hdr['OBSTYPE'])
+            texp=np.append(texp,hdr['EXPTIME'])
+            date.append(hdr['DATE-OBS']+'T'+hdr['UTC-OBS'])
+            mjd=np.append(mjd,hdr['MJD-OBS'])
+            npx=np.append(npx,__npx)
+            norders=np.append(norders,__norders)
+            e2ds.append(fluxdata)
+            wave.append(wavedata)
+            berv=np.append(berv,fluxhdr['BERV'])
+            airmass=np.append(airmass,hdr['AIRMASS'])
+
+
+    if read_s1d:
+        output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
+              'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+              'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
+    else:
+        output = {'wave':wave,'e2ds':e2ds,'header':header,
+              'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+              'norders':norders,'berv':berv,'airmass':airmass}
     return(output)

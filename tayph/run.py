@@ -1666,12 +1666,12 @@ save_figure=True,skysub=True):
             else:
                 ax[0].plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.7,
                 alpha=0.5)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            s1d_avg=np.nanmean(s1d_block,axis=0)
 
 
         if read_s1d:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                s1d_avg=np.nanmean(s1d_block,axis=0)
             if mode=='ESPRESSO':
                 ax[0].plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
                 label='1D spectrum to be cross-correlated (geo-centric frame, after undoing '

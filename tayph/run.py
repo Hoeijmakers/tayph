@@ -1796,7 +1796,7 @@ save_figure=True,skysub=True):
             ' carried out by the pipeline on the e2ds spectra which are in the observatory ',
             'rest-frame. The pipeline originally provided these in vaccuum wavelengths, but the ',
             'read_spirou function should have converted these to air.'),'',('Therefore, you should',
-            ' see the following values for the the measured line centers:')('- The 2D spectra '
+            ' see the following values for the the measured line centers:'),('- The 2D spectra '
             'correlated with PHOENIX should peak the systemic velocity minus the BERV correction '
             f'(equal to {np.round(np.nanmean(berv),2)} km/s on average).'),('- The 2D spectra '
             'correlated with the tellurics should peak at 0 km/s.'),'',('If this is correct, in '

@@ -1119,7 +1119,7 @@ save_figure=True,skysub=True):
     import subprocess
     import textwrap
     from astropy.utils.data import download_file
-    from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes
+    from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes, read_spirou
     from tayph.phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
 
     mode = copy.deepcopy(instrument)#Transfer from using the mode keyword to instrument keyword
@@ -1145,9 +1145,9 @@ save_figure=True,skysub=True):
     typetest(mode,str,'mode in read_e2ds()')
 
     if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue',
-        'CARMENES-VIS','CARMENES-NIR']:
+        'CARMENES-VIS','CARMENES-NIR','SPIROU']:
         raise ValueError("in read_e2ds: instrument needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
-            "CARMENES-VIS, CARMENES-NIR or ESPRESSO.")
+            "CARMENES-VIS, CARMENES-NIR, SPIROU or ESPRESSO.")
 
 
 
@@ -1285,6 +1285,8 @@ save_figure=True,skysub=True):
         DATA = read_carmenes(inpath,filelist,'vis',construct_s1d=read_s1d)
     elif mode == 'CARMENES-NIR':
         DATA = read_carmenes(inpath,filelist,'nir',construct_s1d=read_s1d)
+    elif mode == 'SPIROU':
+        DATA = read_spirou(inpath, filelist, read_s1d=read_s1d)
     else:
         raise ValueError(f'Error in read_e2ds: {mode} is not a valid instrument.')
 
@@ -1600,7 +1602,10 @@ save_figure=True,skysub=True):
                 for j in range(len(list_of_orders[i])):
                     o_i[j]=interp.interp1d(list_of_waves[i][j],list_of_orders[i][j],
                     bounds_error=False,fill_value='extrapolate')(w_i)
-                w_trimmed,o_trimmed,r1,r2=ops.clean_block(w_i,o_i,w=100,deg=4,renorm=True)
+                try:
+                    w_trimmed,o_trimmed,r1,r2=ops.clean_block(w_i,o_i,w=100,deg=4,renorm=True)
+                except:
+                    pdb.set_trace()
                 #Slow. Needs parallelising.
                 list_of_waves_trimmed.append(w_trimmed)
                 list_of_orders_trimmed.append(o_trimmed)

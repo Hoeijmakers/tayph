@@ -34,7 +34,8 @@ __all__ = [
     "read_harpslike",
     "read_espresso",
     "read_uves",
-    "read_spirou"
+    "read_spirou",
+    "read_gianob"
 ]
 
 
@@ -720,3 +721,12 @@ def read_spirou(inpath,filelist,read_s1d=False):
               'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
               'norders':norders,'berv':berv,'airmass':airmass}
     return(output)
+
+
+
+def read_gianob(inpath,filelist,read_s1d=True):
+    """
+    This reads a folder of SPIROU spectra expecting *t.fits for telluric reduce spectra to exists
+
+    As this data is already telluric reduced no effort is done for creating the s1d data structures
+    """

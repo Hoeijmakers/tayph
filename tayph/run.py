@@ -1119,7 +1119,7 @@ save_figure=True,skysub=True):
     import subprocess
     import textwrap
     from astropy.utils.data import download_file
-    from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes, read_spirou
+    from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes, read_spirou, read_gianob
     from tayph.phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
 
     mode = copy.deepcopy(instrument)#Transfer from using the mode keyword to instrument keyword
@@ -1145,13 +1145,13 @@ save_figure=True,skysub=True):
     typetest(mode,str,'mode in read_e2ds()')
 
     if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue',
-        'CARMENES-VIS','CARMENES-NIR','SPIROU']:
+        'CARMENES-VIS','CARMENES-NIR','SPIROU','GIANO-B']:
         raise ValueError("in read_e2ds: instrument needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
-            "CARMENES-VIS, CARMENES-NIR, SPIROU or ESPRESSO.")
+            "CARMENES-VIS, CARMENES-NIR, SPIROU, GIANO-B or ESPRESSO.")
 
 
 
-    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS']:
+    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B']:
         read_s1d = True
     else:
         read_s1d = False
@@ -1287,6 +1287,8 @@ save_figure=True,skysub=True):
         DATA = read_carmenes(inpath,filelist,'nir',construct_s1d=read_s1d)
     elif mode == 'SPIROU':
         DATA = read_spirou(inpath, filelist, read_s1d=read_s1d)
+    elif mode == 'GIANO-B':
+        DATA = read_gianob(inpath, filelist, read_s1d=read_s1d)
     else:
         raise ValueError(f'Error in read_e2ds: {mode} is not a valid instrument.')
 
@@ -1803,6 +1805,8 @@ save_figure=True,skysub=True):
             'the Tayph runfile of this dataset, do_berv_correction should be set to True and air '
             'in the config file of this dataset should be set to True.')]
 
+        if mode in ['GIANO-B']:
+            explanation=[('[No explanation provided yet.]')]
 
 
         for s in explanation: print(textwrap.fill(s, width=int(terminal_width)-5))

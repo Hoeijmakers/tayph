@@ -9,10 +9,47 @@ __all__ = [
     "apply_telluric_correction",
     "set_molecfit_config",
     "test_molecfit_config",
-    "get_molecfit_config"
+    "get_molecfit_config",
+    "shift_exclusion_regions"
 ]
 
+def shift_exclusion_regions(inpath,instrument,v):
+    import astropy.constants as const
+    import csv
+    import tayph.util as ut
+    from pathlib import Path
+    import shutil
+    """This reads the molecfit wavelength exclusion file of an instrument and shifts all boundaries
+    by a certain number of km/s. This is to be used when the exclusion regions were designed to fall
+    on stellar lines in one night of data; and the BERV has shifted these to another wavelength.
+    This way you can use the same exclusion regions with changing BERV without having to click too
+    much. Note that the exclusion file will be overwritten, but also backed up to a file in case
+    of trouble."""
 
+    inpath=ut.check_path(inpath,exists=True)
+    outpath= Path(inpath)/f'wavelength_exclusion_{instrument}.dat'
+
+    try:
+        shutil.copy(outpath,Path(inpath)/f'wavelength_exclusion_{instrument}_velocity_shift_'
+        'backup.dat')
+    except:
+        raise Exception('ERROR in copying wavelength exclusion file prior to velocity '
+        'shift Aborting.')
+
+    with open(outpath, 'r') as f_input:
+        csv_input = csv.reader(f_input, delimiter=' ', skipinitialspace=True)
+        x = []
+        y = []
+        for cols in csv_input:
+            x.append(float(cols[0]))
+            y.append(float(cols[1]))
+
+    x=np.array(x)*v/const.c.to('km/s').value
+    y=np.array(y)*v/const.c.to('km/s').value
+
+    with open(outpath, 'w') as f:
+        writer = csv.writer(f, delimiter=' ')
+        writer.writerows(zip(x,y))
 
 
 def remove_output_molecfit(path,name):

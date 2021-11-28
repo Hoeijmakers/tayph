@@ -114,6 +114,7 @@ def get_model(name,library='models/library',root='models',is_binary=False):
     import errno
     import os
     import numpy as np
+    import pdb
     typetest(name,str,'name in mod.get_model()')
     library=check_path(library,exists=True)
 
@@ -128,7 +129,11 @@ def get_model(name,library='models/library',root='models',is_binary=False):
 
     for i in range(0,n_lines):
         line=x[i].split()
-        value=(line[1])
+        try:
+            value=(line[1])
+        except:
+            print('Error reading content of library file. Entering debug mode.')
+            pdb.set_trace()
         models[line[0]] = value
 
     try:

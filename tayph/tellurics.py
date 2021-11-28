@@ -19,6 +19,7 @@ def shift_exclusion_regions(inpath,instrument,v):
     import tayph.util as ut
     from pathlib import Path
     import shutil
+    import numpy as np
     """This reads the molecfit wavelength exclusion file of an instrument and shifts all boundaries
     by a certain number of km/s. This is to be used when the exclusion regions were designed to fall
     on stellar lines in one night of data; and the BERV has shifted these to another wavelength.
@@ -44,8 +45,8 @@ def shift_exclusion_regions(inpath,instrument,v):
             x.append(float(cols[0]))
             y.append(float(cols[1]))
 
-    x=np.array(x)*v/const.c.to('km/s').value
-    y=np.array(y)*v/const.c.to('km/s').value
+    x=np.array(x)*(1+v/const.c.to('km/s').value)
+    y=np.array(y)*(1+v/const.c.to('km/s').value)
 
     with open(outpath, 'w') as f:
         writer = csv.writer(f, delimiter=' ')

@@ -871,7 +871,7 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,trans
         LC /= np.nansum(LC)
         transitblock = fun.rebinreform(LC,len(rv)).T
     else:
-        transitblock = fun.rebinreform(LC,len(rv)).T * 0.0 + 1.0
+        transitblock = fun.rebinreform(LC,len(rv)).T * 0.0 + 1.0/len(LC)
 
 
 

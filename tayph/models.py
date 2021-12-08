@@ -286,5 +286,5 @@ def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/
     # pdb.set_trace()
     # ut.writefits('test.fits',injection)
     # pdb.set_trace()
-
+    pdb.set_trace()
     return(list_of_orders_injected)

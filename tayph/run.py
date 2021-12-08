@@ -510,12 +510,12 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         if do_colour_correction == True:
             print('---Constructing mask with intra-order colour correction applied')
             masking.mask_orders(list_of_wls,ops.normalize_orders(list_of_orders,list_of_sigmas,
-            colourdeg)[0],dp,maskname,40.0,20.0,manual=True)
+            colourdeg)[0],dp,maskname,20.0,5.0,manual=True)
         else:
             ut.tprint('---Constructing mask WITHOUT intra-order colour correction applied.')
             ut.tprint('---Switch on colour correction if you see colour variations in the 2D '
                 'spectra.')
-            masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,40.0,5.0,manual=True)
+            masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,20.0,5.0,manual=True)
         if apply_mask == False:
             ut.tprint('---WARNING in run_instance: Mask was made but is not applied to data '
                 '(apply_mask == False)')

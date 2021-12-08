@@ -510,7 +510,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         if do_colour_correction == True:
             print('---Constructing mask with intra-order colour correction applied')
             masking.mask_orders(list_of_wls,ops.normalize_orders(list_of_orders,list_of_sigmas,
-            colourdeg)[0],dp,maskname,40.0,5.0,manual=True)
+            colourdeg)[0],dp,maskname,40.0,20.0,manual=True)
         else:
             ut.tprint('---Constructing mask WITHOUT intra-order colour correction applied.')
             ut.tprint('---Switch on colour correction if you see colour variations in the 2D '

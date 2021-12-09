@@ -236,6 +236,13 @@ def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/
     wlm=wlm[tuple(modelsel)]
     fxm=fxm[tuple(modelsel)]
 
+    if np.median(fxm) < 0.5:
+        print('WARNING in model injection: The median value of the injection model over the '
+        'wavelength range of the data is less than 0.5. This model is probably not suitable '
+        'for injection. This could have happened if your injection model is accidentally '
+        'continuum subtracted (e.g. around zero). Please double-check your injection model and '
+        'make sure that it has a continuum.')
+
     fxm_b=ops.blur_rotate(wlm,fxm,c/Rd,planet_radius,P,inclination)#Only do this once per dataset.
 
     oversampling = 2.5
@@ -286,5 +293,4 @@ def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/
     # pdb.set_trace()
     # ut.writefits('test.fits',injection)
     # pdb.set_trace()
-    pdb.set_trace()
     return(list_of_orders_injected)

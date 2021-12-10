@@ -736,7 +736,7 @@ def construct_doppler_model(rv,ccf,dp,shadowname,xrange=[-200,200],Nxticks=20.0,
     #Then the offset slider:
     rax_slider2 = plt.axes([0.8, 0.25, 0.15, 0.02])
     rax_slider2.set_title('Offset 2nd component')
-    offset_slider = Slider(rax_slider2,'',-1.0*np.ceil(vsini),np.ceil(vsini),valinit=0.0,valstep=1.0)
+    offset_slider = Slider(rax_slider2,'',np.min([-1.1*np.ceil(vsini),-10]),np.max([1.1*np.ceil(vsini),10]),valinit=0.0,valstep=0.5)
     def update_offset(val):
         model_callback.offset = offset_slider.val
         status = radio.value_selected

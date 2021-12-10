@@ -275,6 +275,7 @@ wish to remember for yourself.::
     apply_mask                False
     do_berv_correction        True
     do_keplerian_correction   True
+    transits                  True    #Differentiate between in-and-out-of-transit exposures when removing time-average spectra.
     make_doppler_model        False   #Make a new doppler model (True) / use the previously generated one (False). If multiple templates are provided, the GUI to make a model will only be called on the first template. Make sure that is a template with strong stellar lines, i.e. FeI or FeII.
     skip_doppler_model        True    #This is skipping the application of the doppler model altogether.
     RVrange                   300.0   #Extent of the CCF velocity excursion. Linearly increases computation time.

@@ -892,7 +892,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                     ccf_clean_i_weighted = np.transpose(np.transpose(ccf_clean_i_filtered) *
                     meanfluxes_norm_injected)
                     ccf_nne_i = np.transpose(np.transpose(ccf_nne_i)*meanfluxes_norm_injected)
-                    ut.save_stack(outpath/'cleaning_steps.fits',[ccf_i,ccf_nn_i,ccf_clean_i,
+                    ut.save_stack(outpath_i/'cleaning_steps_i.fits',[ccf_i,ccf_nn_i,ccf_clean_i,
                     matched_ds_model_i,ccf_clean_i_filtered,wiggles,ccf_clean_i_weighted])
                     ut.writefits(outpath_i/'ccf_cleaned_i.fits',ccf_clean_i_weighted)
                     ut.writefits(outpath_i/'ccf_cleaned_i_error.fits',ccf_nne)

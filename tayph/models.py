@@ -292,5 +292,5 @@ def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/
     # ut.save_stack('test.fits',[injection_pure,injection_rot_only,injection_total])
     # pdb.set_trace()
     # ut.writefits('test.fits',injection)
-    # pdb.set_trace()
+    pdb.set_trace()
     return(list_of_orders_injected)

@@ -89,7 +89,7 @@ KELT-9 b. This package also contains the necessary configuration files and templ
 cross-correlations reminiscent of Hoeijmakers et al. (2018), but without the application of
 telluric correction (for those see section below).
 
-Download the dummy data, located `here <https://drive.google.com/file/d/1A3CxUfQUIsmjmHKmPlc81wD7r97UslMC/view?usp=sharing>`__.
+Download the dummy data, located `here <https://drive.google.com/file/d/11XBbFdLWxs7UkQxtIFt1N62wTcLdSmlm/view?usp=sharing>`__.
 You may also download any other pipeline-reduced HARPS
 or HARPS-N dataset from the ESO or TNG archives (Tayph does *not* work on
 raw echelle data). A pipeline-reduced dataset will consist of a number of files for each exposure,
@@ -275,7 +275,7 @@ wish to remember for yourself.::
     apply_mask                False
     do_berv_correction        True
     do_keplerian_correction   True
-    transits                  True    #Differentiate between in-and-out-of-transit exposures when removing time-average spectra.
+    transit                   True    #Differentiate between in-and-out-of-transit exposures when removing time-average spectra.
     make_doppler_model        False   #Make a new doppler model (True) / use the previously generated one (False). If multiple templates are provided, the GUI to make a model will only be called on the first template. Make sure that is a template with strong stellar lines, i.e. FeI or FeII.
     skip_doppler_model        True    #This is skipping the application of the doppler model altogether.
     RVrange                   300.0   #Extent of the CCF velocity excursion. Linearly increases computation time.

@@ -89,7 +89,7 @@ KELT-9 b. This package also contains the necessary configuration files and templ
 cross-correlations reminiscent of Hoeijmakers et al. (2018), but without the application of
 telluric correction (for those see section below).
 
-Download the dummy data, located `here <https://drive.google.com/file/d/11XBbFdLWxs7UkQxtIFt1N62wTcLdSmlm/view?usp=sharing>`__.
+Download the dummy data, located `here <https://drive.google.com/file/d/1BxO6I7gyJPqnzDrvz--rlxs72wXtoE_4/view?usp=sharing>`__.
 You may also download any other pipeline-reduced HARPS
 or HARPS-N dataset from the ESO or TNG archives (Tayph does *not* work on
 raw echelle data). A pipeline-reduced dataset will consist of a number of files for each exposure,

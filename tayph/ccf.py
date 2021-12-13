@@ -164,7 +164,7 @@ parallel=False):
         stack_of_orders))) and (np.sum(np.isnan(stack_of_orders)) !=
         np.sum(np.isnan(stack_of_errors2))):
             raise ValueError(f"in CCF: The number of NaNs in list_of_orders and list_of_errors is "
-            f"not equal ({np.sum(np.isnan(list_of_orders))},{np.sum(np.isnan(list_of_errors2))})")
+            f"not equal ({np.sum(np.isnan(list_of_orders))},{np.sum(np.isnan(list_of_errors))})")
 
 #===HERE IS THE JUICY BIT===
 #===FIRST, FIND AND MARK NANS===

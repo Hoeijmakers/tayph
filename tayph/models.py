@@ -176,6 +176,7 @@ def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/
     import tayph.operations as ops
     from tayph.vartests import typetest, dimtest
     import pdb
+    import tayph.functions as fun
     import copy
     import matplotlib.pyplot as plt
 
@@ -243,7 +244,33 @@ def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/
         'continuum subtracted (e.g. around zero). Please double-check your injection model and '
         'make sure that it has a continuum.')
 
+    blurtrigger = 0
+    if np.median(fxm[fun.selmax(fxm,0.05)]) > 1.01:
+        ut.tprint('WARNING in model injection: The median of the highest 5% of values in the model '
+        'that is to be injected is higher than 1.01; meaning that this model would add over 1% of '
+        'the stellar flux at many wavelengths. In normal use-cases this is unphysical. This could '
+        'have happened if you incorrectly continuum-normalised your injection model. Please double '
+        f'check the model file (model name "{modelname}" in libraryfile {model_library}).')
+        blurtrigger = 1
+    if np.median(fxm[fun.selmax(fxm,0.99,s=0.99)]) < 0.8:
+        ut.tprint('WARNING in model injection: The median of the lowest 1% of values in the model '
+        'that is to be injected is less than 0.8; meaning that this model would absorb over 20% of '
+        'the stellar flux at some wavelengths. In normal use-cases this is unphysical. This could '
+        'have happened if you incorrectly continuum-normalised your injection model. Please double '
+        f'check the model file (model name "{modelname}" in libraryfile {model_library}).')
+        blurtrigger = 1
+
+
     fxm_b=ops.blur_rotate(wlm,fxm,c/Rd,planet_radius,P,inclination)#Only do this once per dataset.
+
+    if blurtrigger == 0 and (np.median(fxm[fun.selmax(fxm,0.05)]) > 1.01 or
+    np.median(fxm[fun.selmax(fxm,0.99,s=0.99)]) < 0.8):#acts as fun.selmin (if it existed).
+        ut.tprint('ERROR in model injection: The injection model after blurring has attained '
+        'unphysical values, even though everything was fine before blurring. This implies that '
+        'something really bad has happened during rotation-blurring. Have you provided correct '
+        'values for the spectral resolution, the planet radius, the period, the inclination in '
+        'the config file? Has the speed of light c changed? Has ops.blur_rotate been tampered '
+        'with? ')
 
     oversampling = 2.5
     wlm_cv,fxm_bcv,vstep=ops.constant_velocity_wl_grid(wlm,fxm_b,oversampling=oversampling)

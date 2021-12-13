@@ -13,8 +13,9 @@ def build_template(templatename,binsize=1.0,maxfrac=0.01,mode='top',resolution=0
 twopass=False,template_library='models/library',verbose=False):
     """This routine reads a specified model from the library and turns it into a
     cross-correlation template by subtracting the top-envelope (or bottom envelope),
-    if c_subtract is set to True. Returns the wavelength axis and flux axis of the template,
-    and whether the template is a binary mask (True) or a spectrum (False)."""
+    if c_subtract is set to True. Also blurs the template to the resolution of the data, if it is
+    not a binary line mask. Returns the wavelength axis and flux axis of the template, and whether
+    the template is a binary mask (True) or a spectrum (False)."""
 
     import tayph.util as ut
     from tayph.vartests import typetest,postest,notnegativetest

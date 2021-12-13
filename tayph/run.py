@@ -249,8 +249,8 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     colourdeg = 3 #A fitting degree for the colour correction. #should be set in the config file?
 
 
-    ut.tprint('---Passed parameter input tests. Initiating output folder tree in '
-    f'{Path("output")/dp}.')
+    ut.tprint('---Passed parameter input tests.')
+    ut.tprint(f'---Initiating output folder tree in {Path("output")/dp}.')
     libraryname=str(template_library).split('/')[-1]
     if str(dp).split('/')[0] == 'data':
         dataname=str(dp).replace('data/','')
@@ -280,18 +280,12 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     try:
         order_numbers = [int(i.split('order_')[1].split('.')[0]) for i in filelist_orders]
     except:
-        raise Exception('Runtime error: Failed casting fits filename numerals to ints. Are the '
-        'filenames of the spectral orders correctly formatted?')
+        raise Exception('Runtime error: Failed at casting fits filename numerals to ints. Are the '
+        'filenames of all of the spectral orders correctly formatted (e.g. order_5.fits)?')
     order_numbers.sort()#This is the ordered list of numerical order IDs.
     n_orders = len(order_numbers)
     if n_orders == 0:
         raise Exception(f'Runtime error: n_orders may never have ended up as zero? ({n_orders})')
-
-
-
-
-
-
 
 
     #Loading the data according to the file names identified.
@@ -308,8 +302,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             ut.check_path(sigmapath,exists=False)
             wave_order = fits.getdata(wavepath)#2D or 1D?
             order_i = fits.getdata(orderpath)
-
-
 
             #Check dimensionality of wave axis and order. Either 2D or 1D.
             if wave_order.ndim == 2:
@@ -345,8 +337,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                 if i == np.min(order_numbers):
                     ut.tprint("------Applying airtovac correction.")
                 list_of_wls.append(ops.airtovac(wave_order))
-
-
 
 
             #Now test for negatives, set them to NaN and track them.
@@ -396,10 +386,53 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         raise Exception('Runtime error: n_orders is not equal to the length of list_of_orders. '
         'Something went wrong when reading them in?')
 
-    print('---Finished loading dataset to memory.')
+    ut.tprint('---Finished loading dataset to memory.')
 
 
 
+    #Track the minimum and maximum wavelengths of the data. This is done here and not when
+    #reading the data because at the end of each loop it is determined whether or not to do
+    #airtovac, and it is appended immediately, so I split the following off:
+    min_wl = np.inf
+    max_wl = -1*np.inf
+    for wli in list_of_wls:
+        min_wl = np.min([min_wl,np.nanmin(wli)])
+        max_wl = np.max([max_wl,np.nanmax(wli)])
+
+    ut.tprint(f'---The spectra cover a range from {np.round(min_wl,2)}--{np.round(max_wl,2)} nm.')
+    ut.tprint('---Testing existence and coverage of template(s).')
+    testlist_of_templates = []
+    for A in templatelist:
+        wltt,void=models.get_model(A,template_library)
+        if np.min(wltt) > max_wl or np.max(wltt) < min_wl:
+            raise Exception('ERROR when testing the integrity of the cross-correlation templates.'
+            f'The wavelength range of template {A} does not overlap at all with the data'
+            f'({np.round(np.min(wltt),2)}--{np.round(np.max(wltt),2)} '
+            f'vs {np.round(min_wl,2)}--{np.round(max_wl,2)} respectively). Are the wavelengths of '
+            'template and data both in nm?')
+        if np.min(wltt) > min_wl or np.max(wltt) < max_wl:
+            ut.tprint(f'WARNING: The wavelength range of template {A} does not fully cover the '
+            f'range of the data ({np.round(np.min(wltt),2)}--{np.round(np.max(wltt),2)} '
+            f'vs {np.round(min_wl,2)}--{np.round(max_wl,2)} respectively). The template will be '
+            'padded with zeroes in the missing region.')
+
+    if inject_model:
+        ut.tprint('---Testing existence and coverage of model(s).')
+        for A in modellist:
+            wltt,void=models.get_model(A,model_library)
+            if np.min(wltt) > max_wl or np.max(wltt) < min_wl:
+                raise Exception('ERROR when testing the integrity of the injection models.'
+                f'The wavelength range of model {A} does not overlap at all with the data'
+                f'({np.round(np.min(wltt),2)}--{np.round(np.max(wltt),2)} '
+                f'vs {np.round(min_wl,2)}--{np.round(max_wl,2)} respectively). Are the wavelengths '
+                'of model and data both in nm?')
+            if np.min(wltt) > min_wl or np.max(wltt) < max_wl:
+                ut.tprint(f'WARNING: The wavelength range of model {A} does not fully cover the '
+                f'range of the data ({np.round(np.min(wltt),2)}--{np.round(np.max(wltt),2)} '
+                f'vs {np.round(min_wl,2)}--{np.round(max_wl,2)} respectively). The model will be '
+                'padded with ones in the missing region upon injection.')
+
+    pdb.set_trace()
 
 #Apply telluric correction file or not.
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='red')
@@ -408,7 +441,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='red',alpha=0.5)
     ##plot SNR
     if do_telluric_correction == True and n_orders > 0:
-        print('---Applying telluric correction')
+        ut.tprint('---Applying telluric correction')
         telpath = dp/'telluric_transmission_spectra.pkl'
         list_of_orders,list_of_sigmas = telcor.apply_telluric_correction(telpath,list_of_wls,
         list_of_orders,list_of_sigmas,parallel=parallel) # this is in parallel now
@@ -581,12 +614,8 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             wlt,T,is_binary=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,
                 template_library=template_library,c_subtract=c_subtract,verbose=verbose)
                 #Top-envelope subtraction and blurring.
-            T*=(-1.0)
-            if np.median(wlt) < 50.0:#This is likely in microns:
-                ut.tprint('------WARNING: The loaded template has a median wavelength less than '
-                '50.0, meaning that it is very likely not in nm, but in microns. I have divided by '
-                '1,000 now and hope for the best...')
-                wlt*=1000.0
+            T*=(-1.0)#Absorption lines become emission lines. Absorption is going to be a positive
+            #signal
             outpath=Path('output')/Path(dataname)/Path(libraryname)/Path(templatename)
 
             if not os.path.exists(outpath):

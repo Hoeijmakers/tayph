@@ -703,7 +703,7 @@ parallel=False,fast=True,strict_edges=True,return_templates=False,zero_point = 0
 
 
 
-def clean_ccf(rv,ccf,ccf_e,dp):
+def clean_ccf(rv,ccf,ccf_e,dp,intransit):
     """
     This routine normalizes the CCF fluxes and subtracts the average out of
     transit CCF, using the transit lightcurve as a mask.
@@ -789,28 +789,34 @@ def clean_ccf(rv,ccf,ccf_e,dp):
 
 
     if np.sum(transit==1) == 0:
-        print('------WARNING in Cleaning: The data contains only in-transit exposures.')
-        print('------The mean ccf is taken over the entire time-series.')
+        ut.tprint('------WARNING in Cleaning: The data contains only in-transit exposures.')
+        ut.tprint('------The mean ccf is taken over the entire time-series.')
         meanccf=np.nanmean(ccf_n,axis=0)
         meanccf_e=1.0/len(transit)*np.sqrt(np.nansum(ccf_ne**2.0,axis=0))#I validated that this is approximately equal
         #to sqrt(N)*ccf_ne, where N is the number of out-of-transit exposures.
-    elif np.sum(transit==1) <= 0.25*len(transit):
-        print('------WARNING in Cleaning: The data contains very few (<25%) out of transit exposures.')
-        print('------The mean ccf is taken over the entire time-series.')
+    elif np.sum(transit==1) <= 0.25*len(transit) and intransit==True:
+        ut.tprint('------WARNING in Cleaning: The data contains very few (<25%) out of transit exposures.')
+        ut.tprint('------The mean ccf is taken over the entire time-series.')
         meanccf=np.nanmean(ccf_n,axis=0)
         meanccf_e=1.0/len(transit)*np.sqrt(np.nansum(ccf_ne**2.0,axis=0))#I validated that this is approximately equal
         #to sqrt(N)*ccf_ne, where N is the number of out-of-transit exposures.
-    if np.min(transit) == 1.0:
-        print('------WARNING in Cleaning: The data is not predicted to contain in-transit exposures.')
-        print(f'------If you expect to be dealing with transit-data, please check the ephemeris '
-        f'at {dp}')
-        print('------The mean ccf is taken over the entire time-series.')
+    elif np.min(transit) == 1.0 and intransit==True:
+        ut.tprint('------WARNING in Cleaning: The data is not predicted to contain in-transit exposures.')
+        ut.tprint(f'------If you expect to be dealing with transit-data, please check the ephemeris '
+        f'at {dp}. If you are dealing with non-transit data, set the transit keyword in the run-'
+        'file to False.')
+        ut.tprint('------The mean ccf is taken over the entire time-series.')
         meanccf=np.nanmean(ccf_n,axis=0)
         meanccf_e=1.0/len(transit)*np.sqrt(np.nansum(ccf_ne**2.0,axis=0))#I validated that this is approximately equal
         #to sqrt(N)*ccf_ne, where N is the number of out-of-transit exposures.
+    elif intransit==False:
+        ut.tprint('------The mean ccf is taken over the entire time-series.')
+        meanccf=np.nanmean(ccf_n,axis=0)
+        meanccf_e=1.0/len(transit)*np.sqrt(np.nansum(ccf_ne**2.0,axis=0))
     else:
         meanccf=np.nanmean(ccf_n[transit == 1.0,:],axis=0)
         meanccf_e=1.0/np.sum(transit==1)*np.sqrt(np.nansum(ccf_ne[transit == 1.0,:]**2.0,axis=0))#I validated that this is approximately equal
+        ut.tprint('------The mean ccf is taken over the in-transit exposures of the time-series.')
         #to sqrt(N)*ccf_ne, where N is the number of out-of-transit exposures.
 
 

@@ -250,6 +250,20 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
     ut.tprint('---Passed parameter input tests.')
+
+
+    #Override application of doppler shadow correction if Transit==False.
+    if intransit==False and make_doppler_model==True:
+        ut.tprint('WARNING: Transit=False but make_doppler_model=True. This is unphysical. '
+        'Disabling making of doppler model and proceeding.')
+        make_doppler_model = False
+    if intransit==False and skip_doppler_model==False:
+        ut.tprint('WARNING: Transit=False but skip_doppler_model is also False. This is unphysical.'
+        ' Disabling application of doppler model and proceeding.')
+        skip_doppler_model = True
+
+
+
     ut.tprint(f'---Initiating output folder tree in {Path("output")/dp}.')
     libraryname=str(template_library).split('/')[-1]
     if str(dp).split('/')[0] == 'data':
@@ -731,7 +745,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         Tsums = fits.getdata(outpath/'Tsum.fits')
 
         ut.tprint('---Cleaning CCFs')
-        ccf_n,ccf_ne,ccf_nn,ccf_nne= clean_ccf(rv,ccf,ccf_e,dp)
+        ccf_n,ccf_ne,ccf_nn,ccf_nne= clean_ccf(rv,ccf,ccf_e,dp,intransit)
 
         if make_doppler_model == True:
             shadow.construct_doppler_model(rv,ccf_nn,dp,shadowname,xrange=[-200,200],Nxticks=20.0,
@@ -891,7 +905,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
                     ut.tprint('---Cleaning injected CCFs')
-                    ccf_n_i,ccf_ne_i,ccf_nn_i,ccf_nne_i = clean_ccf(rv_i,ccf_i,ccf_e_i,dp)
+                    ccf_n_i,ccf_ne_i,ccf_nn_i,ccf_nne_i = clean_ccf(rv_i,ccf_i,ccf_e_i,dp,intransit)
 
 
                     if skip_doppler_model == False:

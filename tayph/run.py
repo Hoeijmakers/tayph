@@ -432,7 +432,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                 f'vs {np.round(min_wl,2)}--{np.round(max_wl,2)} respectively). The model will be '
                 'padded with ones in the missing region upon injection.')
 
-    pdb.set_trace()
 
 #Apply telluric correction file or not.
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='red')

@@ -88,14 +88,14 @@ def retrieve_output_molecfit(path):
         trans=hdul[1].data['mtrans']
     return(wl,fx,trans)
 
-def execute_molecfit(molecfit_prog_root,molecfit_input_file,gui=False,alias='python3'):
+def execute_molecfit(molecfit_prog_root,molecfit_input_file,molecfit_input_folder,gui=False,alias='python3'):
     """This actually calls the molecfit command in bash"""
     import os
     from pathlib import Path
     import warnings
     if gui == False:
-        command = str(Path(molecfit_prog_root)/'molecfit')+' '+str(molecfit_input_file)
-        command2 = str(Path(molecfit_prog_root)/'calctrans')+' '+str(molecfit_input_file)
+        command = f'{Path(molecfit_prog_root)}/molecfit > {Path(molecfit_input_folder)}/log.txt'+' '+str(molecfit_input_file)
+        command2 = f'{Path(molecfit_prog_root)}/calctrans > {Path(molecfit_input_folder)}/log.txt'+' '+str(molecfit_input_file)
         os.system(command)
         os.system(command2)
     if gui == True:
@@ -172,7 +172,7 @@ def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii,plot=Fa
     prihdu = fits.PrimaryHDU(header=prihdr)
     thdulist = fits.HDUList([prihdu, tbhdu])
     thdulist.writeto(molecfit_folder/name,overwrite=True)
-    ut.tprint(f'Spectrum {ii} written to {str(molecfit_folder/name)}')
+    #ut.tprint(f'Spectrum {ii} written to {str(molecfit_folder/name)}')
     return(0)
 
 

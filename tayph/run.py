@@ -1933,7 +1933,7 @@ plot_spec=False):
     from tayph.vartests import typetest
     import astropy.units as u
     import astropy.constants as const
-
+    from tqdm import tqdm
 
     #The DP contains the S1D files and the configile of the data (air or vaccuum)
     if instrument=='HARPS-N': instrument='HARPSN'#Guard against various ways of spelling HARPS-N.
@@ -2019,7 +2019,7 @@ plot_spec=False):
     for x in s1dhdr_sorted:
         print(x['DATE-OBS'])
     print('')
-    ut.tprint("If these are not chronologically ordered, there is a problem with the way dates are"
+    ut.tprint("If these are not chronologically ordered, there is a problem with the way dates are "
         "formatted in the header and you are advised to abort this program.")
     print('\n \n')
 
@@ -2047,11 +2047,12 @@ plot_spec=False):
 
 
     if mode.lower() == 'batch' or mode.lower()=='both':
-        for i in range(N):#range(len(spectra)):
-            print('Fitting spectrum %s from %s' % (i+1,N))
-            t1=ut.start()
+        print('Fitting %s spectra. Here is your progress bar:' % N)
+        for i in tqdm(range(N)):#range(len(spectra)):
+            #print('Fitting spectrum %s from %s' % (i+1,N))
+            #t1=ut.start()
             tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
-            tel.execute_molecfit(molecfit_prog_folder,parfile,gui=False)
+            tel.execute_molecfit(molecfit_prog_folder,parfile,molecfit_input_folder,gui=False)
             wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
             tel.remove_output_molecfit(molecfit_input_folder,instrument)
             #list_of_wls.append(wl*1000.0)#Convert to nm.
@@ -2062,7 +2063,7 @@ plot_spec=False):
                 list_of_wls.append(wl*1000.0)#Convert to nm.
             list_of_fxc.append(fx/trans)
             list_of_trans.append(trans)
-            ut.end(t1)
+            #ut.end(t1)
             if len(str(save_individual)) > 0:
                 indv_outpath=Path(save_individual)/f'tel_{i}.fits'
                 indv_out = np.zeros((2,len(trans)))
@@ -2113,7 +2114,7 @@ def check_molecfit(dp,instrument='HARPS',configfile=None):
         print(to_do_manually)
         for i in to_do_manually:
             tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
-            tel.execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
+            tel.execute_molecfit(molecfit_prog_folder,parfile,molecfit_input_folder,gui=True,alias=python_alias)
             wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
             if instrument == 'ESPRESSO':
                 berv_corr =  s1dhdr_sorted[i]['HIERARCH ESO QC BERV']

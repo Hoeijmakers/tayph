@@ -2040,7 +2040,7 @@ plot_spec=False):
     if mode.lower() == 'gui' or mode.lower()=='both':
         tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,
             wave1d_sorted,s1d_sorted,middle_i,plot=plot_spec)
-        tel.execute_molecfit(molecfit_prog_folder,parfile,gui=True,alias=python_alias)
+        tel.execute_molecfit(molecfit_prog_folder,parfile,molecfit_input_folder,gui=True,alias=python_alias)
         wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
         tel.remove_output_molecfit(molecfit_input_folder,instrument)
 

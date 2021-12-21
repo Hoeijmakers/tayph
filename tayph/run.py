@@ -1814,8 +1814,8 @@ save_figure=True,skysub=False):
             'should be set to True.')]
 
 
-        if mode in ['HARPS','HARPSN']:
-            explanation=[('For HARPS(N), the s1d spectra are typically provided in the barycentric '
+        if mode in ['HARPS','HARPSN','GIANO-B']:
+            explanation=[(f'For {mode}, the s1d spectra are typically provided in the barycentric '
             'restframe, while the e2ds spectra are left in the observatory frame, both in air. '
             'Because the s1d spectra are used for telluric correction, this code undoes this '
             'barycentric correction so that the s1ds are saved in the telluric rest-frame so that '

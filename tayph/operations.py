@@ -36,8 +36,9 @@ def smooth(fx,w,mode='box',edge_degree=1):
     typetest(edge_degree,int,'edge_degree in ops.smooth()')
     postest(w,'w in ops.smooth()')
 
+    mode=mode.lower()
     if mode not in ['box','gaussian']:
-        raise Exception(f'RuntimeError in ops.smooth(): Mode should be set to "top" or "bottom" ({mode}).')
+        raise Exception(f'RuntimeError in ops.smooth(): Mode should be set to "nox" or "gaussian" ({mode}).')
     truncsize=4.0#The gaussian is truncated at 4 sigma.
     shape=np.shape(fx)
 

@@ -598,10 +598,15 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         list_of_orders_normalised,list_of_sigmas_normalised,meanfluxes = (
         ops.normalize_orders(list_of_orders,list_of_sigmas,colourdeg))#I tested that this works
         #because it doesn't alter the SNR.
-
         meanfluxes_norm = meanfluxes/np.nanmean(meanfluxes)
+
+        if inject_model == False:#Conserve memory, as these won't be used anymore.
+            del list_of_orders
+            del list_of_sigmas
     else:
         meanfluxes_norm = np.ones(len(list_of_orders[0]))
+        list_of_orders_normalised = list_of_orders
+        list_of_sigmas_normalised = list_of_sigmas
         #fun.findgen(len(list_of_orders[0]))*0.0+1.0#All unity.
         # plt.plot(list_of_wls[60],list_of_orders_normalised[60][10]/list_of_sigmas[60][10],
         # color='red',alpha=0.4)
@@ -687,6 +692,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             tmcor  = ut.end(t1,silent=True)
             print(f'------Line-list correlation completed. Time spent: {np.round(tmcor,1)}s '
             f'({np.round(tmcor/len(T_M),1)} per template).')
+
+        del list_of_orders_normalised
+        del list_of_sigmas_normalised
 
         #Now merge the outcome in single arrays:
         if len(wlTs_S) > 0 and len(wlTs_M) > 0:#and make 100% sure that these are lists and not

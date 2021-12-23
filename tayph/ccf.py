@@ -153,8 +153,11 @@ parallel=False):
 
 
 #===STACK THE ORDERS IN MASSIVE CONCATENATIONS===
-    stack_of_orders = np.hstack(list_of_orders)
-    stack_of_wls = np.concatenate(list_of_wls)
+    stack_of_orders = np.hstack(list_of_orders)#This is very memory intensive, essentially copying
+    stack_of_wls = np.concatenate(list_of_wls)#the data in memory again... Can be 3 to 4 GB in
+    #case of ESPRESSO. Issue 93 deals with this.
+
+
     if list_of_errors is not None:
         stack_of_errors2 = np.hstack(list_of_errors)**2#Stack them horizontally and square.
         #Check that the number of NaNs is the same in the orders as in the errors on the orders;
@@ -212,10 +215,18 @@ parallel=False):
         T = scipy.interpolate.interp1d(wlm,fxm, bounds_error=False, fill_value=0)(shifted_wls)
 
         #... it's also massive in memory: A copy of the data's wavelength axis for EACH velocity
-        #step. For the KELT-9 demo data, that's 2.7MB, times 600 velocity steps = 1.6 GB, times
-        #NT templates. So if you're running 20 templates in a row, good luck!
+        #step. For the KELT-9 demo data, that's 2.7MB, times 600 velocity steps = 1.6 GB. For
+        #ESPRESSO data and larger velocity excursions, this could be a whole other story.
+        #The orders of an ESPRESSO dataset with 40 exposures measure 420MB; i.e. 10.5 MB per
+        #exposure. Very often, I put large RV excursions to accomdate large filter kernels, e.g.
+        #800 or 1000km/s with 1km/s steps. That's 2000 steps.
+        #2000 * 10.5 MB = 21 GB. My laptop does not have that kind of memory.
+        #I could add a conserve-memory switch that carries out this computation in chunks of
+        #small ranges of RV; computing a series of vertical swaths of the final CCF in RV intervals,
+        #then h-stacking those. The number of RVs should then be limited to e.g. the number of
+        #exposures, so that this casting only inflates memory by once the size of the data (which
+        #is small compared to the amount of memory already being used).
 
-        #How do we solve this?
         T[:,nan_columns] = 0.0#All NaNs are assumed to be in all-NaN columns. If that is not true,
         #the below nantest will fail.
         T_sums = np.sum(T,axis = 1)

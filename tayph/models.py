@@ -327,6 +327,4 @@ intransit=True):
     # ut.save_stack('test.fits',[injection_pure,injection_rot_only,injection_total])
     # pdb.set_trace()
     # ut.writefits('test.fits',injection)
-    import pdb
-    pdb.set_trace()
     return(list_of_orders_injected)

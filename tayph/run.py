@@ -818,9 +818,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             if do_xcor == True:
                 print('---Injecting model '+modelname)
                 list_of_orders_injected=models.inject_model(list_of_wls,list_of_orders,dp,modelname,
-                model_library=model_library)#Start with the unnormalised orders from before.
-                #Normalize the orders to their average flux in order to effectively apply
-                #a broad-band colour correction (colour is a function of airmass and seeing).
+                model_library=model_library,intransit=intransit)#Start with the unnormalised orders
+                #from before. Normalize the orders to their average flux in order to effectively
+                #apply a broad-band colour correction (colour is a function of airmass and seeing).
 
                 if do_colour_correction == True:
                     print('------Normalizing injected orders to common flux level')

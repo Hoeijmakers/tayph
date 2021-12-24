@@ -38,7 +38,7 @@ def make_project_folder(pwd='.'):
 
 
 
-def start_run(configfile,parallel=True,xcor_parallel=False):
+def start_run(configfile,parallel=True,xcor_parallel=False,dp=''):
     """
     This is the main command-line initializer of the cross-correlation routine provided by Tayph.
     It parses a configuration file located at configfile which should contain predefined keywords.
@@ -72,6 +72,10 @@ def start_run(configfile,parallel=True,xcor_parallel=False):
     provided via the xcor_parallel keyword, and is switched off by default. In case you are running
     Tayph on a server with many cores and plenty of RAM, switching this on may effect speed gains
     of factors of 5 to 10 in cross-correlation.
+
+    Set the dp keyword to an alternative datapath to override the datapath in the runfile. This is
+    to execute the same runfile on multiple datasets (e.g. nights) in a straightforward way (i.e.)
+    a loop).
     """
     import tayph.system_parameters as sp
     cf = configfile
@@ -130,6 +134,9 @@ def start_run(configfile,parallel=True,xcor_parallel=False):
             'template_library':sp.paramget('template_library',cf,full_path=True),
             'model_library':sp.paramget('model_library',cf,full_path=True),
     }
+    if len(dp) > 0:
+
+        params['dp'] = dp
     run_instance(params,parallel=parallel,xcor_parallel=xcor_parallel)
 
 
@@ -166,8 +173,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
     #First parse the parameter dictionary into required variables and test the datapath.
     typetest(p,dict,'params in run_instance()')
-    dp = Path(p['dp'])
-    ut.check_path(dp,exists=True)
+    dp = ut.check_path(p['dp'],exists=True)
 
     #Read all the parameters.
     modellist = p['modellist']

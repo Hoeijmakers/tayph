@@ -730,3 +730,99 @@ def read_gianob(inpath,filelist,read_s1d=True):
 
     As this data is already telluric reduced no effort is done for creating the s1d data structures
     """
+    #The following variables define lists in which all the necessary data will be stored.
+    framename=[]
+    header=[]
+    s1dhdr=[]
+    obstype=[]
+    texp=np.array([])
+    date=[]
+    mjd=np.array([])
+    s1dmjd=np.array([])
+    npx=np.array([])
+    norders=np.array([])
+    e2ds=[]
+    s1d=[]
+    wave1d=[]
+    airmass=np.array([])
+    berv=np.array([])
+    wave=[]
+
+    for i in range(len(filelist)):
+        if filelist[i].endswith('AB_ms1d.fits'):
+            hdul = fits.open(inpath/filelist[i])
+            fitsdata = copy.deepcopy(hdul[1].data)
+            hdr = hdul[0].header
+            hdul.close()
+            del hdul[1].data
+
+            if hdr['OBS-TYPE'] == 'SCIENCE':
+                # print('science keyword found')
+                print(f'------{filelist[i]}', end="\r")
+                framename.append(filelist[i])
+                header.append(hdr)
+                obstype.append('SCIENCE')
+                texp=np.append(texp,hdr['EXPTIME'])
+                date.append(hdr['DATE-OBS'])
+                mjd=np.append(mjd,hdr['MJD-OBS'])
+                berv=np.append(berv,hdr['HIERARCH TNG DRS BERV'])#in km.s.
+                airmass = np.append(airmass,hdr['AIRMASS'])
+                ordernumbers = []
+                wavedata = []
+                fluxdata = []
+                snrdata = []
+                __npx = len(fitsdata[0][1])
+                __norders = len(fitsdata)
+                npx=np.append(npx,__npx)
+                norders=np.append(norders,__norders)
+                for idx in range(len(fitsdata)):
+                    ordernumbers.append(fitsdata[idx][0])
+                    wavedata.append(fitsdata[idx][1])
+                    fluxdata.append(fitsdata[idx][2])
+                    snrdata.append(fitsdata[idx][3])
+                wave.append(ops.vactoair(np.array(wavedata)))
+                e2ds.append(np.array(fluxdata))
+#                print("---wave then flux---")
+#                print(np.array(wavedata))
+#                print(np.array(fluxdata))
+
+                if read_s1d:
+                    s1d_path=inpath/Path(str(filelist[i]).replace('_ms1d.fits','_s1d.fits'))
+                    #Need the blazed files. Not the S2D_A's by themselves.
+                    ut.check_path(s1d_path,exists=True)#Crash if the S1D doesn't exist.
+                    hdul1d = fits.open(s1d_path)
+                    hdr1d = hdul1d[0].header
+                    fluxdata1d = copy.deepcopy(hdul1d[0].data)
+                    hdul1d.close()
+                    del hdul1d[0].data
+
+                    s1d.append(fluxdata1d)
+
+                    bervkeyword = 'HIERARCH TNG DRS BERV'
+                    berv1d = hdr1d[bervkeyword]
+                    if berv1d != hdr[bervkeyword]:
+                        wrn_msg = ('WARNING in read_espresso(): BERV correction of S1D file is not'
+                        f'equal to that of the S2D file. {berv1d} vs {hdr[bervkeyword]}')
+                        ut.tprint(wrn_msg)
+                    gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)
+                    crval = hdr1d['CRVAL1']
+                    cdelt = hdr1d['CDELT1']
+                    mywave = crval
+                    wavedata1d = [mywave*gamma*10]
+                    for idx in range(len(fluxdata1d)-1):
+                        mywave += cdelt
+                        wavedata1d.append(mywave*gamma*10)
+                    wave1d.append(ops.vactoair(np.array(wavedata1d)))
+                    s1dhdr.append(hdr1d)
+                    s1dmjd=np.append(s1dmjd,hdr1d['MJD-OBS'])
+#                    print("wave:"+str(len(wavedata1d))+" flux:"+str(len(fluxdata1d)))
+
+    if read_s1d:
+        output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
+        'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+        'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
+    else:
+        output = {'wave':wave,'e2ds':e2ds,'header':header,
+        'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+        'norders':norders,'berv':berv,'airmass':airmass}
+    return(output)

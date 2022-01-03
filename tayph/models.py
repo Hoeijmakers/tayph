@@ -160,7 +160,8 @@ def get_model(name,library='models/library',root='models',is_binary=False):
     return(modelarray[0,:],modelarray[1,:])
 
 
-def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/models'):
+def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/models',
+intransit=True):
     """This function takes a list of spectral orders and injects a model with library
     identifier modelname, and system parameters as defined in dp. The model is blurred taking into
     account spectral resolution and rotation broadening (with an LSF as per Brogi et al.) and
@@ -202,7 +203,11 @@ def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/
     dimtest(phi,[n_exp])
     dimtest(dRV,[n_exp])
 
-    mask=(transit-1.0)/(np.min(transit-1.0))
+
+    if intransit:
+        mask=(transit-1.0)/(np.min(transit-1.0))
+    else:#Emission
+        mask=transit*0.0+1.0
 
 
 
@@ -226,14 +231,16 @@ def inject_model(list_of_wls,list_of_orders,dp,modelname,model_library='library/
 
 
     wl_mins = []
+    wl_maxs = []
     for wlo in list_of_wls:
-        wl_mins.append(wlo)
+        wl_mins.append(np.min(wlo))
+        wl_maxs.append(np.max(wlo))
 
-    if np.min(wlm) > np.min(wl_mins)-1.0 or np.max(wlm) < np.max(wl_mins)+1.0:
+    if np.min(wlm) > np.min(wl_mins) or np.max(wlm) < np.max(wl_maxs):
         raise RunTimeError('in model injection: Data grid falls (partly) outside of model range. '
         'Use a model with a wavelength range that encapsulates the data fully.')
 
-    modelsel=[(wlm >= np.min(list_of_wls)-1.0) & (wlm <= np.max(list_of_wls)+1.0)]
+    modelsel=[(wlm >= np.min(wl_mins)-1.0) & (wlm <= np.max(wl_maxs)+1.0)]
 
     wlm=wlm[tuple(modelsel)]
     fxm=fxm[tuple(modelsel)]

@@ -38,7 +38,7 @@ def make_project_folder(pwd='.'):
 
 
 
-def start_run(configfile,parallel=True,xcor_parallel=False):
+def start_run(configfile,parallel=True,xcor_parallel=False,dp=''):
     """
     This is the main command-line initializer of the cross-correlation routine provided by Tayph.
     It parses a configuration file located at configfile which should contain predefined keywords.
@@ -72,6 +72,10 @@ def start_run(configfile,parallel=True,xcor_parallel=False):
     provided via the xcor_parallel keyword, and is switched off by default. In case you are running
     Tayph on a server with many cores and plenty of RAM, switching this on may effect speed gains
     of factors of 5 to 10 in cross-correlation.
+
+    Set the dp keyword to an alternative datapath to override the datapath in the runfile. This is
+    to execute the same runfile on multiple datasets (e.g. nights) in a straightforward way (i.e.)
+    a loop).
     """
     import tayph.system_parameters as sp
     cf = configfile
@@ -130,6 +134,9 @@ def start_run(configfile,parallel=True,xcor_parallel=False):
             'template_library':sp.paramget('template_library',cf,full_path=True),
             'model_library':sp.paramget('model_library',cf,full_path=True),
     }
+    if len(dp) > 0:
+
+        params['dp'] = dp
     run_instance(params,parallel=parallel,xcor_parallel=xcor_parallel)
 
 
@@ -166,8 +173,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
     #First parse the parameter dictionary into required variables and test the datapath.
     typetest(p,dict,'params in run_instance()')
-    dp = Path(p['dp'])
-    ut.check_path(dp,exists=True)
+    dp = ut.check_path(p['dp'],exists=True)
 
     #Read all the parameters.
     modellist = p['modellist']
@@ -598,10 +604,15 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         list_of_orders_normalised,list_of_sigmas_normalised,meanfluxes = (
         ops.normalize_orders(list_of_orders,list_of_sigmas,colourdeg))#I tested that this works
         #because it doesn't alter the SNR.
-
         meanfluxes_norm = meanfluxes/np.nanmean(meanfluxes)
+
+        if inject_model == False:#Conserve memory, as these won't be used anymore.
+            del list_of_orders
+            del list_of_sigmas
     else:
         meanfluxes_norm = np.ones(len(list_of_orders[0]))
+        list_of_orders_normalised = list_of_orders
+        list_of_sigmas_normalised = list_of_sigmas
         #fun.findgen(len(list_of_orders[0]))*0.0+1.0#All unity.
         # plt.plot(list_of_wls[60],list_of_orders_normalised[60][10]/list_of_sigmas[60][10],
         # color='red',alpha=0.4)
@@ -687,6 +698,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             tmcor  = ut.end(t1,silent=True)
             print(f'------Line-list correlation completed. Time spent: {np.round(tmcor,1)}s '
             f'({np.round(tmcor/len(T_M),1)} per template).')
+
+        del list_of_orders_normalised
+        del list_of_sigmas_normalised
 
         #Now merge the outcome in single arrays:
         if len(wlTs_S) > 0 and len(wlTs_M) > 0:#and make 100% sure that these are lists and not
@@ -810,9 +824,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             if do_xcor == True:
                 print('---Injecting model '+modelname)
                 list_of_orders_injected=models.inject_model(list_of_wls,list_of_orders,dp,modelname,
-                model_library=model_library)#Start with the unnormalised orders from before.
-                #Normalize the orders to their average flux in order to effectively apply
-                #a broad-band colour correction (colour is a function of airmass and seeing).
+                model_library=model_library,intransit=intransit)#Start with the unnormalised orders
+                #from before. Normalize the orders to their average flux in order to effectively
+                #apply a broad-band colour correction (colour is a function of airmass and seeing).
 
                 if do_colour_correction == True:
                     print('------Normalizing injected orders to common flux level')

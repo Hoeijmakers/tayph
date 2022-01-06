@@ -801,7 +801,7 @@ def read_gianob(inpath,filelist,read_s1d=True):
                     bervkeyword = 'HIERARCH TNG DRS BERV'
                     berv1d = hdr1d[bervkeyword]
                     if berv1d != hdr[bervkeyword]:
-                        wrn_msg = ('WARNING in read_espresso(): BERV correction of S1D file is not'
+                        wrn_msg = ('WARNING in read_gianob(): BERV correction of S1D file is not'
                         f'equal to that of the S2D file. {berv1d} vs {hdr[bervkeyword]}')
                         ut.tprint(wrn_msg)
                     gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)

@@ -605,7 +605,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         ops.normalize_orders(list_of_orders,list_of_sigmas,colourdeg))#I tested that this works
         #because it doesn't alter the SNR.
         meanfluxes_norm = meanfluxes/np.nanmean(meanfluxes)
-
         if inject_model == False:#Conserve memory, as these won't be used anymore.
             del list_of_orders
             del list_of_sigmas
@@ -619,7 +618,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         # plt.show()
         # sys.exit()
 
-    if len(list_of_orders) != n_orders:
+    if len(list_of_orders_normalised) != n_orders:
         raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
             'was before. Something went wrong during masking or colour correction.')
 

@@ -749,7 +749,8 @@ def read_gianob(inpath,filelist,read_s1d=True):
     wave=[]
 
     for i in range(len(filelist)):
-        if filelist[i].endswith('AB_ms1d.fits'):
+#        if filelist[i].endswith('AB_ms1d.fits'):
+        if filelist[i].endswith('_A_ms1d.fits') or filelist[i].endswith('_B_ms1d.fits'):
             hdul = fits.open(inpath/filelist[i])
             fitsdata = copy.deepcopy(hdul[1].data)
             hdr = hdul[0].header
@@ -815,6 +816,8 @@ def read_gianob(inpath,filelist,read_s1d=True):
                     wave1d.append(ops.vactoair(np.array(wavedata1d)))
                     s1dhdr.append(hdr1d)
                     s1dmjd=np.append(s1dmjd,hdr1d['MJD-OBS'])
+                    hdr1d['TELALT'] = np.degrees(float(hdr1d['EL']))
+                    hdr1d['UTC'] = (float(hdr1d['MJD-OBS']) % 1.0) * 86400.0
 #                    print("wave:"+str(len(wavedata1d))+" flux:"+str(len(fluxdata1d)))
 
     if read_s1d:

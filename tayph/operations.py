@@ -134,7 +134,7 @@ def envelope(wlm,fxm,binsize,selfrac=0.05,mode='top',threshold=''):
         fxm*=-1.0
     return wlcs,fxcs
 
-def normalize_orders(list_of_orders,list_of_sigmas,deg=0,nsigma=4,sinusoid=False):
+def normalize_orders(list_of_orders,list_of_sigmas,deg=1,nsigma=4,sinusoid=False):
     """
     If deg is set to 1, this function will normalise based on the mean flux in each order.
     If set higher, it will remove the average spectrum in each order and fit a polynomial
@@ -189,8 +189,8 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=0,nsigma=4,sinusoid=False
     typetest(deg,int,'degree in ops.normalize_orders()')
     typetest(nsigma,[int,float],'nsigma in ops.normalize_orders()')
     # postest(deg,'degree in ops.normalize_orders()')
-    postest(nsigma,'degree in ops.normalize_orders()')
-
+    postest(nsigma,'nsigma in ops.normalize_orders()')
+    postest(deg,'degree in ops.normalize_orders()')
 
     N = len(list_of_orders)
     out_list_of_orders=[]

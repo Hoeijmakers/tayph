@@ -1281,6 +1281,8 @@ save_figure=True,skysub=False):
         fxt=ttt[1]
         wlt=ttt[0]
 
+        wlt,fxt = models.get_telluric()
+
 
         #Continuum-subtract the telluric model
         wlte,fxte=ops.envelope(wlt,fxt,2.0,selfrac=0.05,threshold=0.8)
@@ -1908,7 +1910,7 @@ save_figure=True,skysub=False):
 
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
 def molecfit(dataname,mode='both',instrument='HARPS',save_individual='',configfile=None,
-plot_spec=False):
+plot_spec=False,time_average=False,guide_plot=False):
     """This is the main wrapper for molecfit that pipes a list of s1d spectra and
     executes it. It first launces the molecfit gui on the middle spectrum of the
     sequence, and then loops through the entire list, returning the transmission
@@ -1925,6 +1927,14 @@ plot_spec=False):
     GUI mode (requiring connection to an X-window), batch mode (which can be run in the background
     without access to a window environment, or both, in which the GUI and the batch are executed
     in the same call to molecfit.)
+
+    Set the time-average keyword to do a fit on the time-average spectrum. This is useful in case
+    the individual spectra are too noisy to see the telluric lines well. Although this will help
+    you to better set the inclusion and exclusion regions, the resulting fit may not be very good
+    because the telluric lines shift due to the BERV, and because the time of the observation
+    changes during the run. Therefore, after selecting inclusion regions, you are advised to re-run
+    this function in GUI mode with time_average switched off, to make sure that you are getting a
+    good fit on individual spectra.
     """
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
 #MAKE SURE THAT WE DO A VACTOAIR IF THIS IS SET IN THE CONFIG FILE.
@@ -1940,6 +1950,7 @@ plot_spec=False):
     from pathlib import Path
     import tayph.util as ut
     import tayph.system_parameters as sp
+    import tayph.models as models
     import astropy.io.fits as fits
     import pkg_resources
     import tayph.tellurics  as tel
@@ -2030,7 +2041,7 @@ plot_spec=False):
     ut.tprint('Then, it will be executed automatically onto the entire time series, with dates in'
         'this order:')
     for x in s1dhdr_sorted:
-        print(x['DATE-OBS'])
+        print(f"{x['MJD']} --- {x['DATE-OBS']}")
     print('')
     ut.tprint("If these are not chronologically ordered, there is a problem with the way dates are "
         "formatted in the header and you are advised to abort this program.")
@@ -2050,10 +2061,15 @@ plot_spec=False):
     list_of_fxc = []
     list_of_trans = []
 
+
+    if guide_plot:
+        tel.guide_plot(dp)
+
     if mode.lower() == 'gui' or mode.lower()=='both':
         tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,
-            wave1d_sorted,s1d_sorted,middle_i,plot=plot_spec)
-        tel.execute_molecfit(molecfit_prog_folder,parfile,molecfit_input_folder,gui=True,alias=python_alias)
+            wave1d_sorted,s1d_sorted,middle_i,plot=plot_spec,time_average=time_average)
+        tel.execute_molecfit(molecfit_prog_folder,parfile,molecfit_input_folder,gui=True,
+        alias=python_alias)
         wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
         tel.remove_output_molecfit(molecfit_input_folder,instrument)
 
@@ -2064,7 +2080,8 @@ plot_spec=False):
         for i in tqdm(range(N)):#range(len(spectra)):
             #print('Fitting spectrum %s from %s' % (i+1,N))
             #t1=ut.start()
-            tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,wave1d_sorted,s1d_sorted,int(i))
+            tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,
+            wave1d_sorted,s1d_sorted,int(i))
             tel.execute_molecfit(molecfit_prog_folder,parfile,molecfit_input_folder,gui=False)
             wl,fx,trans = tel.retrieve_output_molecfit(molecfit_input_folder/instrument)
             tel.remove_output_molecfit(molecfit_input_folder,instrument)

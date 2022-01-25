@@ -1,9 +1,35 @@
 __all__ = [
+    "get_telluric",
     "build_template",
     "get_model",
     "inject_model",
     "inject_model_into_order"
 ]
+
+
+
+def get_telluric():
+    import tayph.util as ut
+    from astropy.utils.data import download_file
+    from pathlib import Path
+    from astropy.io import fits
+    #Load the telluric spectrum from my Google Drive:
+    telluric_link = ('https://drive.google.com/uc?export=download&id=1yAtoLwI3h9nvZK0IpuhLvIp'
+        'Nc_1kjxha')
+
+    telpath = Path(download_file(telluric_link,cache=True))
+    if telpath.exists() == False:
+        ut.tprint(f'------Download to {telpath} failed. Is the cache damaged? Rerunning with '
+            'cache="update".')
+        telpath = Path(download_file(telluric_link,cache='update'))#If the cache is damaged.
+        if telpath.exists() == False:#If it still doesn't exist...
+            raise Exception(f'{telpath} does not exist after attempted repair of the astropy '
+        'cache. To continue, run read_e2ds() with measure_RV=False, and troubleshoot your '
+        'astropy cache.')
+    else:
+        ut.tprint(f'------Download to {telpath} was successful. Proceeding.')
+    ttt=fits.getdata(telpath)
+    return(ttt[0],ttt[1])
 
 
 

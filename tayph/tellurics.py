@@ -1,4 +1,5 @@
 __all__ = [
+    "guide_plot",
     "execute_molecfit",
     "remove_output_molecfit",
     "retrieve_output_molecfit",
@@ -12,6 +13,41 @@ __all__ = [
     "get_molecfit_config",
     "shift_exclusion_regions"
 ]
+
+
+
+
+def guide_plot(dp,dv=0):
+    import tayph.models as models
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import pickle
+    import tayph.util as ut
+    import astropy.constants as const
+    import astropy.units as u
+    wlt,fxt=models.get_telluric()
+
+    dp=ut.check_path(dp)
+    s1d_path=ut.check_path(dp/'s1ds.pkl',exists=True)
+
+    with open(s1d_path,"rb") as p:
+        s1dhdr_sorted,s1d_sorted,wave1d_sorted = pickle.load(p)
+
+    w = wave1d_sorted[0]
+    s = np.nanmean(s1d_sorted,axis=0)
+
+    wlt=wlt*(1+dv*u.km/u.s/const.c)
+    fxt = fxt[(wlt>np.min(w)) & (wlt<np.max(w))]
+    wlt = wlt[(wlt>np.min(w)) & (wlt<np.max(w))]
+    plt.plot(w,s/np.nanmedian(s),linewidth=0.8,alpha=0.7,label='S1D data')
+    plt.plot(wlt,fxt-np.nanmedian(fxt)+1.0,linewidth=0.8,alpha=0.7,label='Telluric model')
+    plt.xlabel('Wavelength')
+    plt.ylabel('Normalised flux')
+    plt.title(f'Telluric guide plot - {str(dp)}')
+    plt.legend()
+    plt.show()
+
+
 
 def shift_exclusion_regions(inpath,instrument,v):
     import astropy.constants as const
@@ -105,7 +141,8 @@ def execute_molecfit(molecfit_prog_root,molecfit_input_file,molecfit_input_folde
             os.system(command)
     #python3 /Users/hoeijmakers/Molecfit/bin/molecfit_gui /Users/hoeijmakers/Molecfit/share/molecfit/spectra/cross_cor/test.par
 
-def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii,plot=False):
+def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii,plot=False,
+time_average=False):
     """This is a wrapper for writing a spectrum from a list to molecfit format.
     name is the filename of the fits file that is the output.
     headers is the list of astropy header objects associated with the list of spectra
@@ -130,7 +167,10 @@ def write_file_to_molecfit(molecfit_folder,name,headers,waves,spectra,ii,plot=Fa
     typetest(ii,int,'ii in write_file_to_molecfit()')
     molecfit_folder=ut.check_path(molecfit_folder,exists=True)
     wave = waves[int(ii)]
-    spectrum = spectra[int(ii)]
+    if time_average:
+        spectrum = np.nanmean(spectra,axis=0)
+    else:
+        spectrum = spectra[int(ii)]
     npx = len(spectrum)
 
 

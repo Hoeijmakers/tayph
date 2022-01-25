@@ -2041,7 +2041,10 @@ plot_spec=False,time_average=False,guide_plot=False):
     ut.tprint('Then, it will be executed automatically onto the entire time series, with dates in'
         'this order:')
     for x in s1dhdr_sorted:
-        print(f"{x['MJD']} --- {x['DATE-OBS']}")
+        try:
+            print(f"{x['MJD-OBS']} --- {x['DATE-OBS']}")
+        except:
+            print(f"{x['DATE-OBS']}")
     print('')
     ut.tprint("If these are not chronologically ordered, there is a problem with the way dates are "
         "formatted in the header and you are advised to abort this program.")

@@ -29,6 +29,13 @@ from astropy.utils.data import download_file
 from .phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
 from scipy.ndimage import uniform_filter1d
 
+#WHEN DESIGNING A NEW READ FUNCTION FOR AN INSTRUMENT, TAKE CARE THAT:
+#1) EVERYTHING YOU READ FROM THE HEADERS IS CONVERTED TO FLOATS, INTS OR STRs WHERE NEEDED.
+#(sometimes things end up as strings even though they should be floats, do it explicitly).
+#2) THE WAVELENGTHS OF E2DS FRAMES NEED TO BE RETURNED IN NM. THE WAVELENGTHS OF S1Ds HOWEVER,
+#SHOULD BE IN ANGSTROM..! (I don't like this, and this should be up for modification, but so be it).
+
+
 
 __all__ = [
     "read_harpslike",
@@ -828,4 +835,126 @@ def read_gianob(inpath,filelist,read_s1d=True):
         output = {'wave':wave,'e2ds':e2ds,'header':header,
         'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
         'norders':norders,'berv':berv,'airmass':airmass}
+    return(output)
+
+
+
+
+
+
+
+def read_hires_makee(inpath,filelist,construct_s1d=True,N_CCD=3):
+    """
+    This reads a folder of HIRES data reduced by MIKEE. This is an experimental module based on one
+    set of transit observations, courtesy J. Teske.
+
+    Assumptions:
+    1) There are 3 CCDs The final digit in the filename specifies the CCD number as _n.fits.
+    2) There are non-reinterpolated extracted 2D order files.
+    3) All CCDs have the same number of pixels, and those are all extracted (or if cropped, equally)
+    for all 3 CCDs.
+    4) The data are berv-corrected, so this berv-correction is undone.
+    5) There exists no merged, stitched 1D spectrum, so one is constructed crudely by concatenating
+    the individual spectral orders (which are fairly flat, so that is nice.)"""
+
+    #The following variables define lists in which all the necessary data will be stored.
+    framename=[]
+    header=[]
+    s1dhdr=[]
+    obstype=[]
+    texp=np.array([])
+    date=[]
+    mjd=np.array([])
+    s1dmjd=np.array([])
+    npx=np.array([])
+    norders=np.array([])
+    e2ds=[]
+    s1d=[]
+    wave1d=[]
+    airmass=np.array([])
+    berv=np.array([])
+    wave=[]
+
+    catkeyword = 'OBSTYPE'
+    bervkeyword = 'HELIOVEL'
+    thfilekeyword = 'ARCSPFIL'
+
+    # wavefile_used = []
+    for i in range(len(filelist)):
+        if filelist[i].startswith('Flux-') and filelist[i].endswith('_1.fits'):
+
+            #We need to read from 3 CCDs.
+            #These *should* all have the same number of extracted pixels, i.e. the width of the
+            #detector.
+            print(f'------{filelist[i]}', end="\r")
+            hdul = fits.open(inpath/filelist[i])
+            data1 = copy.deepcopy(hdul[0].data)
+            hdr1 = hdul[0].header
+            hdul.close()
+            del hdul[0].data
+            hdul = fits.open(inpath/filelist[i].replace('_1.fits','_2.fits'))
+            data2 = copy.deepcopy(hdul[0].data)
+            hdr2 = hdul[0].header
+            hdul.close()
+            del hdul[0].data
+            hdul = fits.open(inpath/filelist[i].replace('_1.fits','_3.fits'))
+            data3 = copy.deepcopy(hdul[0].data)
+            hdr3 = hdul[0].header
+            hdul.close()
+            del hdul[0].data
+            if hdr1[catkeyword].startswith('Object'):
+                framename.append(filelist[i])
+                header.append(hdr1)
+                obstype.append('SCIENCE')
+                texp=np.append(texp,float(hdr1['EXPOSURE']))
+                date.append(hdr1['DATE-OBS']+'T'+str(hdr1['UTC']).replace(':','-'))
+                mjd=np.append(mjd,float(hdr1['MJD']))
+                npx=np.append(npx,int(hdr1['NAXIS1']))
+                norders=np.append(norders,int(hdr1['NAXIS2'])+int(hdr2['NAXIS2'])+
+                int(hdr3['NAXIS2']))
+
+                berv=np.append(berv,float(hdr1[bervkeyword]))
+                airmass=np.append(airmass,float(hdr1['AIRMASS']))
+                merged_e2ds = np.vstack((data1,data2,data3))
+                e2ds.append(merged_e2ds)#Stack them all in a massive E2DS matrix.
+
+
+                wavedata1=ops.vactoair(ut.read_wave_from_makee_header(hdr1)/10.0)#convert to nm.
+                wavedata2=ops.vactoair(ut.read_wave_from_makee_header(hdr2)/10.0)#and back to air.
+                wavedata3=ops.vactoair(ut.read_wave_from_makee_header(hdr3)/10.0)
+
+                merged_wave = np.vstack((wavedata1,wavedata2,wavedata3))
+                gamma = (1.0-(hdr1[bervkeyword]*u.km/u.s/const.c).decompose().value)#BERV.
+                wave.append(merged_wave*gamma)#Remove BERV.
+
+
+                if construct_s1d:
+                    #We want to concatenate the orders while crudely ignoring overlap regions.
+                    start_wl = [np.min(w) for w in merged_wave]
+                    start_wl.append(np.inf)
+
+                    wave_chunks = []
+                    spec_chunks = []
+                    for i in range(len(merged_wave)):
+                        wlmin = start_wl[i]
+                        wlmax = start_wl[i+1]
+                        ww = merged_wave[i]#Wide, uncropped.
+                        s = merged_e2ds[i][(ww>wlmin)&(ww<wlmax)]
+                        w = merged_wave[i][(ww>wlmin)&(ww<wlmax)]
+
+                        wave_chunks.append(w)
+                        spec_chunks.append(s)
+                    concatenated_spec = np.hstack(spec_chunks)
+                    concatenated_wave = np.hstack(wave_chunks)
+                    hdr1d = copy.deepcopy(hdr1)
+                    s1d.append(concatenated_spec)
+                    hdr1d['TELALT'] = float(hdr1d['EL'])
+                    hdr1d['UTC'] = (float(hdr1d['MJD'])%1.0)*86400.0
+                    s1dhdr.append(hdr1d)
+                    s1dmjd=np.append(s1dmjd,float(hdr1d['MJD']))
+                    berv1d = hdr1d[bervkeyword]
+                    wave1d.append(concatenated_wave*gamma*10)#Need to convert back to angstroms...
+    output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
+    'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+    'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
     return(output)

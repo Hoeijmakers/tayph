@@ -284,3 +284,26 @@ def read_wave_from_e2ds_header(h,mode='HARPS'):
             wave[:,i] = l
     wave = wave.T
     return(wave)
+
+
+
+def read_wave_from_makee_header(h):
+    import numpy as np
+    npx = h['NAXIS1']
+    no = h['NAXIS2']
+    x = np.arange(npx, dtype=float) #fun.findgen(npx)
+    wave=np.zeros((no,npx))
+
+    for i in range(no):
+        l = x*0.0
+        #Coefficient in non-linear MIKEE mode come in 2 lines per order. I read these, attach
+        #them together, split them on the spaces in-between coefficients, and convert to floats
+        #to evaluate the polynomial.
+        coeff_line = str(h['WV_0_'+str(i+1).zfill(2)])+str(h['WV_4_'+str(i+1).zfill(2)])
+        #I can add them together without introducing a space in between because each line starts
+        #with a space. I will remove that space on the next line before splitting:
+        coeffs = np.flip(np.array(coeff_line.split(),dtype=np.float32)) #in descending
+        #order.
+
+        wave[i] = np.poly1d(coeffs)(x)
+    return(wave)

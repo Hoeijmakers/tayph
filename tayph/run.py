@@ -1149,12 +1149,19 @@ save_figure=True,skysub=False):
     import pkg_resources
     import os
     import pdb
-    from astropy.io import fits
-    import astropy.constants as const
-    import astropy.units as u
     import numpy as np
     import matplotlib.pyplot as plt
     import sys
+    import copy
+    import scipy.interpolate as interp
+    from scipy import interpolate
+    import pickle
+    from pathlib import Path
+    import warnings
+    import glob
+    import subprocess
+    import textwrap
+
     import tayph.util as ut
     from tayph.vartests import typetest,dimtest
     import tayph.tellurics as mol
@@ -1162,19 +1169,17 @@ save_figure=True,skysub=False):
     import tayph.functions as fun
     import tayph.operations as ops
     from tayph.ccf import xcor
-    import copy
-    import scipy.interpolate as interp
-    import pickle
-    from pathlib import Path
-    import warnings
-    import glob
-    from scipy import interpolate
     import tayph.masking as masking
-    import subprocess
-    import textwrap
-    from astropy.utils.data import download_file
-    from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes, read_spirou, read_gianob
+    import tayph.models as models
+    from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes
+    from tayph.read import read_spirou, read_gianob, read_hires_makee
     from tayph.phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
+
+    from astropy.utils.data import download_file
+    from astropy.io import fits
+    import astropy.constants as const
+    import astropy.units as u
+
 
     mode = copy.deepcopy(instrument)#Transfer from using the mode keyword to instrument keyword
     #to be compatible with Molecfit.
@@ -1199,13 +1204,13 @@ save_figure=True,skysub=False):
     typetest(mode,str,'mode in read_e2ds()')
 
     if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue',
-        'CARMENES-VIS','CARMENES-NIR','SPIROU','GIANO-B']:
+        'CARMENES-VIS','CARMENES-NIR','SPIROU','GIANO-B','HIRES-MAKEE']:
         raise ValueError("in read_e2ds: instrument needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
-            "CARMENES-VIS, CARMENES-NIR, SPIROU, GIANO-B or ESPRESSO.")
+            "CARMENES-VIS, CARMENES-NIR, SPIROU, GIANO-B, HIRES-MAKEE or ESPRESSO.")
 
 
 
-    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B']:
+    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B','HIRES-MAKEE']:
         read_s1d = True
     else:
         read_s1d = False
@@ -1345,6 +1350,8 @@ save_figure=True,skysub=False):
         DATA = read_spirou(inpath, filelist, read_s1d=read_s1d)
     elif mode == 'GIANO-B':
         DATA = read_gianob(inpath, filelist, read_s1d=read_s1d)
+    elif mode == 'HIRES-MAKEE':
+        DATA = read_hires_makee(inpath, filelist, construct_s1d=read_s1d)
     else:
         raise ValueError(f'Error in read_e2ds: {mode} is not a valid instrument.')
 
@@ -1808,11 +1815,6 @@ save_figure=True,skysub=False):
         print('\n \n \n')
 
 
-
-
-        terminal_height,terminal_width = subprocess.check_output(['stty', 'size']).split()
-        #Get the window size of the terminal, from https://stackoverflow.com/questions/566746/
-        #how-to-get-linux-console-window-width-in-python
         if mode == 'ESPRESSO':
             explanation=[(f'For ESPRESSO, the S1D and S2D spectra are typically provided in the '
             'barycentric frame, in air. Because the S1D spectra are used for telluric correction, '
@@ -1846,9 +1848,6 @@ save_figure=True,skysub=False):
             'in the config file of this dataset should be set to True.')]
 
 
-        if mode in ['CARMENES-VIS']:
-            explanation=[('[No explanation provided yet.]')]
-
         if mode in ['SPIROU']:
             explanation=[('For SPIROU, no s1d spectra are provided, and the telluric correction is'
             ' carried out by the pipeline on the e2ds spectra which are in the observatory '
@@ -1861,11 +1860,15 @@ save_figure=True,skysub=False):
             'the Tayph runfile of this dataset, do_berv_correction should be set to True and air '
             'in the config file of this dataset should be set to True.')]
 
-        if mode in ['GIANO-B']:
-            explanation=[('[No explanation provided yet.]')]
+        if mode in ['GIANO-B','CARMENES-VIS']:
+            explanation=[('No explanation provided yet.')]
 
+        if mode in ['HIRES-MAKEE']:
+            explanation=[('do_berv_correction should be set to True and air should be set to'
+            ' True. Evidently, this information message still needs to be expanded.')]
 
-        for s in explanation: print(textwrap.fill(s, width=int(terminal_width)-5))
+            for s in explanation: ut.tprint(s)
+
         print('\n \n \n')
 
         print('The derived line positions are as follows:')
@@ -1895,7 +1898,8 @@ save_figure=True,skysub=False):
         'to determine whether you can locate the source of the problem. Continuing to run Tayph '
         'from this point on would probably make it very difficult to obtain meaningful '
         'cross-correlations.')
-        print(textwrap.fill(final_notes, width=int(terminal_width)-5))
+
+        ut.tprint(final_notes)
 
         fig.tight_layout()
         if save_figure:

@@ -240,9 +240,18 @@ parallel=False):
 
 
         #===THAT'S ALL. TEST INTEGRITY AND RETURN THE RESULT===
-        nantest(CCF,'CCF in ccf.xcor()')#If anything went wrong with NaNs in the data, these tests
-        #will fail because the matrix operation @ is non NaN-friendly.
-        nantest(CCF_E,'CCF_E in ccf.xcor()')
+        try:
+            nantest(CCF,'CCF in ccf.xcor()')#If anything went wrong with NaNs in the data, these
+            #tests will fail because the matrix operation @ is non NaN-friendly.
+            nantest(CCF_E,'CCF_E in ccf.xcor()')
+        except:
+            ut.tprint('ERROR in XCOR(): NaNs were detected in the CCF. This does not happen '
+            'because the data has NaNs, because xcor() checks for this. Instead, this can happen '
+            'if the template and the data do not overlap, maybe because of a wavelength-unit'
+            'mismatch? When using Tayph under normal circumstances, this error should never be'
+            'triggered, as abundant checks are performed when XCOR() is run in the normal '
+            'Tayph workflow. Are you doing development, or using xcor() in a stand-alone '
+            'setting? PDB-ing you out of here so that you can plot the input of xcor() and debug.')
         return(CCF,CCF_E,T_sums)
 
     if parallel:#This here takes a lot of memory.

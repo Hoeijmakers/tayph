@@ -23,6 +23,9 @@ def smooth(fx,w,mode='box',edge_degree=1):
     Set the mode to gaussian or box. Because in box, care is taken to correctly
     interpolate the edges, it is about twice slower than the Gaussian.
     This interpolation is done manually in the fun.box function.
+
+    This function assumes that there are no NaN values in the flux array, but doesn't presently
+    test for this.
     """
 
     import numpy as np
@@ -38,7 +41,7 @@ def smooth(fx,w,mode='box',edge_degree=1):
 
     mode=mode.lower()
     if mode not in ['box','gaussian']:
-        raise Exception(f'RuntimeError in ops.smooth(): Mode should be set to "nox" or "gaussian" ({mode}).')
+        raise Exception(f'RuntimeError in ops.smooth(): Mode should be set to "box" or "gaussian" ({mode}).')
     truncsize=4.0#The gaussian is truncated at 4 sigma.
     shape=np.shape(fx)
 
@@ -433,7 +436,9 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
     this value can be modified using the fit_width parameter.
 
     In rare cases, the polynomial fit doesn't converge. In this case, the fit_width is automatically
-    increased by one (see Issue #).
+    increased by one (see Issue #99).
+
+    This function assumes that array is free of NaN values.
 
     Parameters
     ----------
@@ -490,14 +495,14 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
 
 
     #Prepare to perform polynomial fits at the edges.
-    x= np.arange(len(array), dtype=float)]
+    x= np.arange(len(array), dtype=float)
 
     #Add a try-except block here to catch a rare rank error that may occur. The fit is very simple
     #and low-order, so this shouldn't happen, but still. Respond by increasing the fit width to
     #dislodge it.
     try:
         fit_left=np.polyfit(x[0:len(kernel)*fit_width],array[0:len(kernel)*fit_width],edge_degree)
-        fit_right=np.polyfit(x[-1*fit_width*len(kernel)-1:-1],array[-1*fit_width*len(kernel)-1:-1],
+        fit_right=np.polyfit(x[-1*fit_width*len(kernel)-1:],array[-1*fit_width*len(kernel)-1:],
         edge_degree)
     except:
         fit_width+=1
@@ -507,7 +512,7 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
             f"{fit_width}. This has made it larger than  1/{fit_width*2} of the array, which is "
             "too large. Please rerun with a smaller kernel or a wider array.")
         fit_left=np.polyfit(x[0:len(kernel)*fit_width],array[0:len(kernel)*fit_width],edge_degree)
-        fit_right=np.polyfit(x[-1*fit_width*len(kernel)-1:-1],array[-1*fit_width*len(kernel)-1:-1],
+        fit_right=np.polyfit(x[-1*fit_width*len(kernel)-1:],array[-1*fit_width*len(kernel)-1:],
         edge_degree)
         #IF A RANK-ERROR IS STILL TRIGGERED HERE, MORE MITIGATION WILL BE NEEDED. IF THIS HAPPENS
         #TO YOU, PLEASE OPEN AN ISSUE ON GITHUB AND I'LL ADD A MORE ROBUST LINE-FIT INSTEAD.

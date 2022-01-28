@@ -77,13 +77,43 @@ def smooth(fx,w,mode='box',edge_degree=1):
 
 def envelope(wlm,fxm,binsize,selfrac=0.05,mode='top',threshold=''):
     """
-    This program measures the top or bottom envelope of a spectrum (wl,fx), by
+    This routine measures the top or bottom envelope of a spectrum (wl,fx), by
     chopping it up into bins of size binsze (unit of wl), and measuring the mean
-    of the top n % of values in that bin. Setting the mode to 'bottom' will do the
-    oppiste: The mean of the bottom n% of values. The output is the resulting wl
+    of the top n-% of values in that bin. Setting the mode to 'bottom' will do the
+    oppiste: The mean of the bottom n-% of values. The output is the resulting wl
     and flux points of these bins.
 
-    Example: wle,fxe = envelope(wl,fx,1.0,selfrac=3.0,mode='top')
+    Parameters
+    ----------
+    wlm : np.ndarray
+        The wavelength axis.
+
+    fxm : np.ndarray
+        The flux axis.
+
+    binsize : int, float
+        The width of the bin within which to measure the continuum, in units of wavelength.
+
+    selfrac: float
+        The top fraction of values in each bin to be used to measure the continuum. Default 0.05.
+
+    mode : str
+        The direction in which the envelope is measured. Can be set to "top" or "bottom".
+        Default "top".
+
+
+    Returns
+    -------
+    wle : np.array
+        The wavelength points associated with the envelope.
+
+    fxe : np.array
+        The corresponding flux points describing the envelope.
+
+    Example
+    -------
+    >>> wle,fxe = envelope(wl,fx,1.0,selfrac=0.03,mode='top')
+
     """
     import numpy as np
     import tayph.util as ut
@@ -402,6 +432,9 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
     to the edge elements. By default, I fit over a range that is twice the length of the kernel; but
     this value can be modified using the fit_width parameter.
 
+    In rare cases, the polynomial fit doesn't converge. In this case, the fit_width is automatically
+    increased by one (see Issue #).
+
     Parameters
     ----------
     array : list, np.ndarray
@@ -444,16 +477,41 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
     array = np.array(array)
     kernel= np.array(kernel)
 
-    if len(kernel) >= len(array)/4.0:
-        raise Exception(f"Error in ops.convolve(): Kernel length is larger than a quarter of the array ({len(kernel)}, {len(array)}). Can't extrapolate over that length. And you probably don't want to be doing a convolution like that, anyway.")
+    if len(kernel) >= len(array)/(fit_width*2):
+        raise Exception(f"Error in ops.convolve(): Kernel length is larger than 1/{fit_width*2} of "
+        f"the array ({len(kernel)}, {len(array)}). Can't extrapolate over that length to "
+        "approximate the edges. And you probably don't want to be doing a convolution like that, "
+        "anyway. Please rerun with a smaller kernel or a wider array.")
 
     if len(kernel) % 2 != 1:
         raise Exception('Error in ops.convolve(): Kernel needs to have an odd number of elements.')
+        #This should never be triggered in normal Tayph usage, but may happen if you use smooth
+        #or convolve separately.
 
-    #Perform polynomial fits at the edges.
-    x= np.arange(len(array), dtype=float) # fun.findgen(len(array))
-    fit_left=np.polyfit(x[0:len(kernel)*2],array[0:len(kernel)*2],edge_degree)
-    fit_right=np.polyfit(x[-2*len(kernel)-1:-1],array[-2*len(kernel)-1:-1],edge_degree)
+
+    #Prepare to perform polynomial fits at the edges.
+    x= np.arange(len(array), dtype=float)]
+
+    #Add a try-except block here to catch a rare rank error that may occur. The fit is very simple
+    #and low-order, so this shouldn't happen, but still. Respond by increasing the fit width to
+    #dislodge it.
+    try:
+        fit_left=np.polyfit(x[0:len(kernel)*fit_width],array[0:len(kernel)*fit_width],edge_degree)
+        fit_right=np.polyfit(x[-1*fit_width*len(kernel)-1:-1],array[-1*fit_width*len(kernel)-1:-1],
+        edge_degree)
+    except:
+        fit_width+=1
+        if len(kernel) >= len(array)/(fit_width*2):
+            raise Exception(f"Error in ops.convolve(): Because a rank-error occured in the edge-"
+            f"extrapolation, the extrapolation fit_width was automatically increased by 1.0 to "
+            f"{fit_width}. This has made it larger than  1/{fit_width*2} of the array, which is "
+            "too large. Please rerun with a smaller kernel or a wider array.")
+        fit_left=np.polyfit(x[0:len(kernel)*fit_width],array[0:len(kernel)*fit_width],edge_degree)
+        fit_right=np.polyfit(x[-1*fit_width*len(kernel)-1:-1],array[-1*fit_width*len(kernel)-1:-1],
+        edge_degree)
+        #IF A RANK-ERROR IS STILL TRIGGERED HERE, MORE MITIGATION WILL BE NEEDED. IF THIS HAPPENS
+        #TO YOU, PLEASE OPEN AN ISSUE ON GITHUB AND I'LL ADD A MORE ROBUST LINE-FIT INSTEAD.
+
 
     #Pad both the x-grid (onto which the polynomial is defined)
     #and the data array.

@@ -206,7 +206,7 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=0,nsigma=4,sinusoid=False
     """
     import numpy as np
     import tayph.functions as fun
-    from tayph.vartests import dimtest,postest,typetest
+    from tayph.vartests import dimtest,postest,typetest,notnegativetest
     import tayph.util as ut
     import warnings
     import pdb

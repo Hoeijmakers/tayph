@@ -30,7 +30,7 @@ def smooth(fx,w,mode='box',edge_degree=1):
 
     import numpy as np
     import tayph.util as ut
-    from tayph.vartests import typetest,postest
+    from tayph.vartests import typetest,postest, nantest
     import tayph.functions as fun
     from matplotlib import pyplot as plt
     typetest(w,[int,float],'w in ops.smooth()')
@@ -38,6 +38,8 @@ def smooth(fx,w,mode='box',edge_degree=1):
     typetest(mode,str,'mode in ops.smooth()')
     typetest(edge_degree,int,'edge_degree in ops.smooth()')
     postest(w,'w in ops.smooth()')
+    nantest(fx,'fx in ops.smooth()')
+    nantest(w,'w in ops.smooth()')
 
     mode=mode.lower()
     if mode not in ['box','gaussian']:
@@ -469,7 +471,7 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
 
     import numpy as np
     import tayph.functions as fun
-    from tayph.vartests import typetest,postest,dimtest
+    from tayph.vartests import typetest,postest,dimtest,nantest
     typetest(edge_degree,int,'edge_degree in ops.convolve()')
     typetest(fit_width,int,'edge_degree in ops.convolve()')
     typetest(array,[list,np.ndarray])
@@ -478,6 +480,8 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
     dimtest(kernel,[0],'array in ops.convolve()')
     postest(edge_degree,'edge_degree in ops.convolve()')
     postest(fit_width,'edge_degree in ops.convolve()')
+    nantest(array,'input array in ops.convolve()')
+    nantest(kernel,'input kernel in ops.convolve()')
 
     array = np.array(array)
     kernel= np.array(kernel)
@@ -522,7 +526,7 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
             print('------WARNING in ops.convolve(). Edge extrapolation of the array failed twice. '
             'Extrapolating the edges with scipy.stats.linregress instead. Is your data looking OK?')
             from scipy.stats import linregress
-            linfit_left = linregress(x[0:len(kernel)*fit_width],array[0:len(kernel)*fit_width)
+            linfit_left = linregress(x[0:len(kernel)*fit_width],array[0:len(kernel)*fit_width])
             linfit_right = linregress(x[-1*fit_width*len(kernel)-1:],
             array[-1*fit_width*len(kernel)-1:])
 

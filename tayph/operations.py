@@ -511,11 +511,23 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
             f"extrapolation, the extrapolation fit_width was automatically increased by 1.0 to "
             f"{fit_width}. This has made it larger than  1/{fit_width*2} of the array, which is "
             "too large. Please rerun with a smaller kernel or a wider array.")
-        fit_left=np.polyfit(x[0:len(kernel)*fit_width],array[0:len(kernel)*fit_width],edge_degree)
-        fit_right=np.polyfit(x[-1*fit_width*len(kernel)-1:],array[-1*fit_width*len(kernel)-1:],
-        edge_degree)
-        #IF A RANK-ERROR IS STILL TRIGGERED HERE, MORE MITIGATION WILL BE NEEDED. IF THIS HAPPENS
-        #TO YOU, PLEASE OPEN AN ISSUE ON GITHUB AND I'LL ADD A MORE ROBUST LINE-FIT INSTEAD.
+        try:
+            fit_left=np.polyfit(x[0:len(kernel)*fit_width],array[0:len(kernel)*fit_width],
+            edge_degree)
+            fit_right=np.polyfit(x[-1*fit_width*len(kernel)-1:],array[-1*fit_width*len(kernel)-1:],
+            edge_degree)
+            #IF A RANK-ERROR IS STILL TRIGGERED HERE, MORE MITIGATION WILL BE NEEDED. WE FIT A LINE
+            #INSTEAD, WITH A DIFFERENT ALGORITHM.
+        except:
+            print('------WARNING in ops.convolve(). Edge extrapolation of the array failed twice. '
+            'Extrapolating the edges with scipy.stats.linregress instead. Is your data looking OK?')
+            from scipy.stats import linregress
+            linfit_left = linregress(x[0:len(kernel)*fit_width],array[0:len(kernel)*fit_width)
+            linfit_right = linregress(x[-1*fit_width*len(kernel)-1:],
+            array[-1*fit_width*len(kernel)-1:])
+
+            fit_left = np.array([linfit_left[0],linfit_left[1]])
+            fit_right = np.array([linfit_right[0],linfit_right[1]])
 
 
     #Pad both the x-grid (onto which the polynomial is defined)

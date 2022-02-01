@@ -1,11 +1,7 @@
 High Resolution Spectroscopy of Exoplanet Atmospheres
 -----------------------------------------------------
-THIS IS A WORK IN PROGRESS, BUT MOST FUNCTIONS ARE OPERATIONAL. REFER TO THE DOCUMENTATION FOR INSTALLATION AND DEMO INSTRUCTIONS.
+THIS IS A WORK IN PROGRESS, BUT MOST FUNCTIONS ARE OPERATIONAL. REFER TO THE DOCUMENTATION FOR INSTALLATION AND DEMO INSTRUCTIONS. AS WE REGULARLY PUSH (SMALL) UPDATES AND FIXES, PLEASE PULL THE LATEST VERSION IF YOU RUN INTO AN ERROR, AND FEEL FREE TO REACH OUT AND INTERACT BY OPENING ISSUES OR BY SUBMITTING PULL REQUESTS.
 ----------------------------------------------------------------------------------------------------------------------------------
-AS WE REGULARLY PUSH (SMALL) UPDATES AND FIXES, PLEASE PULL THE LATEST VERSION IF YOU RUN INTO AN ERROR, AND FEEL FREE TO REACH OUT
------------------------------------------------------------------------------------------------------------------------------------
-AND INTERACT BY OPENING ISSUES OR BY SUBMITTING PULL REQUESTS.
---------------------------------------------------------------
 
 [![Astropy](http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat)](http://www.astropy.org)
 [![ReadTheDocs](https://readthedocs.org/projects/tayph/badge/?version=latest)](https://tayph.readthedocs.io/en/latest/?badge=latest)

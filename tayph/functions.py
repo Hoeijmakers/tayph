@@ -1,5 +1,8 @@
 __all__ = [
     'box',
+    'voigt',
+    'rotation_broadened_line',
+    'fit_rotation_broadened_line',
     'selmax',
     'running_MAD_2D',
     'running_MAD',
@@ -100,6 +103,205 @@ def box(x,A,c,w):
     #plt.ion()
     #plt.show()
     return y*A
+
+
+def voigt(x,x0,sigma, gamma):
+    """
+    Return the Voigt line shape at x with Lorentzian component HWFM gamma
+    and Gaussian sigma.
+
+
+    Adopted from https://scipython.com/book/chapter-8-scipy/examples/the-voigt-profile/ as a faster
+    alternative (approx 6x) to astropy's Voigt1D in default.
+    """
+    from scipy.special import wofz
+    import numpy as np
+    return np.real(wofz(((x-x0) + 1j*gamma)/sigma/np.sqrt(2))) / sigma /np.sqrt(2*np.pi)
+
+
+
+
+
+def rotation_broadened_line(RV,*args):
+    import numpy as np
+    from astropy.modeling.models import Voigt1D
+    p=[i for i in args]
+
+
+    A=p[0]
+    vsys=p[1]
+    vsini=p[2]
+    E=p[3]
+    s=p[4]
+    g=p[5]
+    c=p[6:][::-1]#polynomial, flipped for np.poly.
+
+    vz_grid = RV-RV[:,np.newaxis]#Broadcasting trick here to do the convolution below.
+    Dv = np.array(vz_grid/vsini).clip(-1,1)#Compute the Delta-v parameter, clipped to -1,1 to avoid
+    #negative values of G. This is 2D.
+
+    # H = gaussian(RV,1.0,vsys,s) / (s*np.sqrt(2*np.pi))
+    H = voigt(RV,vsys,2*np.sqrt(2*np.log(2))*s,2*g)
+    G0 = (2*(1-E)+0.5*np.pi*E)
+    G = (2*(1-E)*np.sqrt((1-Dv**2))+0.5*np.pi*E*(1-Dv**2))# /(np.pi*vsini*(1-E/3)) <--- remove
+    #this because it is a constant.
+    return(H@G / G0 * A + np.poly1d(c)(RV))
+
+
+
+
+
+
+
+# def rotation_broadened_line_gauss(RV,*args):
+#     import numpy as np
+#     from astropy.modeling.models import Voigt1D
+#     p=[i for i in args]
+#     A=p[0]
+#     vsys=p[1]
+#     vsini=p[2]
+#     E=p[3]
+#     s=p[4]
+#     c=p[5:][::-1]#polynomial, flipped for np.poly.
+#
+#     vz_grid = RV-RV[:,np.newaxis]#Broadcasting trick here to do the convolution below.
+#     Dv = np.array(vz_grid/vsini).clip(-1,1)#Compute the Delta-v parameter, clipped to -1,1 to avoid
+#     #negative values of G. This is 2D.
+#
+#     H = gaussian(RV,1.0,vsys,s) / (s*np.sqrt(2*np.pi))
+#     # H = Voigt1D(x_0=vsys, amplitude_L= 2 / np.pi / 2 / g, fwhm_L=2*g, fwhm_G=2*np.sqrt(2*np.log(2))*s)
+#     G0 = (2*(1-E)+0.5*np.pi*E)
+#     G = (2*(1-E)*np.sqrt((1-Dv**2))+0.5*np.pi*E*(1-Dv**2))# /(np.pi*vsini*(1-E/3)) <--- remove
+#     #this because it is a constant.
+#     return(H@G / G0 * A + np.poly1d(c)(RV))
+
+
+def fit_rotation_broadened_line(RV,CCF,degree=1,startparams=[]):
+    """
+    This fits a rotation broadened profile following Gray (2005), with a polynomial for the
+    continuum. The line profile is fit by a Voigt with a sigma (to approximate some level
+    of turbulent broadening and spectral resolution) and gamma, with the analytical profile derived
+    by Gray on page 465 of the 2005 edition.
+
+    Returns a list of best fit values for, respectively:
+    A, line amplitude,
+    vsys, systemic / centroid velocity (km/s, or same as RV-axis),
+    vsini, projected stellar equatorial rotation velocity (km/s, or same as RV-axis),
+    E, the linear limb darkening coefficient,
+    sigma, the Gaussian sigma-width of the unbroadened line profile,
+    gamma, the Lorenzian width parameter,
+    plus polynomial coefficients describing the continuum, starting with offset, 1st order, etc.
+    """
+    import scipy.optimize
+    import numpy as np
+    import tayph.functions as fun
+    import tayph.util as ut
+    import pdb
+    from astropy.modeling.models import Voigt1D
+
+    if len(startparams)==0:
+        A_start = np.min(CCF)-np.max(CCF) #Assumes feature in negative direction
+        vsys_start = RV[np.argmin(CCF)]
+        vsini_start = 40.0#km/s
+        E_start = 0.5#Limb darkening parameter
+        sigma_start = 1.5#km/s, Gaussian FWHM, for resolution and turbulence.
+        gamma_start = 0
+        p_start = [np.median(CCF)]+degree*[0]
+        # if voigt:
+        startparams = [A_start,vsys_start,vsini_start,E_start,sigma_start,gamma_start]+p_start
+        # else:
+        #     startparams = [A_start,vsys_start,vsini_start,E_start,sigma_start]+p_start
+
+    elif len(startparams) < 6:
+        raise Exception(f"Error: Start parameters has length less than 6 ({len(startparams)})."
+        "Define startparams as A,vsys,vsini,E,sigma,offset and one or more higher degree terms.")
+
+
+    #https://stackoverflow.com/questions/4092528/how-to-clamp-an-integer-to-some-range
+
+    vz_grid = RV-RV[:,np.newaxis]#Broadcasting trick here to do the convolution below.
+    #This can be defined outside of the optimization. It is big, 2D.
+    def eval_rotation_broadened_line(p,vz,ccf,vz_grid):
+        """The parameters are:
+        Amplitude
+        vsys
+        vsini
+        E (limb darkening)
+        sigma (R+macroturbulence)
+        gamma (lorenzian width)
+        polynomial as y=p1+x*p2+x^2*p3+...
+        """
+
+        A=p[0]
+        vsys=p[1]
+        vsini=p[2]
+        E=p[3]
+        s=p[4]#sigma
+        g=p[5]#gamma
+        c=p[6:][::-1]#polynomial, flipped for np.poly.
+
+        Dv = np.array(vz_grid/vsini).clip(-1,1)#Compute the Delta-v parameter, clipped to -1,1 to
+        #avoid negative values of G.
+        # H = gaussian(vz,1.0,vsys,s) / (s*np.sqrt(2*np.pi))
+
+
+        # H = Voigt1D(x_0=vsys, amplitude_L= 2 / np.pi / 2 / g, fwhm_L=2*g, fwhm_G=2*np.sqrt(2*np.log(2))*s)(vz)
+        H = voigt(vz,vsys,2*np.sqrt(2*np.log(2))*s,2*g)
+        #G is defined on every position on the star because Dv is 2D.
+        G0 = (2*(1-E)+0.5*np.pi*E)
+        G = (2*(1-E)*np.sqrt((1-Dv**2))+0.5*np.pi*E*(1-Dv**2))# /(np.pi*vsini*(1-E/3)) <--- remove
+        #this because it is a constant. This is 2D.
+        diff = H@G / G0 * A + np.poly1d(c)(vz) - ccf #H@G/G0 is normalised from 0 to 1.
+        return(diff)
+
+    # def eval_rotation_broadened_line_gauss(p,vz,ccf,vz_grid):
+    #     """The parameters are:
+    #     Amplitude
+    #     vsys
+    #     vsini
+    #     E (limb darkening)
+    #     sigma (R+macroturbulence)
+    #     polynomial as y=p1+x*p2+x^2*p3+...
+    #     """
+    #
+    #     A=p[0]
+    #     vsys=p[1]
+    #     vsini=p[2]
+    #     E=p[3]
+    #     s=p[4]#sigma
+    #     c=p[5:][::-1]#polynomial, flipped for np.poly.
+    #
+    #     Dv = np.array(vz_grid/vsini).clip(-1,1)#Compute the Delta-v parameter, clipped to -1,1 to
+    #     #avoid negative values of G.
+    #     # H = gaussian(vz,1.0,vsys,s) / (s*np.sqrt(2*np.pi))
+    #
+    #     H = gaussian(RV,1.0,vsys,s) / (s*np.sqrt(2*np.pi))
+    #     #G is defined on every position on the star because Dv is 2D.
+    #     G0 = (2*(1-E)+0.5*np.pi*E)
+    #     G = (2*(1-E)*np.sqrt((1-Dv**2))+0.5*np.pi*E*(1-Dv**2))# /(np.pi*vsini*(1-E/3)) <--- remove
+    #     #this because it is a constant. This is 2D.
+    #     diff = H@G / G0 * A + np.poly1d(c)(vz) - ccf #H@G/G0 is normalised from 0 to 1.
+    #     return(diff)
+
+    # if voigt:
+    result = scipy.optimize.least_squares(eval_rotation_broadened_line,startparams,
+    args = (RV,CCF,vz_grid),bounds=([-np.inf,np.min(RV),0,0,0,0]+[i*0-np.inf for i in p_start],
+    [0,np.max(RV),np.max(RV)-np.min(RV),1,np.inf,np.inf]+
+    [i*0+np.inf for i in p_start]),method='trf')
+    # else:
+    #     result = scipy.optimize.least_squares(eval_rotation_broadened_line_gauss,startparams,
+    #     args = (RV,CCF,vz_grid),bounds=([-np.inf,np.min(RV),0,0,0]+[i*0-np.inf for i in p_start],
+    #     [0,np.max(RV),np.max(RV)-np.min(RV),1,np.inf]+
+    #     [i*0+np.inf for i in p_start]),method='trf')
+
+
+    return(result['x'])#These are the best-fit parameters for use in rotation_broadened_line().
+
+
+
+
+
+
 
 
 def selmax(y_in,p,s=0.0):
@@ -318,13 +520,6 @@ def findgen(n,integer=False):
         return np.linspace(0,n-1,n)
 
 
-# def gaussian(x,A,mu,sig,cont=0.0):
-#     import numpy as np
-#     """This produces a gaussian function on the grid x with amplitude A, mean mu
-#     and standard deviation sig. No testing is done, to keep it fast."""
-#     return A * np.exp(-0.5*(x - mu)/sig*(x - mu)/sig)+cont
-
-
 def gaussian(x,*args):
     import numpy as np
     """
@@ -348,7 +543,7 @@ def gaussian(x,*args):
     -------
     y : np.ndarray
         If p = *args, the output is a gaussian with parameters set by p[0:3], plus a polynomial continuum
-        as p[4]  +  x * p[5]  +  x**2 * p[6]  + ...
+        as p[3]  +  x * p[4]  +  x**2 * p[5]  + ...
 
 
     Example

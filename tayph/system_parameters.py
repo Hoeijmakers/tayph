@@ -96,6 +96,7 @@ def paramget(keyword,dp,full_path=False):
 
 def t_eff(M,R):
     """This function computes the mass and radius of a star given its mass and radius relative to solar."""
+    #WHY IS THIS HERE? IS IT USED IN TAYPH?
     from tayph.vartests import typetest
     import numpy as np
     import astropy.constants as const
@@ -135,9 +136,10 @@ def berv(dp):
     """
     from astropy.io import ascii
     from pathlib import Path
-    dp=check_dp(dp)#Path object
+    import tayph.util as ut
+    dp=ut.check_path(dp,exists=True)#Path object
 
-    d=ascii.read(dp/'obs_times',comment="#")
+    d=ascii.read(ut.check_path(dp/'obs_times',exists=True),comment="#")
     try:
         berv = d['col5']#Needs to be in col 5.
     except:

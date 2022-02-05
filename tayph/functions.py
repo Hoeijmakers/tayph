@@ -409,12 +409,17 @@ def running_MAD_2D(z,w,verbose=False,parallel=False):
     """Computers a running standard deviation of a 2-dimensional array z.
     The stddev is evaluated over the vertical block with width w pixels.
     The output is a 1D array with length equal to the width of z.
-    This is very slow on arrays that are wide in x (hundreds of thousands of points)."""
+    This is very slow on arrays that are wide in x (hundreds of thousands of points).
+
+    In the case that z is a very wide array (e.g. a stitched 1D spectrum with ~1e5 points, the
+    speedup by setting parallel=True on my laptop with 8 cores is a factor of 2).
+    """
     import astropy.stats as stats
     import numpy as np
     from tayph.vartests import typetest,dimtest,postest
     import tayph.util as ut
-    if parallel: from joblib import Parallel, delayed
+
+
     typetest(z,np.ndarray,'z in fun.running_MAD_2D()')
     dimtest(z,[0,0],'z in fun.running_MAD_2D()')
     typetest(w,[int,float],'w in fun.running_MAD_2D()')
@@ -422,14 +427,33 @@ def running_MAD_2D(z,w,verbose=False,parallel=False):
     size = np.shape(z)
     ny = size[0]
     nx = size[1]
-    s = np.arange(0,nx,dtype=float)*0.0
     dx1=int(0.5*w)
     dx2=int(int(0.5*w)+(w%2))#To deal with odd windows.
-    for i in range(nx):
+
+    if parallel:
+        from joblib import Parallel, delayed
+        import multiprocessing
+        ncores = multiprocessing.cpu_count()
+    else:
+        s = np.arange(0,nx,dtype=float)*0.0#If not parallel, we make this array for output.
+
+    def compute_mad(i):#This is what goes into the forloop:
         minx = max([0,i-dx1])#This here is only a 3% slowdown.
         maxx = min([nx,i+dx2])
-        s[i] = stats.mad_std(z[:,minx:maxx],ignore_nan=True)#This is what takes 97% of the time.
-        if verbose: ut.statusbar(i,nx)
+        return(stats.mad_std(z[:,minx:maxx],ignore_nan=True))#This is what takes 97% of the time.
+        if verbose and not parallel: ut.statusbar(i,nx)
+
+    if parallel:
+        s = np.array(Parallel(n_jobs=ncores)(delayed(compute_mad)(i) for i in range(nx)))
+    else:
+        s = np.array([compute_mad(i) for i in range(nx)])
+
+
+    # for i in range(nx):
+    #     minx = max([0,i-dx1])#This here is only a 3% slowdown.
+    #     maxx = min([nx,i+dx2])
+    #     s[i] = stats.mad_std(z[:,minx:maxx],ignore_nan=True)#This is what takes 97% of the time.
+    #     if verbose: ut.statusbar(i,nx)
     return(s)
 
 def running_MAD(z,w,parallel=False):
@@ -439,18 +463,35 @@ def running_MAD(z,w,parallel=False):
     import astropy.stats as stats
     import numpy as np
     from tayph.vartests import typetest,dimtest,postest
-    if parallel: from joblib import Parallel, delayed
+
     typetest(z,np.ndarray,'z in fun.running_MAD()')
     typetest(w,[int,float],'w in fun.running_MAD()')
-    postest(w,'w in fun.running_MAD_2D()')
+    postest(w,'w in fun.running_MAD()')
     nx = len(z)
     s = np.arange(0,nx,dtype=float)*0.0
     dx1=int(0.5*w)
     dx2=int(int(0.5*w)+(w%2))#To deal with odd windows.
-    for i in range(nx):
+
+    if parallel:
+        from joblib import Parallel, delayed
+        import multiprocessing
+        ncores = multiprocessing.cpu_count()
+    else:
+        s = np.arange(0,nx,dtype=float)*0.0#If not parallel, we make this array for output.
+    def compute_mad(i):
         minx = max([0,i-dx1])
         maxx = min([nx,i+dx2])
-        s[i] = stats.mad_std(z[minx:maxx],ignore_nan=True)
+        return(stats.mad_std(z[minx:maxx],ignore_nan=True))
+
+    if parallel:
+        s = np.array(Parallel(n_jobs=ncores)(delayed(compute_mad)(i) for i in range(nx)))
+    else:
+        s = np.array([compute_mad(i) for i in range(nx)])
+
+    # for i in range(nx):
+    #     minx = max([0,i-dx1])
+    #     maxx = min([nx,i+dx2])
+    #     s[i] = stats.mad_std(z[minx:maxx],ignore_nan=True)
     return(s)
 
 

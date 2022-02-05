@@ -930,18 +930,21 @@ def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True,parall
     of output variables from 3 to 4.
 
     I've ran mad trying to make this faster but medians simply don't collapse into nice matrix
-    operations. So what remains is to parallelise. I've set up the keyword structure to make this
-    happen, as per Issue #64.
+    operations. So what remains is to parallelise running_MAD_2D. The parallel keyword in
+    clean_block directly propagates into running_MAD_@D If clean_block is called once on a wide
+    array (e.g. stitched spectra with ~1e5 points, paralellisation achieves a factor 2 speedup on my
+    old 8-core laptop). However, if clean_block is called on a sequence of less wide arrays (e.g.)
+    spectral orders, it's better to do that loop in parallel rather than call clean_block with
+    parallel itself.
 
-    Set the renorm keyword to maintain the average flux in the block. If set to false, this
-    function will return spectra that have the same average as before cleaning.
+    Set the renorm keyword to maintain the average flux in the block. If set to False, this
+    function will return spectra that have an average of 1.0
     """
     import numpy as np
     import tayph.functions as fun
     import warnings
     import copy
     import tayph.util as ut
-    if parallel: from joblib import Parallel, delayed
     block[np.abs(block)<1e-10*np.nanmedian(block)]=0.0#First set very small values to zero.
     sum=np.nansum(np.abs(block),axis=0)#Anything that is zero in this sum (i.e. the all-zero
     #columns) will be identified.
@@ -976,7 +979,7 @@ def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True,parall
             p=np.polyfit(wl_trimmed[~nansel],s[~nansel],deg)
             block[j]/=np.polyval(p,wl_trimmed)
             r2[j]/=np.polyval(p,wl_trimmed)
-            ut.statusbar(j,len(r))
+            if verbose: ut.statusbar(j,len(r))
         return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r,r2)#Avg_flux is 1.0 unless
         #renorm=True.
     return(wl_trimmed,np.transpose(np.transpose(block)*avg_flux),r)

@@ -367,9 +367,10 @@ def running_median_2D(D,w):
     """This computes a running median on a 2D array in a window with width w that
     slides over the array in the horizontal (x) direction."""
     import numpy as np
+    import numpy
     from tayph.vartests import typetest,dimtest,postest
     typetest(D,np.ndarray,'z in fun.running_mean_2D()')
-    typetest(w,[int,float],'w in fun.running_mean_2D()')
+    typetest(w,[int,float,numpy.int64],'w in fun.running_mean_2D()')
     postest(w,'w in fun.running_mean_2D()')
     ny,nx=D.shape
     m2=strided_window(D,w,pad=True)
@@ -380,9 +381,10 @@ def running_std_2D(D,w):
     """This computes a running standard deviation on a 2D array in a window with width w that
     slides over the array in the horizontal (x) direction."""
     import numpy as np
+    import numpy
     from tayph.vartests import typetest,dimtest,postest
     typetest(D,np.ndarray,'z in fun.running_mean_2D()')
-    typetest(w,[int,float],'w in fun.running_mean_2D()')
+    typetest(w,[int,float,numpy.int64],'w in fun.running_mean_2D()')
     postest(w,'w in fun.running_mean_2D()')
     ny,nx=D.shape
     m2=strided_window(D,w,pad=True)
@@ -393,9 +395,10 @@ def running_mean_2D(D,w):
     """This computes a running mean on a 2D array in a window with width w that
     slides over the array in the horizontal (x) direction."""
     import numpy as np
+    import numpy
     from tayph.vartests import typetest,dimtest,postest
     typetest(D,np.ndarray,'z in fun.running_mean_2D()')
-    typetest(w,[int,float],'w in fun.running_mean_2D()')
+    typetest(w,[int,float,numpy.int64],'w in fun.running_mean_2D()')
     postest(w,'w in fun.running_mean_2D()')
     ny,nx=D.shape
     m2=strided_window(D,w,pad=True)
@@ -418,11 +421,12 @@ def running_MAD_2D(z,w,verbose=False,parallel=False):
     import numpy as np
     from tayph.vartests import typetest,dimtest,postest
     import tayph.util as ut
+    import numpy
 
 
     typetest(z,np.ndarray,'z in fun.running_MAD_2D()')
     dimtest(z,[0,0],'z in fun.running_MAD_2D()')
-    typetest(w,[int,float],'w in fun.running_MAD_2D()')
+    typetest(w,[int,float,numpy.int64],'w in fun.running_MAD_2D()')
     postest(w,'w in fun.running_MAD_2D()')
     size = np.shape(z)
     ny = size[0]
@@ -462,10 +466,11 @@ def running_MAD(z,w,parallel=False):
     The output is a 1D array with length equal to the width of z."""
     import astropy.stats as stats
     import numpy as np
+    import numpy
     from tayph.vartests import typetest,dimtest,postest
 
     typetest(z,np.ndarray,'z in fun.running_MAD()')
-    typetest(w,[int,float],'w in fun.running_MAD()')
+    typetest(w,[int,float,numpy.int64],'w in fun.running_MAD()')
     postest(w,'w in fun.running_MAD()')
     nx = len(z)
     s = np.arange(0,nx,dtype=float)*0.0

@@ -3,6 +3,7 @@ __all__ = [
     "t_eff",
     "paramget",
     "berv",
+    "airmass",
     "v_orb",
     "astropyberv",
     "calculateberv",
@@ -145,6 +146,25 @@ def berv(dp):
     except:
         raise Exception(f'Runtime error in sp.berv(): col5 could not be indexed. Check the integrity of your obst_times file located at {dp}.')
     return berv.data
+
+def airmass(dp):
+    """This retrieves the airmass tabulated in the obs_times table.
+    Example: brv=airmass('data/Kelt-9/night1/')
+    The output is an array with length N, corresponding to N exposures. These values
+    are / should be taken from the FITS header.
+    """
+    from astropy.io import ascii
+    from pathlib import Path
+    import tayph.util as ut
+    dp=ut.check_path(dp,exists=True)#Path object
+
+    d=ascii.read(ut.check_path(dp/'obs_times',exists=True),comment="#")
+    try:
+        airm = d['col6']#Needs to be in col 5.
+    except:
+        raise Exception(f'Runtime error in sp.berv(): col6 could not be indexed. Check the integrity of your obst_times file located at {dp}.')
+    return airm.data
+
 
 
 def v_orb(dp):

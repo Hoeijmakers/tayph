@@ -263,7 +263,7 @@ intransit=True):
         wl_maxs.append(np.max(wlo))
 
     if np.min(wlm) > np.min(wl_mins) or np.max(wlm) < np.max(wl_maxs):
-        raise RunTimeError('in model injection: Data grid falls (partly) outside of model range. '
+        raise RuntimeError('in model injection: Data grid falls (partly) outside of model range. '
         'Use a model with a wavelength range that encapsulates the data fully.')
 
     modelsel=[(wlm >= np.min(wl_mins)-1.0) & (wlm <= np.max(wl_maxs)+1.0)]

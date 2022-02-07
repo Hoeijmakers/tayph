@@ -177,7 +177,7 @@ def get_model(name,library='models/library',root='models',is_binary=False):
             modelarray = np.loadtxt(modelpath).T#Two-dimensional array with wavelength positions of
             #spectral lines on the first column and weights on the second column (transposed).
         else:
-            raise RunTimeError(f'Model file {modelpath} from library {str(library)} is required to '
+            raise RuntimeError(f'Model file {modelpath} from library {str(library)} is required to '
             'have extension .fits or .dat.')
     else:
         raise FileNotFoundError(f'Model file {modelpath} from library {str(library)} does not '

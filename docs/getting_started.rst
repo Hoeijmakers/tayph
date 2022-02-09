@@ -119,13 +119,11 @@ protect you against confusion regarding wavelength solutions and velocity correc
 (where different pipelines have different conventions). The input parameters of read_e2ds are
 structured in the following way::
 
-    tayph.run.read_e2ds('input_folder','output_name',instrument='HARPSN',measure_RV=True,star='hot',config=True)
+    tayph.run.read_e2ds('input_folder','output_name',instrument='HARPSN',config=True)
 
 - :code:`'input_folder'`: The first parameter is the location of your downloaded data. This is typically a dedicated folder in your project or even your downloads folder.
 - :code:`'output_name'`: The second is the name of your dataset, as a folder name. Typically, this takes the form of system_name_b, or system_name_b/night_n if multiple transits of the same system are available.
 - :code:`mode='HARPS'`:The mode keyword can be used to switch between HARPS, HARPSN (or HAPRS-N), ESPRESSO, UVES-red,UVES-blue, CARMENES-VIS and CARMENES-NIR modes. In this case, we are dealing with HARPS-N data.
-- :code:`measure_RV=True`: Set to True if, after reading in the data, let Tayph perform quick cleaning and correlation with a PHOENIX model and an Earth telluric model. At the end, Tayph will plot the 1-dimensional and 2-dimensional spectra as well as the two models, to give you a good sense of whether one or the other are barycentric corrected or not, and whether wavelength solutions are in air or vaccuum. These will influence how you configure Tayph later so it is recommended to run read_e2ds with measure_RV=True when starting out.
-- :code:`star='solar'`: If measure_RV is set to True, the PHOENIX model used will either match that of the sun (code:`star='solar'`), that of a 9000K A-star (code:`star='hot'`) or a cool 4000K K-dwarf (code:`star='cool'`).
 - :code:`config=True`: If set, Tayph will create an empty configuration file with some values filled in, depending on the instrument mode.
 
 
@@ -137,6 +135,29 @@ file has been provided along with the prepackaged demo data (in
 :code:`/Users/tayph/downloads/demo_data/configuration_files/config`), so for the purpose of this
 tutorial, you should proceed by copying this file to the data folder instead.
 
+
+
+After this, you can run a function called Measure_RV to check on the output of your data, notably the
+radial velocities. This function will do a quick cleaning and cross-correlation of your data with
+a PHOENIX stellar atmosphere model and a telluric model, and show you how the stellar radial velocity
+varies during your transit. Under normal circumstances, if you are working with a stabilised fiber-fed
+spectrograph (as is HARPS-N), these drifts will correspond (at most) to the changing barycentric velocity
+correction and the Keplerian motion induced by the orbiting planet. Both these effects are taken care
+of by Tayph in a later stage. Additional drifts may occur if you are working with a non-stabilised or a
+slit-spectrograph. In these cases, measure_RV will tell you whether to perform corrections of the
+wavelength solution. Finally, measure_RV also provides you with plots of the airmass and an estimate
+of the peak SNR per spectral order. To run this function, call::
+
+    run.measure_RV('input_folder',star='hot',ignore_s1d=False,parallel=False)
+
+- :code:`'input_folder'`: The path to the data just created by read_e2ds, e.g. 'data/KELT-9/night1'.
+- :code:`star='hot'`: A PHOENIX model will used will either match that of the sun (code:`star='solar'`), that of a 9000K A-star (code:`star='hot'`) or a cool 4000K K-dwarf (code:`star='cool'`).
+- :code:`ignore_s1d`: By default, meausure_RV will read any s1d spectra created by read_e2ds. If this is set to True, any 1D spectra will be ignored and only results for 2D spectra will be computed and shown.
+- :code:`parallel`: Tayph employs an experimental implementation of parallellisation of for-loops (see more examples later). Setting this to True will speed up the computation, but may not work on all systems.
+
+The output of this code is a multi-panel plot showing you the spectra, the correlation functions and fitted centroid velocities.
+It depends on your spectrograph what drifts are expected to occur.
+However in general, read_e2ds is set up such that most 1D and 2D spectra are returned in the telluric rest-frame, meaning that tellurics are expected to occur at 0km/s, and the star is expected to drift according to the barycentric velocity correction.
 
 
 The configuration file

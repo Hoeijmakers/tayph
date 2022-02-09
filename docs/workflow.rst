@@ -15,10 +15,10 @@ orders, their corresponding wavelength axes are also extracted and saved to sepa
 treat the data as a time-series, perform time-dependent operations and visualise the time-series easily with nothing but a
 FITS viewer.
 
-HARPS and ESPRESSO data downloaded from the ESO archive can be reformatted automatically by Tayph. During this conversion process,
+Pipeline-reduced downloaded from various archives (including ESO and TNG-HARPS-N) can be reformatted automatically by Tayph. During this conversion process,
 Tayph also extracts necessary header information that describes the times of observation, airmass, barycentric velocity and the
-exposure time, which are saved in an ASCII table named obs_times along with the above FITS files. Optionally, the user may pass
-these spectra through Molecfit, to correct for telluric absorption lines in each exposure. Molecfit is applied to the 1D resampled
+exposure time, which are saved in an ASCII table named obs_times along with the above FITS files. Optionally, the user may pass these spectra
+through a wavelength correction module, and through Molecfit to correct for telluric absorption lines in each exposure. Molecfit is applied to the 1D resampled
 spectra that the HARPS and EPSRESSO pipelines normally produce as well, and the fit telluric models are interpolated onto the
 individual 2D spectral orders. As Molecfit is a relatively complex fitting tool, this process can take on the order of hours.
 This is without doubt the slowest operation of the entire workflow, but for many applications a precise telluric correction
@@ -40,9 +40,9 @@ This is standard practise for HARPS data (the HARPS DRS does not provide error e
 ESPRESSO) may do error computation on their own. In this case, the errors are provided to Tayph using sigma_i FITS files, of
 the same shape, numbering and in the same location as the FITS files containing the orders.
 
-The rest-frames of the spectra are corrected for the motion of Earth around the barycenter (this should only be done after
-telluric correction), and the orbit of the star around the center of mass between it and the planet (which can be hundreds of
-km/s for hot Jupiters), putting the spectra in the rest frame of the target star, up to a constant shift which is the systemic
+The rest-frames of the spectra are corrected for the motion of Earth around the barycenter (this is purposefully delayed until after
+telluric correction), and the orbit of the star around the center of mass between it and the planet (which can be over 100
+m/s for hot Jupiters), putting the spectra in the rest frame of the target star, up to a constant shift which is the systemic
 velocity.
 
 Next, outlying spectral values are vetted in a process termed masking. The mask is composed of a list with the same

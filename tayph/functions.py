@@ -448,7 +448,8 @@ def running_MAD_2D(z,w,verbose=False,parallel=False):
         if verbose and not parallel: ut.statusbar(i,nx)
 
     if parallel:
-        s = np.array(Parallel(n_jobs=ncores)(delayed(compute_mad)(i) for i in range(nx)))
+        with Parallel(n_jobs=ncores) as P:
+            s = np.array(P(delayed(compute_mad)(i) for i in range(nx)))
     else:
         s = np.array([compute_mad(i) for i in range(nx)])
 
@@ -489,7 +490,8 @@ def running_MAD(z,w,parallel=False):
         return(stats.mad_std(z[minx:maxx],ignore_nan=True))
 
     if parallel:
-        s = np.array(Parallel(n_jobs=ncores)(delayed(compute_mad)(i) for i in range(nx)))
+        with Parallel(n_jobs=ncores) as P:
+            s = np.array(P(delayed(compute_mad)(i) for i in range(nx)))
     else:
         s = np.array([compute_mad(i) for i in range(nx)])
 

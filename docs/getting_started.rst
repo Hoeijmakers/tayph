@@ -21,6 +21,7 @@ using standard package managers (e.g. pip or Anaconda):
 - Astropy
 - lmfit
 - joblib
+- tqdm
 
 Installation
 ############
@@ -156,8 +157,20 @@ of the peak SNR per spectral order. To run this function, call::
 - :code:`parallel`: Tayph employs an experimental implementation of parallellisation of for-loops (see more examples later). Setting this to True will speed up the computation, but may not work on all systems.
 
 The output of this code is a multi-panel plot showing you the spectra, the correlation functions and fitted centroid velocities.
-It depends on your spectrograph what drifts are expected to occur.
-However in general, read_e2ds is set up such that most 1D and 2D spectra are returned in the telluric rest-frame, meaning that tellurics are expected to occur at 0km/s, and the star is expected to drift according to the barycentric velocity correction.
+You can use it to align your spectra to a common rest-frame, provided by either stellar or telluric centroid measurements, and add
+a systemic velocity plus or minus the barycentric velocity. In particular when using molecfit, the objective is to align the spectra such that the telluric lines are at 0 km/s.
+In this case (and this can be seen using stabilised, e.g. HARPS or ESPRESSO data) the stellar lines follow the BERV (perhaps plus a discernable Keplerian velocity and/or RM-effect).
+This can be reproduced by aligning the spectra to the star, and setting `Subtract BERV`.
+
+It depends on your spectrograph what drifts are expected to occur. Stabilised spectrographs like HARPS and ESPRESSO will not require modification of the wavelength solution; and read_e2ds is set up such that 1D and 2D spectra are returned in the telluric rest-frame.
+But especially slit-fed spectrographs (UVES, CRIRES+), are expected to experience drifts.
+
+More advanced modifications of the wavelength solution are under development.
+
+.. note::
+  Measure_RV overwrites the wavelength solution files read in by read_e2ds. You will need to run read_e2ds
+  again to get your original wavelength solutions back after a mistake.
+
 
 
 The configuration file

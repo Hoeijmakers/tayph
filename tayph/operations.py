@@ -949,6 +949,9 @@ def clean_block(wl,block,deg=0,w=200,nsigma=5.0,verbose=False,renorm=True,parall
     sum=np.nansum(np.abs(block),axis=0)#Anything that is zero in this sum (i.e. the all-zero
     #columns) will be identified.
     npx=len(sum)
+
+    #THIS REMOVAL OF PADDED PIXELS MAY NEED TO BE REMOVED IF 2D FIXING OF WAVELENGTH SOLUTIONS IS TO
+    #OCCUR! ALSO IN READ_E2DS!
     leftsize=npx-len(np.trim_zeros(sum,'f'))#Size of zero-padding on the left.
     rightsize=npx-len(np.trim_zeros(sum,'b'))#Size of zero-padding on the right
 

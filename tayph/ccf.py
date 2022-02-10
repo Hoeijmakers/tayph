@@ -177,7 +177,10 @@ parallel=False):
     n_nans[n_nans==len(stack_of_orders)]=0
     if np.max(n_nans)>0:#If there are any columns which still have NaNs in them, we need to crash.
         raise ValueError(f"in CCF: Not all NaN values are purely in data columns. There are still "
-        "isolated NaNs in the data. Remove those.")
+        "isolated NaNs in the data. This could be due to the template having NaNs or poorly "
+        "covering the data, or if entire exposures in the time-series are NaN (perhaps due to "
+        "masking of outliers where the SNR is really variable and low). You can identify this "
+        "in the masking GUI.")
 
     #So we checked that all NaNs were in whole columns. These columns have the following indices:
     nan_columns =  np.isnan(stack_of_orders[0])

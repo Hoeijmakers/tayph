@@ -34,7 +34,8 @@ def guide_plot(dp,dv=0):
         s1dhdr_sorted,s1d_sorted,wave1d_sorted = pickle.load(p)
 
     w = wave1d_sorted[0]
-    s = np.nanmean(s1d_sorted,axis=0)
+    # s = np.nanmean(s1d_sorted,axis=0)
+    s=s1d_sorted[0]
 
     wlt=wlt*(1+dv*u.km/u.s/const.c)
     fxt = fxt[(wlt>np.min(w)) & (wlt<np.max(w))]

@@ -140,27 +140,33 @@ tutorial, you should proceed by copying this file to the data folder instead.
 
 After this, you can run a function called Measure_RV to check on the output of your data, notably the
 radial velocities. This function will do a quick cleaning and cross-correlation of your data with
-a PHOENIX stellar atmosphere model and a telluric model, and show you how the stellar radial velocity
+a PHOENIX stellar atmosphere model and a telluric model, fit the stellar line profile with a rotation broadened
+voigt, or the telluric line profile with a Gaussian, and derive and display how the stellar radial velocity
 varies during your transit. Under normal circumstances, if you are working with a stabilised fiber-fed
 spectrograph (as is HARPS-N), these drifts will correspond (at most) to the changing barycentric velocity
 correction and the Keplerian motion induced by the orbiting planet. Both these effects are taken care
 of by Tayph in a later stage. Additional drifts may occur if you are working with a non-stabilised or a
-slit-spectrograph. In these cases, measure_RV will tell you whether to perform corrections of the
-wavelength solution. Finally, measure_RV also provides you with plots of the airmass and an estimate
-of the peak SNR per spectral order. To run this function, call::
+slit-spectrograph. In these cases, measure_RV will allow you to judge whether to perform corrections of the
+wavelength solution, and provides the option of Doppler-shifting the spectra to a common rest-frame.
+ To run this function, call::
 
-    run.measure_RV('input_folder',star='hot',ignore_s1d=False,parallel=False)
+    run.measure_RV('input_folder',star='hot',ignore_s1d=False,parallel=True)
 
 - :code:`'input_folder'`: The path to the data just created by read_e2ds, e.g. 'data/KELT-9/night1'.
 - :code:`star='hot'`: A PHOENIX model will used will either match that of the sun (code:`star='solar'`), that of a 9000K A-star (code:`star='hot'`) or a cool 4000K K-dwarf (code:`star='cool'`).
 - :code:`ignore_s1d`: By default, meausure_RV will read any s1d spectra created by read_e2ds. If this is set to True, any 1D spectra will be ignored and only results for 2D spectra will be computed and shown.
-- :code:`parallel`: Tayph employs an experimental implementation of parallellisation of for-loops (see more examples later). Setting this to True will speed up the computation, but may not work on all systems.
+- :code:`parallel`: Tayph employs an experimental implementation of parallellisation of for-loops (see more examples later). Setting this to True will speed up the computation, but it may not work on all systems.
 
 The output of this code is a multi-panel plot showing you the spectra, the correlation functions and fitted centroid velocities.
 You can use it to align your spectra to a common rest-frame, provided by either stellar or telluric centroid measurements, and add
 a systemic velocity plus or minus the barycentric velocity. In particular when using molecfit, the objective is to align the spectra such that the telluric lines are at 0 km/s.
 In this case (and this can be seen using stabilised, e.g. HARPS or ESPRESSO data) the stellar lines follow the BERV (perhaps plus a discernable Keplerian velocity and/or RM-effect).
-This can be reproduced by aligning the spectra to the star, and setting `Subtract BERV`.
+This can be reproduced by aligning the spectra to the star, and setting `Subtract BERV`. You should commonly expect to realise an RMS of a few 10 m/s using this method. That's not
+exactly high-precision RV, but probably sufficient for our purposes.
+
+.. note::
+  When running measure_RV on the demo-data of KELT-9b, you will notice that the E2DS data is fit very poorly because the stellar line is broad and sits in a complicated continuum.
+  Switching to `From S1D` in the upper-right corner and pressing `Refresh` will show you the centroid fits of the S1D spectra, which do yield good results.
 
 It depends on your spectrograph what drifts are expected to occur. Stabilised spectrographs like HARPS and ESPRESSO will not require modification of the wavelength solution; and read_e2ds is set up such that 1D and 2D spectra are returned in the telluric rest-frame.
 But especially slit-fed spectrographs (UVES, CRIRES+), are expected to experience drifts.

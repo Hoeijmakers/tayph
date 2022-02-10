@@ -25,6 +25,7 @@ def guide_plot(dp,dv=0):
     import tayph.util as ut
     import astropy.constants as const
     import astropy.units as u
+    import tayph.operations as ops
     wlt,fxt=models.get_telluric()
 
     dp=ut.check_path(dp)
@@ -34,10 +35,18 @@ def guide_plot(dp,dv=0):
         s1dhdr_sorted,s1d_sorted,wave1d_sorted = pickle.load(p)
 
     w = wave1d_sorted[0]/10#Convert to nms.
-    # s = np.nanmean(s1d_sorted,axis=0)
-    s=s1d_sorted[0]
 
-    wlt=wlt*(1+dv*u.km/u.s/const.c)
+
+    s1d_block=np.zeros((len(s1d_sorted),len(w)))
+    for i in range(0,len(s1d_sorted)):
+        s1d_block[i]=interp.interp1d(wave1d_sorted[i]/10.0,s1d_sorted[i],bounds_error=False,
+        fill_value='extrapolate')(w)
+
+    # s = np.nanmean(s1d_sorted,axis=0)
+    s=np.nanmean(s1d_block,axis=0)
+
+
+    wlt=ops.vactoair(wlt*(1+dv*u.km/u.s/const.c))
     fxt = fxt[(wlt>np.min(w)) & (wlt<np.max(w))]
     wlt = wlt[(wlt>np.min(w)) & (wlt<np.max(w))]
     plt.plot(w,s/np.nanmedian(s),linewidth=0.8,alpha=0.7,label='S1D data')

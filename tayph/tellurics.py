@@ -33,7 +33,7 @@ def guide_plot(dp,dv=0):
     with open(s1d_path,"rb") as p:
         s1dhdr_sorted,s1d_sorted,wave1d_sorted = pickle.load(p)
 
-    w = wave1d_sorted[0]
+    w = wave1d_sorted[0]/10#Convert to nms.
     # s = np.nanmean(s1d_sorted,axis=0)
     s=s1d_sorted[0]
 

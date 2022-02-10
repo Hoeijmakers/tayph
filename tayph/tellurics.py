@@ -26,6 +26,7 @@ def guide_plot(dp,dv=0):
     import astropy.constants as const
     import astropy.units as u
     import tayph.operations as ops
+    import scipy.interpolate as interp
     wlt,fxt=models.get_telluric()
 
     dp=ut.check_path(dp)

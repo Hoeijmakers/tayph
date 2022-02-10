@@ -490,7 +490,9 @@ def convolve(array,kernel,edge_degree=1,fit_width=2):
         raise Exception(f"Error in ops.convolve(): Kernel length is larger than 1/{fit_width*2} of "
         f"the array ({len(kernel)}, {len(array)}). Can't extrapolate over that length to "
         "approximate the edges. And you probably don't want to be doing a convolution like that, "
-        "anyway. Please rerun with a smaller kernel or a wider array.")
+        "anyway. Please rerun with a smaller kernel or a wider array. If you get this error while "
+        "cleaning the CCF's (in tayph.ccf.filter_ccf), increase the RVrange configuration "
+        "parameter to make this error go away.")
 
     if len(kernel) % 2 != 1:
         raise Exception('Error in ops.convolve(): Kernel needs to have an odd number of elements.')

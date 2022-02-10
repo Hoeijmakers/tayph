@@ -2270,6 +2270,7 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
                 sf = 2.5
 
             if self.source == '2D':
+                print('------Showing 2D centroids in middle-left panels.')
                 # rv_hi = np.linspace(np.min(self.rv),np.max(self.rv),len(self.rv)*5)#This creates a weird error. Nvm then...
                 rv_hi = self.rv
                 p_ccfs = [self.ccf[0],self.ccf[int(len(self.ccf)/2)],self.ccf[-1]]#First, middle last, to plot.
@@ -2288,6 +2289,7 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
                 max_centroid_plotT = np.max([self.fitT2d[0][1],self.fitT2d[1][1],self.fitT2d[2][1]])
                 width_plotT = np.max([np.max([self.fitT2d[0][2],self.fitT2d[1][2],self.fitT2d[2][2]])*5,10])#10km/s
             if self.source == '1D' and read_s1d == True:
+                print('------Showing 1D centroids in middle-left panels.')
                 p_ccfs = [self.ccf1d[0],self.ccf1d[int(len(self.ccf1d)/2)],self.ccf1d[-1]]#First, middle last, to plot.
                 # rv_hi = np.linspace(np.min(self.rv1d),np.max(self.rv1d),len(self.rv1d)*5)
                 rv_hi = self.rv1d

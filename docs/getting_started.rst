@@ -108,16 +108,11 @@ To continue with the demo data, move to your working directory in the terminal
     run.read_e2ds('/Users/tayph/downloads/demo_data/kelt-9-spectra','KELT-9/night1',instrument='HARPSN',config=True)
 
 This converts the pipeline-reduced data to the format used by Tayph, places it in the data
-folder in your working directory, and executes a preliminary cross-correlation to measure the
-radial velocities of the stitched, wide-band (1D) spectra and the indivual echelle orders (2D).
-This preliminary cross-correlation is quite time consuming, but it helps to judge whether the
-data is read properly and how to set Tayph to correctly deal with velocity corrections and the
-wavelength solution.
-
-Read_e2ds is meant to provide you with a quick gateway to handling pipeline reduced echelle spectra,
-and is designed to work for multiple different spectrographs out of the box; explicitly to try to
-protect you against confusion regarding wavelength solutions and velocity corrections
-(where different pipelines have different conventions). The input parameters of read_e2ds are
+folder in your working directory, and extracts necessary information from the FITS headers (notably
+the observing timestamps and the exposure times). Read_e2ds is meant to provide you with a quick
+gateway to handling pipeline reduced echelle spectra, and is designed to work for multiple different
+spectrographs out of the box; explicitly to try to protect you against confusion regarding wavelength
+solutions and velocity corrections (where different pipelines have different conventions). The input parameters of read_e2ds are
 structured in the following way::
 
     tayph.run.read_e2ds('input_folder','output_name',instrument='HARPSN',config=True)
@@ -131,10 +126,11 @@ structured in the following way::
 Read_e2ds has produced a new folder :code:`/Users/tayph/xcor_project/data/KELT-9/night1/` in
 which the various files are located, including a dummy configuration file called
 :code:`config_empty`. The user would now need to proceed by filling in this configuration
-and renaming it from :code:`config_empty`: to :code:`config`:. However, a finished configuration
+and renaming it from :code:`config_empty` to :code:`config`. However, a finished configuration
 file has been provided along with the prepackaged demo data (in
 :code:`/Users/tayph/downloads/demo_data/configuration_files/config`), so for the purpose of this
-tutorial, you should proceed by copying this file to the data folder instead.
+tutorial, you should proceed by copying this file to the data folder instead. The contents of this
+file will be covered in the next section.
 
 
 
@@ -148,12 +144,12 @@ correction and the Keplerian motion induced by the orbiting planet. Both these e
 of by Tayph in a later stage. Additional drifts may occur if you are working with a non-stabilised or a
 slit-spectrograph. In these cases, measure_RV will allow you to judge whether to perform corrections of the
 wavelength solution, and provides the option of Doppler-shifting the spectra to a common rest-frame.
- To run this function, call::
+To run this function, call::
 
     run.measure_RV('input_folder',star='hot',ignore_s1d=False,parallel=True)
 
 - :code:`'input_folder'`: The path to the data just created by read_e2ds, e.g. 'data/KELT-9/night1'.
-- :code:`star='hot'`: A PHOENIX model will used will either match that of the sun (code:`star='solar'`), that of a 9000K A-star (code:`star='hot'`) or a cool 4000K K-dwarf (code:`star='cool'`).
+- :code:`star='hot'`: A PHOENIX model will used will either match that of the sun (:code:`star='solar'`), that of a 9000K A-star (:code:`star='hot'`) or a cool 4000K K-dwarf (:code:`star='cool'`).
 - :code:`ignore_s1d`: By default, meausure_RV will read any s1d spectra created by read_e2ds. If this is set to True, any 1D spectra will be ignored and only results for 2D spectra will be computed and shown.
 - :code:`parallel`: Tayph employs an experimental implementation of parallellisation of for-loops (see more examples later). Setting this to True will speed up the computation, but it may not work on all systems.
 
@@ -165,7 +161,7 @@ This can be reproduced by aligning the spectra to the star, and setting `Subtrac
 exactly high-precision RV, but probably sufficient for our purposes.
 
 .. note::
-  When running measure_RV on the demo-data of KELT-9b, you will notice that the E2DS data is fit very poorly because the stellar line is broad and sits in a complicated continuum.
+  When running measure_RV on the demo-data of KELT-9b, you will notice that the E2DS data are fit very poorly because the stellar line is broad and sits in a complicated continuum.
   Switching to `From S1D` in the upper-right corner and pressing `Refresh` will show you the centroid fits of the S1D spectra, which do yield good results.
 
 It depends on your spectrograph what drifts are expected to occur. Stabilised spectrographs like HARPS and ESPRESSO will not require modification of the wavelength solution; and read_e2ds is set up such that 1D and 2D spectra are returned in the telluric rest-frame.
@@ -311,7 +307,7 @@ wish to remember for yourself.::
     do_xcor                   True    #Set this to True if you want the CCF to be recomputed. Set to False if you have already computed the CCF in a previous run, and now you just want to alter some plotting, cleaning or doppler shadow parameters. CCFs need to be rerun when masking, orbital parameters, velocity corrections, injected models or telluric corrections are altered.
     inject_model              False
     plot_xcor                 True
-    make_mask                 False   #Don't be enthusiastic in making a mask. Once you change things like BERVs and airtovac corrections, the mask wont be valid anymore. Make 100% sure that these are correct first.
+    make_mask                 False   #Don't be enthusiastic in making a mask. Once you change things like BERVs and airtovac corrections, the mask wont be valid anymore. Make 100% sure that these are correct first, e.g. by running the cross-correlation and looking at the residuals. Uncorrected velocity shifts will cause clear residual patterns.
     apply_mask                False
     do_berv_correction        True
     do_keplerian_correction   True
@@ -359,9 +355,10 @@ Congratulations! You have now successfully installed and executed Tayph!
 Interactive processing
 **********************
 
-The functionality of Tayph includes two GUI interfaces. The first allows users to interactively
+The functionality of Tayph includes three GUI interfaces. The first is provided by Measure_RV, allowing
+you to align drifting spectra to a common rest-frame. The second allows you to interactively
 specify bad regions in their spectral orders. This is activated by setting the make_mask and
-apply_mask. parameters in the run file to True. After cross-correlation, a second GUI can be
+apply_mask. parameters in the run file to True. After cross-correlation, a third GUI can be
 opened to allow the user to fit the Doppler shadow feature with a single or double-gaussian model.
 This is activated by setting make_doppler_model to True and skip_doppler_model to False.
 After having been run once, the mask files and doppler model files are saved in the data folder
@@ -373,12 +370,12 @@ Using Molecfit for telluric corrections
 
 So far we have not used Molecfit in order to correct for telluric lines.
 If you wish to integrate Molecfit into Tayph for telluric corrections, these are the necessary
-steps that you need to take:
+steps that you are going to need to take:
 
 - Install standalone version 1.5.9 of Molecfit on your system.
 - Replace some files within Molecfit to make it exectutable, python 3.0 compatible and to fix a line-list error.
 - Create a parameter file for your instrument. Parameter files for the supported instruments packaged in the demo data package, but you need to modify these slightly to make Molecfit work on your system.
-- Use Tayph create a configuration file for Molecfit, which establishes the interface between the two.
+- Use Tayph to create a configuration file for Molecfit, which establishes the interface between the two.
 
 
 Where to download Molecfit
@@ -387,7 +384,7 @@ Molecfit is developed by ESO and hosted `on the ESO webpages <https://www.eso.or
 However in 2020, ESO moved to integrate Molecfit into its data reduction environment, deprecating
 the standalone execution of Molecfit that is needed for use with non-ESO data, and that Tayph uses.
 As of 2021, previous standalone versions are still hosted `on ESO's FTP server <ftp://ftp.eso.org/pub/dfs/pipelines/skytools/molecfit/>`_,
-but these may be removed in the future. We have therefore host a copy of Molecfit version 1.5.9
+but these may be removed in the future. We have therefore hosted a copy of Molecfit version 1.5.9
 along with the demo data. Importantly, version 1.5.9 is not pyhon 3.0 compatible and it contains an
 error in the line-list of water, and so we have updated the relevant files in our repackaged version.
 
@@ -408,7 +405,7 @@ We highly recommend following the instructions to use the Binary installation (s
 User Manual), which automatically installs local versions of crucial (and sometimes old) third-party
 dependencies. For standard Linux distributions, these instructions will suffice.
 
-Installation on OSX (and in particular OSX Catalina) can be slightly more complicated and likely
+Installation on OSX (and in particular OSX Catalina and newer) can be slightly more complicated and likely
 requires a downgrade of XCode to version 11.7. We have therefore modified ESO's installation
 instructions for OSX users as follows.
 

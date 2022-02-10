@@ -1058,7 +1058,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
 
-def read_e2ds(inpath,outname,read_s1d=True,instrument='HARPS',measure_RV=True,star='solar',
+def read_e2ds(inpath,outname,read_s1d=True,instrument='HARPS',star='solar',
 config=False,save_figure=True,skysub=False):
     """This is the workhorse for reading in a time-series of archival 2D echelle
     spectra from a couple of instrument pipelines that produce a standard output,

@@ -437,3 +437,21 @@ def dRV(dp):
 
     dRV=vorb*np.cos(2.0*np.pi*p)*2.0*np.pi/((P*u.d).to('s').value)*np.sin(np.radians(i))
     return abs(dRV*Texp)
+
+
+def texp(dp):
+    """Returns the exposure time of the time-series. Useful for calculating the total amount
+    of time spent on source."""
+    from tayph.vartests import typetest
+    import numpy as np
+    import astropy.units as u
+    from astropy.io import ascii
+    import pdb
+    import tayph.util as ut
+    dp=ut.check_path(dp,exists=True)
+    obsp=ut.check_path(dp/'obs_times',exists=True)
+
+    d=ascii.read(obsp,comment="#")
+    #Texp=d['exptime'].astype('float')
+    Texp=d['col3'].data#astype('float')
+    return(Texp)

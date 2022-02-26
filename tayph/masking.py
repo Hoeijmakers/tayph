@@ -139,7 +139,7 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False,parallel=False):
 class mask_maker(object):
     #This is my third home-made class: A GUI for masking pixels in the spectrum.
     def __init__(self,list_of_wls,list_of_orders,list_of_saved_selected_columns,Nxticks,Nyticks,
-    nsigma=3.0):
+    nsigma=3.0,tellurics=None):
         """
         We initialize with a figure object, three axis objects (in a list)
         the wls, the orders, the masks already made; and we do the first plot.
@@ -181,6 +181,22 @@ class mask_maker(object):
         #self.list_of_selected_columns upon init. Below there is a check to determine whether it
         #was empty or not, and whether the list of columns has the same length as the list of
         #orders.
+
+
+        self.list_of_1D_telluric_spectra = tellurics
+        self.list_of_selected_tellurics = [[]] * len(list_of_orders) #Empty list of
+        #lists. Much easier than self.list_of_selected_columns below.
+        #This is reset each time mask maker is run, though.
+        self.list_of_tcuts = [0] * len(list_of_orders) #This sets the tcut value to 0 in each
+        #order.
+        self.list_of_tmargins = [0] * len(list_of_orders)
+        self.T_slider = None #Initialise this variable so that it can be used when set_order
+        #is called.
+        self.M_slider = None
+        self.tmargin = 0
+
+
+
         if len(self.list_of_selected_columns) == 0:
             for i in range(self.N_orders):
                 self.list_of_selected_columns.append([])#Make a list of empty lists.
@@ -236,6 +252,11 @@ class mask_maker(object):
         self.img2=self.ax[1].pcolormesh(self.x2,self.y2,array2,vmin=self.vmin,vmax=self.vmax,
         cmap='hot')
         self.img3=self.ax[2].plot(self.x_axis,self.meanspec)
+        if tellurics:
+            self.tcut = self.list_of_tcuts[self.N]
+            self.tmargin = self.list_of_tmargins[self.N]
+            self.img4=self.ax[2].plot(self.x_axis,self.telluric1d*0.9*self.img_max,color='cornflowerblue')
+            self.img5=self.ax[2].plot(self.x_axis,self.telluric1d*0.0+0.9*self.img_max*self.tcut,color='cornflowerblue',alpha=0.7)
         self.ax[2].set_xlim((min(self.x_axis),max(self.x_axis)))
         self.ax[2].set_ylim(0,self.img_max)
         #This trick to associate a single CB to multiple axes comes from
@@ -295,10 +316,10 @@ class mask_maker(object):
         """
         import matplotlib.pyplot as plt
 
-        def plot_span(min,max):#This is a shorthand for drawing the polygons in the same style on
+        def plot_span(min,max,color='green'):#This is a shorthand for drawing the polygons in the same style on
             #all subplots.
             for subax in self.ax:#There are 3 ax objects in this list.
-                self.list_of_polygons.append(subax.axvspan(min,max,color='green',alpha=0.5))
+                self.list_of_polygons.append(subax.axvspan(min,max,color=color,alpha=0.5))
 
         #Start by removing any polygons that were saved by earlier calls to this
         #function after switching orders. Everything needs to be redrawn each time
@@ -325,6 +346,22 @@ class mask_maker(object):
             plot_span(min,max)
 
 
+        if self.list_of_1D_telluric_spectra:
+            columns = self.list_of_selected_tellurics[self.N]
+            if len(columns) > 0:
+                columns.sort()
+                min = columns[0]#start by opening a block
+                for i in range(1,len(columns)-1):
+                    dx = columns[i] - columns[i-1]
+                    if dx > 1:#As long as dx=1, we are passing through adjacently selected columns.
+                    #Only do something if dx>1, in which case we end the block and start a new one.
+                        max=columns[i-1]#then the previous column was the last element of the block
+                        plot_span(min,max,color='cornflowerblue')
+                        min=columns[i]#Begin a new block
+                #at the end, finish the last block:
+                max = columns[-1]
+                plot_span(min,max,color='cornflowerblue')
+
 
 
     def set_order(self,i):
@@ -341,7 +378,8 @@ class mask_maker(object):
 
         self.wl = self.list_of_wls[i]
         self.order = self.list_of_orders[i]
-
+        if self.list_of_1D_telluric_spectra:
+            self.telluric1d = self.list_of_1D_telluric_spectra[i]
         #Measure the shape of the current order
         self.nexp = np.shape(self.order)[0]
         self.npx = np.shape(self.order)[1]
@@ -355,7 +393,14 @@ class mask_maker(object):
         self.vmin = np.nanmedian(self.residual)-3.0*np.nanstd(self.residual)
         self.vmax = np.nanmedian(self.residual)+3.0*np.nanstd(self.residual)
 
-
+        # print('---')
+        if self.list_of_1D_telluric_spectra and self.T_slider:
+            # print(self.M_slider.val,self.list_of_tmargins[self.N],self.T_slider.val,self.list_of_tcuts[self.N])
+            self.T_slider.set_val(self.list_of_tcuts[self.N])
+            self.M_slider.set_val(self.list_of_tmargins[self.N])
+            # print(self.M_slider.val,self.list_of_tmargins[self.N],self.T_slider.val,self.list_of_tcuts[self.N])
+            # self.M_slider.set_val(0)
+            # print(self.M_slider.val,self.list_of_tmargins[self.N],self.T_slider.val,self.list_of_tcuts[self.N])
     def exit_add_mode(self):
         """
         This exits column-addition mode of the interface.
@@ -387,6 +432,25 @@ class mask_maker(object):
         self.bsub.hovercolor=self.col_passive[1]
         self.fig.canvas.draw()
         print('---------Exited sub mode')
+
+
+    def select_telluric_regions(self):
+        """This is loosely modelled after the add function below. It is triggered when selecting
+        areas based on the depth of telluric model lines."""
+        sel = self.x_axis[self.telluric1d < self.tcut]
+        self.list_of_selected_tellurics[self.N] = [] #First empty it again.
+        if int(self.tmargin) == 0:
+            for i in sel:
+                self.list_of_selected_tellurics[self.N].append(i)
+        else:
+            for i in sel:
+                for j in range(i-int(self.tmargin),i+int(self.tmargin)):
+                    self.list_of_selected_tellurics[self.N].append(j)
+        self.list_of_selected_tellurics[self.N]=list(set(self.list_of_selected_tellurics[self.N]))
+        # print(self.list_of_selected_tellurics[self.N])
+        self.draw_masked_areas()#Update the green areas.
+        self.fig.canvas.draw_idle()
+
 
     def add(self,event):
         """
@@ -648,7 +712,9 @@ class mask_maker(object):
             # self.cbar = self.fig.colorbar(self.img2, ax=self.ax.ravel().tolist(),aspect = 20)
             # self.cbarD = dcb.DraggableColorbar_fits(self.cbar,[self.img2],'hot')
             # self.cbarD.connect()
-
+            if self.list_of_1D_telluric_spectra:
+                self.img4=self.ax[2].plot(self.x_axis,self.telluric1d*0.9*self.img_max,color='cornflowerblue')#This autoscales with the set_ylim below
+                self.img5=self.ax[2].plot(self.x_axis,self.telluric1d*0.0+0.9*self.img_max*self.tcut,color='cornflowerblue',alpha=0.7)
         else:
             array1 = copy.deepcopy(self.order.ravel())
             array2 = copy.deepcopy(self.residual.ravel())
@@ -660,7 +726,9 @@ class mask_maker(object):
             self.img2.set_array(array2)
             self.img2.set_clim(vmin=self.vmin,vmax=self.vmax)
             self.img3[0].set_ydata(self.meanspec)
-
+            if self.list_of_1D_telluric_spectra:
+                self.img4[0].set_ydata(self.telluric1d*0.9*self.img_max)
+                self.img5[0].set_ydata(self.telluric1d*0.0+0.9*self.img_max*self.tcut)
 
         self.ax[0].set_title(f'Spectral order {self.N}  ({round(np.min(self.wl),1)} - {round(np.max(self.wl),1)} nm)')
         self.ax[2].set_ylim(0,self.img_max)
@@ -681,10 +749,22 @@ class mask_maker(object):
         """
         self.MW = int(self.MW_slider.val)
 
+    def slide_T_cutoff(self,event):
+        import copy
+        self.tcut = copy.deepcopy(self.T_slider.val)
+        self.list_of_tcuts[self.N] = copy.deepcopy(self.tcut)
+        self.img5[0].set_ydata(self.telluric1d*0.0+0.9*self.img_max*self.tcut)
+        self.select_telluric_regions()
+
+    def slide_T_margin(self,event):
+        import copy
+        self.tmargin = copy.deepcopy(self.M_slider.val)
+        self.list_of_tmargins[self.N] = copy.deepcopy(self.tmargin)
+        self.select_telluric_regions()
 
 
-
-def manual_masking(list_of_wls,list_of_orders,list_of_masks,Nxticks = 20,Nyticks = 10,saved = []):
+def manual_masking(list_of_wls,list_of_orders,list_of_masks,Nxticks = 20,Nyticks = 10,saved = [],
+    tellurics=None):
     import numpy as np
     import matplotlib.pyplot as plt
     import pdb
@@ -718,12 +798,15 @@ def manual_masking(list_of_wls,list_of_orders,list_of_masks,Nxticks = 20,Nyticks
 
     for i in range(len(list_of_orders)):
         dimtest(list_of_orders[i],[0,len(list_of_wls[i])],'list_of_orders in manual_masking()')
-        dimtest(list_of_masks[i],[len(list_of_orders[i]),len(list_of_wls[i])],'list_of_masks in manual_masking()')
+        dimtest(list_of_masks[i],[len(list_of_orders[i]),len(list_of_wls[i])],'list_of_masks in '
+        'manual_masking()')
 
 
     print('------Entered manual masking mode')
 
-    M = mask_maker(list_of_wls,list_of_orders,saved,Nxticks=Nxticks,Nyticks=Nyticks,nsigma=3.0) #Mask callback
+    M = mask_maker(list_of_wls,list_of_orders,saved,Nxticks=Nxticks,Nyticks=Nyticks,nsigma=3.0,
+    tellurics=tellurics)
+    #Mask callback.
     #This initializes all the parameters of the plot. Which order it is plotting, what
     #dimensions these have, the actual data arrays to plot; etc. Initialises on order 56.
     #I also dumped most of the buttons and callbacks into there; so this thing
@@ -736,32 +819,32 @@ def manual_masking(list_of_wls,list_of_orders,list_of_masks,Nxticks = 20,Nyticks
 
 
     #The button to add a region to the mask:
-    rax_sub = plt.axes([0.8, 0.4, 0.14, 0.05])
+    rax_sub = plt.axes([0.8, 0.5, 0.14, 0.05])
     M.bsub = Button(rax_sub, ' Unmask columns ')
     M.bsub.on_clicked(M.subtract)
 
     #The button to add a region to the mask:
-    rax_add = plt.axes([0.8, 0.48, 0.14, 0.05])
+    rax_add = plt.axes([0.8, 0.57, 0.14, 0.05])
     M.badd = Button(rax_add, ' Mask columns ')
     M.badd.color=M.col_passive[0]
     M.badd.hovercolor=M.col_passive[1]
     M.add_connector = M.badd.on_clicked(M.add)
 
     #The button to add a region to the mask:
-    rax_all = plt.axes([0.8, 0.56, 0.14, 0.05])
+    rax_all = plt.axes([0.8, 0.64, 0.14, 0.05])
     M.ball = Button(rax_all, ' Apply to all ')
     M.ball.on_clicked(M.applyall)
 
-    rax_future = plt.axes([0.8, 0.64, 0.14, 0.05])
+    rax_future = plt.axes([0.8, 0.71, 0.14, 0.05])
     M.ballf = Button(rax_future, ' Apply to all above')
     M.ballf.on_clicked(M.applyallfuture)
 
-    rax_clearentire = plt.axes([0.8, 0.72, 0.14, 0.05])
+    rax_clearentire = plt.axes([0.8, 0.78, 0.14, 0.05])
     M.bcent = Button(rax_clearentire, ' Unmask order ')
     M.bcent.on_clicked(M.cleartotal)
 
     #The button to add a region to the mask:
-    rax_entire = plt.axes([0.8, 0.8, 0.14, 0.05])
+    rax_entire = plt.axes([0.8, 0.85, 0.14, 0.05])
     M.bent = Button(rax_entire, ' Mask order ')
     M.bent.on_clicked(M.applytotal)
 
@@ -772,14 +855,26 @@ def manual_masking(list_of_wls,list_of_orders,list_of_masks,Nxticks = 20,Nyticks
     # radio = RadioButtons(rax_atv,clabels)
     # radio.on_clicked(M.atv)
 
+    if tellurics:
+        rax_slider = plt.axes([0.8, 0.4, 0.14, 0.02])
+        rax_slider.set_title('Telluric cutoff & margin')
+        M.T_slider = Slider(rax_slider,'', 0,1,valinit=0,valstep=0.025)#Store the slider in the model class
+        M.T_slider.on_changed(M.slide_T_cutoff)
+        rax_slider = plt.axes([0.8, 0.35, 0.14, 0.02])
+        M.M_slider = Slider(rax_slider,'',0,10,valinit=0,valstep=1)
+        M.M_slider.on_changed(M.slide_T_margin)
+
+
+
+
     #The mask width:
-    rax_slider = plt.axes([0.8, 0.3, 0.14, 0.02])
+    rax_slider = plt.axes([0.8, 0.24, 0.14, 0.02])
     rax_slider.set_title('Mask width')
     M.MW_slider = Slider(rax_slider,'', 1,200,valinit=M.MW,valstep=1)#Store the slider in the model class
     M.MW_slider.on_changed(M.slide_maskwidth)
 
     #The slider to cycle through orders:
-    rax_slider = plt.axes([0.8, 0.2, 0.14, 0.02])
+    rax_slider = plt.axes([0.8, 0.17, 0.14, 0.02])
     rax_slider.set_title('Order')
     M.mask_slider = Slider(rax_slider,'', 0,M.N_orders-1,valinit=M.N,valstep=1)#Store the slider in the model class
     M.mask_slider.on_changed(M.slide_order)
@@ -809,7 +904,7 @@ def manual_masking(list_of_wls,list_of_orders,list_of_masks,Nxticks = 20,Nyticks
     #When pressing "save", the figure is closed, the suspesion caused by plt.show() is
     #lifted and we continue to exit this GUI function, as its job has been done:
     #return all the columns that were selected by the user.
-    return(M.list_of_selected_columns)
+    return(M.list_of_selected_columns,M.list_of_selected_tellurics)
 
 
 #The following functions deal with saving and loading the clipped and selected pixels
@@ -858,7 +953,7 @@ def write_columns_to_file(dp,maskname,list_of_selected_columns):
     print(f'---Saving list of masked columns to {str(outpath)}')
     with open(outpath, 'wb') as f: pickle.dump(list_of_selected_columns, f)
 
-def write_mask_to_file(dp,maskname,list_of_masks_auto,list_of_masks_manual=[]):
+def write_mask_to_file(dp,maskname,list_of_masks_auto,list_of_masks_manual=[],list_of_masks_tel=[]):
     import sys
     from pathlib import Path
     import pickle
@@ -870,6 +965,7 @@ def write_mask_to_file(dp,maskname,list_of_masks_auto,list_of_masks_manual=[]):
     typetest(maskname,str,'maskname in write_mask_to_file()')
     typetest(list_of_masks_auto,list,'list_of_masks_auto in write_mask_to_file()')
     typetest(list_of_masks_manual,list,'list_of_masks_manual in write_mask_to_file()')
+    typetest(list_of_masks_tel,list,'list_of_masks_tel in write_mask_to_file()')
     lentest(list_of_masks_auto,len(list_of_masks_manual),'list_of_masks_auto in '
     'write_mask_to_file()')
 
@@ -890,6 +986,9 @@ def write_mask_to_file(dp,maskname,list_of_masks_auto,list_of_masks_manual=[]):
     if len(list_of_masks_manual) > 0:
         with open(str(outpath)+'_manual.pkl', 'wb') as f: pickle.dump(list_of_masks_manual,f)
         # ut.save_stack(str(outpath)+'_manual.fits',list_of_masks_manual)
+    if len(list_of_masks_tel) > 0:
+        with open(str(outpath)+'_telluric.pkl', 'wb') as f: pickle.dump(list_of_masks_tel,f)
+        # ut.save_stack(str(outpath)+'_tel.fits',list_of_masks_tel)
 
 def convert_mask_to_pkl(dp,maskname):
     """This is a continuity function to deal with updating mask fits files to pkl files without
@@ -946,9 +1045,10 @@ def apply_mask_from_file(dp,maskname,list_of_orders):
 
     inpath_auto = Path(dp)/(maskname+'_auto.pkl')
     inpath_man = Path(dp)/(maskname+'_manual.pkl')
+    inpath_tel = Path(dp)/(maskname+'_telluric.pkl')
 
     if os.path.isfile(inpath_auto) ==  False and os.path.isfile(inpath_man) == False:
-        raise Exception(f'FileNotFoundError in apply_mask_from_file: Both mask files named '
+        raise Exception(f'FileNotFoundError in apply_mask_from_file: Mask files named '
         f'{maskname} do not exist at {str(dp)}. Rerun with make_maske = True.')
 
     #At this point either of the mask files is determined to exist.
@@ -972,6 +1072,7 @@ def apply_mask_from_file(dp,maskname,list_of_orders):
         #Checks have passed. Add the mask to the list of orders.
         for i in range(N):
             list_of_orders[i]+=list_of_masks_auto[i]
+        del list_of_masks_auto
 
     if os.path.isfile(inpath_man) ==  True:
         print(f'------Applying manually defined mask from {inpath_man}')
@@ -979,16 +1080,40 @@ def apply_mask_from_file(dp,maskname,list_of_orders):
         with open(inpath_man,"rb") as f:
             list_of_masks_man = pickle.load(f)
         Nm = len(list_of_masks_man)
-        err = f'ERROR in apply_mask_from_file: List_of_orders and list_of_masks_auto do not have the same length ({N} vs {Nm}), meaning that the number of orders provided and the number of orders onto which the masks were created are not the same. This could have happened if you copy-pased mask_auto from one dataset to another. This is not recommended anyway, as bad pixels / outliers are expected to be in different locations in different datasets.'
+        err = f'ERROR in apply_mask_from_file: List_of_orders and list_of_masks_manual do not have '
+        'the same length ({N} vs {Nm}), meaning that the number of orders provided and the number '
+        'of orders onto which the masks were created are not the same. This could have happened if '
+        'you copy-pased mask_auto from one dataset to another. This is not recommended anyway, as '
+        'bad pixels / outliers are expected to be in different locations in different datasets.'
         if Nm != N:
             raise Exception(err)
         for i in range(N):
             list_of_orders[i]+=list_of_masks_man[i]
+        del list_of_masks_man
+
+    if os.path.isfile(inpath_tel) ==  True:
+        print(f'------Applying telluric mask from {inpath_tel}')
+        # cube_of_masks_man = fits.getdata(inpath_man)
+        with open(inpath_tel,"rb") as f:
+            list_of_masks_tel = pickle.load(f)
+        Nm = len(list_of_masks_tel)
+        err = f'ERROR in apply_mask_from_file: List_of_orders and list_of_masks_telluric do not '
+        f'have the same length ({N} vs {Nm}), meaning that the number of orders provided and the '
+        'number of orders onto which the masks were created are not the same. This could have '
+        'happened if you copy-pased mask_auto from one dataset to another. This is not recommended '
+        'anyway, as bad pixels / outliers are expected to be in different locations in different '
+        'datasets.'
+        if Nm != N:
+            raise Exception(err)
+        for i in range(N):
+            list_of_orders[i]+=list_of_masks_tel[i]
+        del list_of_masks_tel
+
     return(list_of_orders)
 
 
 
-def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False):
+def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False,list_of_Ts=None):
     """
     This code takes the list of orders and masks out bad pixels.
     It combines two steps, a simple sigma clipping step and a manual step, where
@@ -1006,6 +1131,10 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False):
     that was computed automatically, the second is the mask that was constructed
     manually. This is done so that the manual mask can be transplanted onto another
     dataset, or saved under a different file-name, to limit repetition of work.
+
+    Set list_of_Ts to the list of interpolated and averaged (1D) telluric orders
+    (matching list_of_wls) to allow for the automatic masking of telluric lines.
+
 
     At the end of the routine, the two masks are merged into a single list, and
     applied to the list of orders.
@@ -1082,26 +1211,31 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False):
 
 
     list_of_masks_manual = []
+    list_of_masks_telluric = []
     if manual == True:
 
 
         previous_list_of_masked_columns = load_columns_from_file(dp,maskname,mode='relaxed')
-        list_of_masked_columns = manual_masking(list_of_wls,list_of_orders,list_of_masks,saved = previous_list_of_masked_columns)
+        list_of_masked_columns,list_of_masked_tellurics = manual_masking(list_of_wls,list_of_orders,
+        list_of_masks,saved = previous_list_of_masked_columns,tellurics = list_of_Ts)
         print('------Successfully concluded manual mask.')
         write_columns_to_file(dp,maskname,list_of_masked_columns)
-
         print('------Building manual mask from selected columns')
         for i in range(N):
             order = list_of_orders[i]
             N_exp = np.shape(order)[0]
             N_px = np.shape(order)[1]
             list_of_masks_manual.append(np.zeros((N_exp,N_px)))
+            list_of_masks_telluric.append(np.zeros((N_exp,N_px)))
             for j in list_of_masked_columns[i]:
                 list_of_masks_manual[i][:,int(j)] = np.nan
+            for j in list_of_masked_tellurics[i]:
+                list_of_masks_telluric[i][:,int(j)] = np.nan #These are like list_of_orders but with
+                #NaNs in place. Such that they can be multiplied into list_of_orders.
 
     #We write 1 or 2 mask files here. The list of manual masks
     #and list_of_masks (auto) are either filled, or either is an emtpy list if
     #c_thresh was set to zero or manual was set to False (because they were defined
     #as empty lists initially, and then not filled with anything).
-    write_mask_to_file(dp,maskname,list_of_masks,list_of_masks_manual)
+    write_mask_to_file(dp,maskname,list_of_masks,list_of_masks_manual,list_of_masks_telluric)
     return(0)

@@ -463,8 +463,10 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     if do_telluric_correction == True and n_orders > 0:
         ut.tprint('---Applying telluric correction')
         telpath = dp/'telluric_transmission_spectra.pkl'
-        list_of_orders,list_of_sigmas = telcor.apply_telluric_correction(telpath,list_of_wls,
-        list_of_orders,list_of_sigmas,parallel=parallel) # this is in parallel now
+        list_of_orders,list_of_sigmas,list_of_Ts = telcor.apply_telluric_correction(telpath,
+        list_of_wls,list_of_orders,list_of_sigmas,parallel=parallel) # this is in parallel now
+    else:
+        list_of_Ts = None
 
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='blue')
     # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='blue',alpha=0.5)
@@ -504,11 +506,16 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     list_of_orders_cor = []
     list_of_sigmas_cor = []
     list_of_wls_cor = []
+    list_of_Ts_cor = []
+    list_of_Ts_1D = []
     for i in range(len(list_of_wls)):
         order = list_of_orders[i]
         sigma = list_of_sigmas[i]
         order_cor = order*0.0
         sigma_cor = sigma*0.0
+        if do_telluric_correction:
+            T_order = list_of_Ts[i]
+            T_cor = order * 0.0
         if list_of_wls[i].ndim==2:
             wl_cor = list_of_wls[i][0]#Interpolate onto the 1st wavelength axis of the series if 2D.
         elif list_of_wls[i].ndim==1:
@@ -539,9 +546,17 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                     #No interpolation at all:
                     order_cor[j]=order[j]
                     sigma_cor[j]=sigma[j]
+            if do_telluric_correction:
+                T_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j],T_order[j],
+                bounds_error=False,fill_value=1)(wl_cor)
+
+
+
         list_of_orders_cor.append(order_cor)
         list_of_sigmas_cor.append(sigma_cor)
         list_of_wls_cor.append(wl_cor)
+        if do_telluric_correction:
+            list_of_Ts_cor.append(T_cor)
         ut.statusbar(i,np.arange(len(list_of_wls)))
     # plt.plot(list_of_wls[60][3],list_of_orders[60][3]/list_of_sigmas[60][3],color='blue')
     # plt.plot(list_of_wls_cor[60],list_of_orders_cor[60][3]/list_of_sigmas_cor[60][3],color='red')
@@ -549,6 +564,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     list_of_orders = list_of_orders_cor
     list_of_sigmas = list_of_sigmas_cor
     list_of_wls = list_of_wls_cor
+    if do_telluric_correction:
+        for i in range(len(list_of_Ts_cor)):
+            list_of_Ts_1D.append(np.nanmean(list_of_Ts_cor[i],axis=0))
     #Now the spectra are telluric corrected and velocity corrected, and the wavelength axes have
     #been collapsed from 2D to 1D (if they were 2D in the first place, e.g. for ESPRESSO).
 
@@ -557,21 +575,23 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
         'was before. Something went wrong during telluric correction or velocity correction.')
 
-
     #Compute / create a mask and save it to file (or not)
     if make_mask == True and len(list_of_orders) > 0:
         if do_colour_correction == True:
             print('---Constructing mask with intra-order colour correction applied')
-            masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,20.0,5.0,manual=True)
+            masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,20.0,5.0,manual=True,
+            list_of_Ts=list_of_Ts_1D)
             #There are some hardcoded values here.
             #Should set w to np.max([np.min([math.ceil(npx_window/n_exp),100]),10]) for a window that is at
             #least 10 and at most 100px wide; but otherwise with a number of npx_window pixels
             #guaranteed over which to take standard deviations.
+            #List of Ts is set to None if telluric correction is not applied.
         else:
             ut.tprint('---Constructing mask WITHOUT intra-order colour correction applied.')
             ut.tprint('---Switch on colour correction if you see colour variations in the 2D '
                 'spectra.')
-            masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,20.0,5.0,manual=True)
+            masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,20.0,5.0,manual=True,
+            list_of_Ts=list_of_Ts_1D)
         if apply_mask == False:
             ut.tprint('---WARNING in run_instance: Mask was made but is not applied to data '
                 '(apply_mask == False)')
@@ -594,9 +614,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         #This is the point from which model injection will also start.
         #List_of_orders and list_of_wls are taken to inject the models into below,
         #after first the data is correlated.
-
-
-
 
 
     #Normalize the orders to their average flux in order to effectively apply a broad-band colour
@@ -1436,7 +1453,6 @@ config=False,save_figure=True,skysub=False):
     for i in range(len(sorting)): print(f'------{obstype[sorting[i]]}  {date[sorting[i]]}  '
         f'{mjd[sorting[i]]}')
 
-    #CONTINUE HERE! SPLIT OFF MOLECFIT STRAIGHT AND SAVE 2D WAVE FILES!
 
     #If we run diagnostic cross-correlations, we prepare to store output:
     if measure_RV:

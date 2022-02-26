@@ -521,7 +521,6 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas,p
     typetest(wlT,list,'list of telluric wave-axes in apply_telluric_correction()')
     typetest(fxT,list,'list of telluric transmission spectra in apply_telluric_correction()')
 
-
     No = len(list_of_wls)#Number of orders.
     x = np.arange(No, dtype=float) #fun.findgen(No)
     Nexp = len(wlT)
@@ -540,6 +539,7 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas,p
 
     def telluric_correction_order(i):
         order = list_of_orders[i]
+        Ts = order*0.0
         order_cor = order*0.0
         error  = list_of_sigmas[i]
         error_cor = error*0.0
@@ -557,17 +557,18 @@ def apply_telluric_correction(inpath,list_of_wls,list_of_orders,list_of_sigmas,p
             order_cor[j]=order[j]/T_i
             error_cor[j]=error[j]/T_i #I checked that this works because the SNR before and after
             #telluric correction is identical.
+            Ts[j] = T_i#THIS CAN ALL BE VECTORISED FOR SURE.
 
-        return (order_cor, error_cor)
+        return (order_cor, error_cor, Ts)
 
     # executing all No jobs simultaneously
     if parallel:
-        list_of_orders_cor, list_of_sigmas_cor = zip(*Parallel(n_jobs=No)(delayed(
+        list_of_orders_cor, list_of_sigmas_cor, list_of_Ts = zip(*Parallel(n_jobs=No)(delayed(
         telluric_correction_order)(i) for i in range(No)))
     else:
-        list_of_orders_cor, list_of_sigmas_cor = zip(*[telluric_correction_order(i)
+        list_of_orders_cor, list_of_sigmas_cor, list_of_Ts = zip(*[telluric_correction_order(i)
         for i in range(No)])
-    return(list_of_orders_cor,list_of_sigmas_cor)
+    return(list_of_orders_cor,list_of_sigmas_cor,list_of_Ts)
 
 
 def set_molecfit_config(configpath):

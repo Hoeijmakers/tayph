@@ -17,7 +17,7 @@ __all__ = [
 
 
 
-def guide_plot(dp,dv=0):
+def guide_plot(dp,dv=0,frame='air'):
     import tayph.models as models
     import matplotlib.pyplot as plt
     import numpy as np
@@ -35,7 +35,9 @@ def guide_plot(dp,dv=0):
     with open(s1d_path,"rb") as p:
         s1dhdr_sorted,s1d_sorted,wave1d_sorted = pickle.load(p)
 
+
     w = wave1d_sorted[0]/10#Convert to nms.
+
 
 
     s1d_block=np.zeros((len(s1d_sorted),len(w)))
@@ -46,8 +48,10 @@ def guide_plot(dp,dv=0):
     # s = np.nanmean(s1d_sorted,axis=0)
     s=np.nanmean(s1d_block,axis=0)
 
-
-    wlt=ops.vactoair(wlt*(1+dv*u.km/u.s/const.c))
+    if frame=='air':
+        wlt=ops.vactoair(wlt*(1+dv*u.km/u.s/const.c))
+    else:
+        wlt*=(1+dv*u.km/u.s/const.c)
     fxt = fxt[(wlt>np.min(w)) & (wlt<np.max(w))]
     wlt = wlt[(wlt>np.min(w)) & (wlt<np.max(w))]
     plt.plot(w,s/np.nanmedian(s),linewidth=0.8,alpha=0.7,label='S1D data')

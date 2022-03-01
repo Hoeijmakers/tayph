@@ -51,7 +51,7 @@ def guide_plot(dp,dv=0,frame='air'):
     if frame=='air':
         wlt=ops.vactoair(wlt*(1+dv*u.km/u.s/const.c))
     else:
-        wlt*=(1+dv*u.km/u.s/const.c)
+        wlt*=(1+dv*u.km/u.s/const.c).value
     fxt = fxt[(wlt>np.min(w)) & (wlt<np.max(w))]
     wlt = wlt[(wlt>np.min(w)) & (wlt<np.max(w))]
     plt.plot(w,s/np.nanmedian(s),linewidth=0.8,alpha=0.7,label='S1D data')

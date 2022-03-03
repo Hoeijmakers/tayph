@@ -42,7 +42,8 @@ __all__ = [
     "read_espresso",
     "read_uves",
     "read_spirou",
-    "read_gianob"
+    "read_gianob",
+    "read_fies"
 ]
 
 
@@ -158,6 +159,51 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
     'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
     'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
     return(output)
+
+def read_fies():
+    from astropy.time import Time
+    from astropy.coordinates import SkyCoord, EarthLocation
+    from astropy import units as u
+    from system_parameters import calculateberv
+
+    catkeyword = 'IMAGECAT'
+    bervkeyword = 'HIERARCH TNG DRS BERV'
+
+    output = "Read FIES File"
+    print("READ FIES IS DOING SOMETHING!")
+    print()
+    print()
+
+    # The following variables define lists in which all the necessary data will be stored.
+    framename = []
+    header = []
+    s1dhdr = []
+    obstype = []
+    texp = np.array([])
+    date = []
+    mjd = np.array([])
+    s1dmjd = np.array([])
+    npx = np.array([])
+    norders = np.array([])
+    e2ds = []
+    blaze = []
+    s1d = []
+    wave1d = []
+    airmass = np.array([])
+    berv = np.array([])
+    wave = []
+
+    hdul = fits.open("/Users/nicholasborsato/mysandbox/mysandbox/1paper/read_fies/FIES-N1/FIDi180396_step011_merge.fits")
+    hdr = hdul[0].header
+    lapalma_loc = EarthLocation.from_geocentric(x=hdr['OBSGEO-X'], y=hdr['OBSGEO-Y'], z=hdr['OBSGEO-Z'], unit=u.m)
+    sc = SkyCoord(ra=hdr['RA']* u.deg, dec=hdr['DEC'] * u.deg)
+    barycorr = sc.radial_velocity_correction(obstime=Time(hdr['DATE-OBS']), location=lapalma_loc)
+
+    print(barycorr.to(u.km/u.s))
+
+    #print(calculateberv(hdr['DATE-OBS'],))
+
+    return output
 
 def read_carmenes(inpath,filelist,channel,construct_s1d=True):
     """

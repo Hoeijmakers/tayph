@@ -177,7 +177,7 @@ def get_model(name,library='models/library',root='models',is_binary=False):
             modelarray = np.loadtxt(modelpath).T#Two-dimensional array with wavelength positions of
             #spectral lines on the first column and weights on the second column (transposed).
         else:
-            raise RuntimeError(f'Model file {modelpath} from library {str(library)} is required to '
+            raise RunTimeError(f'Model file {modelpath} from library {str(library)} is required to '
             'have extension .fits or .dat.')
     else:
         raise FileNotFoundError(f'Model file {modelpath} from library {str(library)} does not '
@@ -263,6 +263,7 @@ intransit=True):
         wl_maxs.append(np.max(wlo))
 
     if np.min(wlm) > np.min(wl_mins) or np.max(wlm) < np.max(wl_maxs):
+        pdb.set_trace()
         raise RuntimeError('in model injection: Data grid falls (partly) outside of model range. '
         'Use a model with a wavelength range that encapsulates the data fully.')
 

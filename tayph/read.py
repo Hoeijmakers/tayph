@@ -202,7 +202,6 @@ def read_fies():
                                     hdr['DEC'],
                                     "FIES")
 
-    print(barycorr.to(u.km/u.s))
     print(berv_correction)
 
     #print(calculateberv(hdr['DATE-OBS'],))

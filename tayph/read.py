@@ -164,7 +164,7 @@ def read_fies():
     from astropy.time import Time
     from astropy.coordinates import SkyCoord, EarthLocation
     from astropy import units as u
-    from system_parameters import calculateberv
+    from tayph.system_parameters import calculateberv
 
     catkeyword = 'IMAGECAT'
     bervkeyword = 'HIERARCH TNG DRS BERV'
@@ -198,8 +198,14 @@ def read_fies():
     lapalma_loc = EarthLocation.from_geocentric(x=hdr['OBSGEO-X'], y=hdr['OBSGEO-Y'], z=hdr['OBSGEO-Z'], unit=u.m)
     sc = SkyCoord(ra=hdr['RA']* u.deg, dec=hdr['DEC'] * u.deg)
     barycorr = sc.radial_velocity_correction(obstime=Time(hdr['DATE-OBS']), location=lapalma_loc)
+    berv_correction = calculateberv(Time(hdr['DATE-OBS']),
+                                    [hdr['OBSGEO-X'], hdr['OBSGEO-Y'], hdr['OBSGEO-Z']],
+                                    hdr['RA'],
+                                    hdr['DEC'],
+                                    "FIES")
 
     print(barycorr.to(u.km/u.s))
+    print(berv_correction)
 
     #print(calculateberv(hdr['DATE-OBS'],))
 
@@ -555,7 +561,11 @@ def read_uves(inpath,filelist,mode):
             mjd=np.append(mjd,hdr['MJD-OBS'])
             norders=np.append(norders,norders_tmp)
             airmass=np.append(airmass,0.5*(hdr[Zstartkeyword]+hdr[Zendkeyword]))#This is an approximation where we take the mean airmass.
-            berv_i=sp.calculateberv(hdr['MJD-OBS'],hdr['HIERARCH ESO TEL GEOLAT'],hdr['HIERARCH ESO TEL GEOLON'],hdr['HIERARCH ESO TEL GEOELEV'],hdr['RA'],hdr['DEC'])
+            berv_i=sp.calculateberv(hdr['MJD-OBS'],
+                                    [hdr['HIERARCH ESO TEL GEOLAT'],hdr['HIERARCH ESO TEL GEOLON'],hdr['HIERARCH ESO TEL GEOELEV']],
+                                    hdr['RA'],
+                                    hdr['DEC'],
+                                    "UVES-Red")
             berv = np.append(berv,berv_i)
             hdr1d['HIERARCH ESO QC BERV']=berv_i#Append the berv here using the ESPRESSO berv keyword, so that it can be used in molecfit later.
             s1dhdr.append(hdr1d)

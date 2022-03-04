@@ -243,14 +243,52 @@ def astropyberv(dp):
     return berv
 
 
-def calculateberv(date,lat,long,elev,ra,dec):
+# def calculateberv(date,lat,long,elev,ra,dec):
+#     """This is a copy of the astropyberv above, but as a function for a single
+#     date in mjd. lat, long, RA, DEC and elev are in units of degrees and meters."""
+#     from astropy.time import Time
+#     from astropy import units as u
+#     from astropy.coordinates import SkyCoord, EarthLocation
+#     observatory = EarthLocation.from_geodetic(lat=lat*u.deg, lon=long*u.deg, height=elev*u.m)
+#     sc = SkyCoord(f'{ra} {dec}', unit=(u.hourangle, u.deg))
+#     barycorr = sc.radial_velocity_correction(obstime=Time(date,format='mjd'), location=observatory).to(u.km/u.s)
+#     return(barycorr.value)
+
+def calculateberv(date,earth_coordinates,ra,dec,mode=False):
     """This is a copy of the astropyberv above, but as a function for a single
-    date in mjd. lat, long, RA, DEC and elev are in units of degrees and meters."""
+    date in mjd. lat, long, RA, DEC and elev are in units of degrees and meters.
+
+
+    Parameters
+    ----------
+    mode : str
+        Specify the spectrograph mode you wish to use
+
+    Returns
+    -------
+    barycorr : float
+        The correction for the barycentric velocity
+
+    """
     from astropy.time import Time
     from astropy import units as u
     from astropy.coordinates import SkyCoord, EarthLocation
-    observatory = EarthLocation.from_geodetic(lat=lat*u.deg, lon=long*u.deg, height=elev*u.m)
-    sc = SkyCoord(f'{ra} {dec}', unit=(u.hourangle, u.deg))
+
+    if mode == False:
+        raise ValueError(f"No mode specified for the function system_parameters")
+
+    elif mode == "FIES":
+        observatory = EarthLocation.from_geocentric(x=earth_coordinates[0],
+                                                    y=earth_coordinates[1],
+                                                    z=earth_coordinates[2],
+                                                    unit=u.m)
+        sc = SkyCoord(ra=ra * u.deg, dec=dec * u.deg)
+    elif mode in ['UVES-red', 'UVES-blue']:
+        observatory = EarthLocation.from_geodetic(lat=earth_coordinates[0]*u.deg,
+                                                  lon=earth_coordinates[1]*u.deg,
+                                                  height=earth_coordinates[2]*u.m)
+        sc = SkyCoord(f'{ra} {dec}', unit=(u.hourangle, u.deg))
+
     barycorr = sc.radial_velocity_correction(obstime=Time(date,format='mjd'), location=observatory).to(u.km/u.s)
     return(barycorr.value)
 

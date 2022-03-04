@@ -201,7 +201,8 @@ def read_fies():
                                     hdr['RA'],
                                     hdr['DEC'],
                                     "FIES")
-
+    print()
+    print()
     print(berv_correction)
 
     #print(calculateberv(hdr['DATE-OBS'],))

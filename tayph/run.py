@@ -1354,7 +1354,7 @@ save_figure=True,skysub=False):
     elif mode == 'HIRES-MAKEE':
         DATA = read_hires_makee(inpath, filelist, construct_s1d=read_s1d)
     elif mode == 'FIES':
-        DATA = read_fies()
+        DATA = read_fies(inpath,filelist)
         raise ValueError("FIES Mode Under Developement!")
     else:
         raise ValueError(f'Error in read_e2ds: {mode} is not a valid instrument.')

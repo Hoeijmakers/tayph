@@ -160,14 +160,16 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
     'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
     return(output)
 
-def read_fies():
+def read_fies(inpath,filelist):
     from astropy.time import Time
     from astropy.coordinates import SkyCoord, EarthLocation
     from astropy import units as u
     from tayph.system_parameters import calculateberv
 
     catkeyword = 'IMAGECAT'
-    bervkeyword = 'HIERARCH TNG DRS BERV'
+    #bervkeyword = 'HIERARCH TNG DRS BERV'
+    Zstartkeyword = 'AIRMASS'
+    Zendkeyword = 'AIRMASS'  # These are the same because FIES doesnt have start and end keywords.
 
     output = "Read FIES File"
     print("READ FIES IS DOING SOMETHING!")
@@ -196,14 +198,18 @@ def read_fies():
     hdul = fits.open("/Users/nicholasborsato/mysandbox/mysandbox/1paper/read_fies/FIES-N1/FIDi180396_step011_merge.fits")
     hdr = hdul[0].header
 
-    berv_correction = sp.calculateberv(Time(hdr['DATE-OBS']),
-                                    [hdr['OBSGEO-X'], hdr['OBSGEO-Y'], hdr['OBSGEO-Z']],
-                                    hdr['RA'],
-                                    hdr['DEC'],
-                                    "FIES")
+    for i in range(len(filelist)):
+        if filelist[i].endswith('wave.fits'):
+            print(i)
+            print(f'------{filelist[i]}', end="\r")
+    # berv_i = sp.calculateberv(Time(hdr['DATE-OBS']),
+    #                                 [hdr['OBSGEO-X'], hdr['OBSGEO-Y'], hdr['OBSGEO-Z']],
+    #                                 hdr['RA'],
+    #                                 hdr['DEC'],
+    #                                 "FIES")
+    #
+    # berv = np.append(berv, berv_i)
 
-    print(barycorr.to(u.km/u.s))
-    print(berv_correction)
 
     #print(calculateberv(hdr['DATE-OBS'],))
 

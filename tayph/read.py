@@ -201,8 +201,8 @@ def read_fies():
                                     hdr['RA'],
                                     hdr['DEC'],
                                     "FIES")
-    print()
-    print()
+
+    print(barycorr.to(u.km/u.s))
     print(berv_correction)
 
     #print(calculateberv(hdr['DATE-OBS'],))
@@ -961,7 +961,7 @@ def read_hires_makee(inpath,filelist,construct_s1d=True,N_CCD=3):
                 header.append(hdr1)
                 obstype.append('SCIENCE')
                 texp=np.append(texp,float(hdr1['EXPOSURE']))
-                date.append(hdr1['DATE-OBS']+'T'+str(hdr1['UTC']))#.replace(':','-'))
+                date.append(hdr1['DATE-OBS']+'T'+str(hdr1['UTC']).replace(':','-'))
                 mjd=np.append(mjd,float(hdr1['MJD']))
                 npx=np.append(npx,int(hdr1['NAXIS1']))
                 norders=np.append(norders,int(hdr1['NAXIS2'])+int(hdr2['NAXIS2'])+

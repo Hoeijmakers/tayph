@@ -155,7 +155,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     import os
     import sys
     import glob
-    import math
     import distutils.util
     import pickle
     import copy
@@ -463,10 +462,8 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     if do_telluric_correction == True and n_orders > 0:
         ut.tprint('---Applying telluric correction')
         telpath = dp/'telluric_transmission_spectra.pkl'
-        list_of_orders,list_of_sigmas,list_of_Ts = telcor.apply_telluric_correction(telpath,
-        list_of_wls,list_of_orders,list_of_sigmas,parallel=parallel) # this is in parallel now
-    else:
-        list_of_Ts = None
+        list_of_orders,list_of_sigmas = telcor.apply_telluric_correction(telpath,list_of_wls,
+        list_of_orders,list_of_sigmas,parallel=parallel) # this is in parallel now
 
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='blue')
     # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='blue',alpha=0.5)
@@ -506,16 +503,11 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     list_of_orders_cor = []
     list_of_sigmas_cor = []
     list_of_wls_cor = []
-    list_of_Ts_cor = []
-    list_of_Ts_1D = []
     for i in range(len(list_of_wls)):
         order = list_of_orders[i]
         sigma = list_of_sigmas[i]
         order_cor = order*0.0
         sigma_cor = sigma*0.0
-        if do_telluric_correction:
-            T_order = list_of_Ts[i]
-            T_cor = order * 0.0
         if list_of_wls[i].ndim==2:
             wl_cor = list_of_wls[i][0]#Interpolate onto the 1st wavelength axis of the series if 2D.
         elif list_of_wls[i].ndim==1:
@@ -546,17 +538,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                     #No interpolation at all:
                     order_cor[j]=order[j]
                     sigma_cor[j]=sigma[j]
-            if do_telluric_correction:
-                T_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j],T_order[j],
-                bounds_error=False,fill_value=1)(wl_cor)
-
-
-
         list_of_orders_cor.append(order_cor)
         list_of_sigmas_cor.append(sigma_cor)
         list_of_wls_cor.append(wl_cor)
-        if do_telluric_correction:
-            list_of_Ts_cor.append(T_cor)
         ut.statusbar(i,np.arange(len(list_of_wls)))
     # plt.plot(list_of_wls[60][3],list_of_orders[60][3]/list_of_sigmas[60][3],color='blue')
     # plt.plot(list_of_wls_cor[60],list_of_orders_cor[60][3]/list_of_sigmas_cor[60][3],color='red')
@@ -564,9 +548,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     list_of_orders = list_of_orders_cor
     list_of_sigmas = list_of_sigmas_cor
     list_of_wls = list_of_wls_cor
-    if do_telluric_correction:
-        for i in range(len(list_of_Ts_cor)):
-            list_of_Ts_1D.append(np.nanmean(list_of_Ts_cor[i],axis=0))
     #Now the spectra are telluric corrected and velocity corrected, and the wavelength axes have
     #been collapsed from 2D to 1D (if they were 2D in the first place, e.g. for ESPRESSO).
 
@@ -575,23 +556,18 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
         'was before. Something went wrong during telluric correction or velocity correction.')
 
+
     #Compute / create a mask and save it to file (or not)
     if make_mask == True and len(list_of_orders) > 0:
         if do_colour_correction == True:
             print('---Constructing mask with intra-order colour correction applied')
-            masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,20.0,5.0,manual=True,
-            list_of_Ts=list_of_Ts_1D)
-            #There are some hardcoded values here.
-            #Should set w to np.max([np.min([math.ceil(npx_window/n_exp),100]),10]) for a window that is at
-            #least 10 and at most 100px wide; but otherwise with a number of npx_window pixels
-            #guaranteed over which to take standard deviations.
-            #List of Ts is set to None if telluric correction is not applied.
+            masking.mask_orders(list_of_wls,ops.normalize_orders(list_of_orders,list_of_sigmas,
+            colourdeg)[0],dp,maskname,20.0,5.0,manual=True)
         else:
             ut.tprint('---Constructing mask WITHOUT intra-order colour correction applied.')
             ut.tprint('---Switch on colour correction if you see colour variations in the 2D '
                 'spectra.')
-            masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,20.0,5.0,manual=True,
-            list_of_Ts=list_of_Ts_1D)
+            masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,20.0,5.0,manual=True)
         if apply_mask == False:
             ut.tprint('---WARNING in run_instance: Mask was made but is not applied to data '
                 '(apply_mask == False)')
@@ -614,6 +590,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         #This is the point from which model injection will also start.
         #List_of_orders and list_of_wls are taken to inject the models into below,
         #after first the data is correlated.
+
+
+
 
 
     #Normalize the orders to their average flux in order to effectively apply a broad-band colour
@@ -1075,8 +1054,8 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
 
-def read_e2ds(inpath,outname,read_s1d=True,instrument='HARPS',star='solar',
-config=False,save_figure=True,skysub=False):
+def read_e2ds(inpath,outname,read_s1d=True,instrument='HARPS',measure_RV=True,star='solar',config=False,
+save_figure=True,skysub=False):
     """This is the workhorse for reading in a time-series of archival 2D echelle
     spectra from a couple of instrument pipelines that produce a standard output,
     and formatting these into the order-wise FITS format that Tayph uses. These
@@ -1105,6 +1084,15 @@ config=False,save_figure=True,skysub=False):
     these to an ASCII table along with the FITS files containing the spectral
     orders.
 
+    By setting the measure_RV keyword (True by default), the code will run a preliminary
+    cross-correlation with a stellar (PHOENIX) and a telluric template at both vaccuum
+    and air wavelengths to provide the user with information about the nature of the
+    adopted wavelength solution and possible wavelength shifts. the star keyword
+    allows the user to switch between 3 stellar PHOENIX templates. A solar type (6000K),
+    a hot (9000K) or a cool (4000K) template are available, and accessed by setting the
+    star keyword to 'solar', 'hot' or 'cool' respectively. Set the save_figure keyword to save the
+    plot of the spectra and the CCF to the data folder as a PDF.
+
     A crucial functionality of Tayph is that it also acts as a wrapper
     for the Molecfit telluric correction software. If installed properly, the
     user can call this script with the read_s1d keyword to extract 1D spectra from
@@ -1121,29 +1109,9 @@ config=False,save_figure=True,skysub=False):
     relevant fitting regions and parameters, after which it is repeated
     automatically for the entire time series.
 
-    The read_s1d keyword to activate this functionality is currently ignored.
-    Instead, this switch is now done based on the mode keyword alone, but the keyword is left in
-    for compatibility purposes. We may decide to make this optional again, later.
+    The read_s1d keyword is currently ignored. This switch is now done based on the mode keyword
+    alone, but left in for compatibility purposes.
 
-    Set the config keyword equal to true, if you want an example config file to be created in the
-    data output folder, named config_empty. You can then fill in this file for your system, and
-    this function will fill in the required keywords for the geographical coordinates and air,
-    based on the instrument mode selected.
-
-
-    By setting the measure_RV keyword, the code will run a preliminary
-    cross-correlation with a stellar (PHOENIX) and a telluric template at both vaccuum
-    and air wavelengths to provide the user with information about the nature of the
-    adopted wavelength solution and possible wavelength shifts. the star keyword
-    allows the user to switch between 3 stellar PHOENIX templates. A solar type (6000K),
-    a hot (9000K) or a cool (4000K) template are available, and accessed by setting the
-    star keyword to 'solar', 'hot' or 'cool' respectively. Set the save_figure keyword to save the
-    plot of the spectra and the CCF to the data folder as a PDF.
-
-
-
-
-    About the different spectrographs:
     The processing of HARPS, HARPS-N and ESPRESSO data is executed in an almost
     identical manner, because the pipeline-reduced products are almost identical.
     To run on either of these instruments, the user simply downloads all pipeline
@@ -1166,16 +1134,17 @@ config=False,save_figure=True,skysub=False):
     dichroics and 'arms', leading to spectral coverage on the blue, and/or redu and redl
     chips. The user should take care that their time series contains only one blue or
     red types at any time. If they are mixed, this script will throw an exception.
-    The blue and red arms are regarded as two different spectrographs, and they are. The most
-    important complication this causes is that they have different read-out times, leading to
-    differently sampled time-series. The two red chips (redu and redl) are combined when reading in
-    the data.
+    The blue and red arms are regarded as two different spectrographs (they are), but
+    the two red chips (redu and redl) are combined when reading in the data.
 
-    When reading ESPRESSO data, the user may choose to read sky-subtracted spectra by setting
-    the skysub keyword to True. If not, Tayph will read the BLAZE files by default. Note that sky
-    subtracted files are also blaze-corrected, meaning that the CCFs will be weighed poorly in
-    Tayph. (Therefore, consider reading of sky-subtracted files to be an incomplete functionality
-    at this time).
+    Set the config keyword equal to true, if you want an example config file to be created in the
+    data output folder, named config_empty. You can then fill in this file for your system, and
+    this function will fill in the required keywords for the geographical coordinates and air,
+    based on the instrument mode selected.
+
+    When reading ESPRESSO data, the user may opt out of reading sky-subtracted spectra by setting
+    the skysub keyword to False. Tayph will read the BLAZE files instead.
+
     """
     import pkg_resources
     import os
@@ -1203,7 +1172,10 @@ config=False,save_figure=True,skysub=False):
     import tayph.masking as masking
     import tayph.models as models
     from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes
-    from tayph.read import read_spirou, read_gianob, read_hires_makee
+    from tayph.read import read_spirou, read_gianob, read_hires_makee, read_fies
+    from tayph.phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
+
+    from astropy.utils.data import download_file
     from astropy.io import fits
     import astropy.constants as const
     import astropy.units as u
@@ -1231,14 +1203,15 @@ config=False,save_figure=True,skysub=False):
     typetest(read_s1d,bool,'read_s1d switch in read_e2ds()')
     typetest(mode,str,'mode in read_e2ds()')
 
+
     if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue',
-        'CARMENES-VIS','CARMENES-NIR','SPIROU','GIANO-B','HIRES-MAKEE']:
+        'CARMENES-VIS','CARMENES-NIR','SPIROU','GIANO-B','HIRES-MAKEE',"FIES"]:
         raise ValueError("in read_e2ds: instrument needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
             "CARMENES-VIS, CARMENES-NIR, SPIROU, GIANO-B, HIRES-MAKEE or ESPRESSO.")
 
 
 
-    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B','HIRES-MAKEE']:
+    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B','HIRES-MAKEE','FIES']:
         read_s1d = True
     else:
         read_s1d = False
@@ -1272,6 +1245,76 @@ config=False,save_figure=True,skysub=False):
         outpath = Path('data')/outname
     if os.path.exists(outpath) != True:
         os.makedirs(outpath)
+
+
+
+    if measure_RV:
+        #Define the paths to the stellar and telluric templates if RV's need to be measured.
+
+        if star.lower()=='solar' or star.lower() =='medium':
+            T_eff = 6000
+        elif star.lower() =='hot' or star.lower() =='warm':
+            T_eff = 9000
+        elif star.lower() == 'cool' or star.lower() == 'cold':
+            T_eff = 4000
+        else:
+            warnings.warn(f"in read_e2ds: The star keyword was set to f{star} but only solar, hot "
+                "or cold are allowed. Assuming a solar template.",RuntimeWarning)
+            T_eff = 6000
+
+        ut.tprint(f'---Downloading / reading diagnostic telluric and {star} PHOENIX models.')
+
+        #Load the PHOENIX spectra from the Goettingen server:
+        fxm = get_phoenix_model_spectrum(T_eff=T_eff)
+        wlm = get_phoenix_wavelengths()/10.0#Angstrom to nm.
+
+        #Load the telluric spectrum from my Google Drive:
+        telluric_link = ('https://drive.google.com/uc?export=download&id=1yAtoLwI3h9nvZK0IpuhLvIp'
+            'Nc_1kjxha')
+
+        telpath = Path(download_file(telluric_link,cache=True))
+        if telpath.exists() == False:
+            ut.tprint(f'------Download to {telpath} failed. Is the cache damaged? Rerunning with '
+                'cache="update".')
+            telpath = Path(download_file(telluric_link,cache='update'))#If the cache is damaged.
+            if telpath.exists() == False:#If it still doesn't exist...
+                raise Exception(f'{telpath} does not exist after attempted repair of the astropy '
+            'cache. To continue, run read_e2ds() with measure_RV=False, and troubleshoot your '
+            'astropy cache.')
+            else:
+                ut.tprint(f'------Download to {telpath} was successful. Proceeding.')
+        ttt=fits.getdata(telpath)
+        fxt=ttt[1]
+        wlt=ttt[0]
+
+        wlt,fxt = models.get_telluric()
+
+
+        #Continuum-subtract the telluric model
+        wlte,fxte=ops.envelope(wlt,fxt,2.0,selfrac=0.05,threshold=0.8)
+        e_t = interpolate.interp1d(wlte,fxte,fill_value='extrapolate')(wlt)
+        fxtn = fxt/e_t
+        fxtn[fxtn>1]=1.0
+
+        wlt=np.concatenate((np.array([100,200,300,400]),wlt))
+        wlt=ops.vactoair(wlt)
+        fxtn=np.concatenate((np.array([1.0,1.0,1.0,1.0]),fxtn))
+        fxtn[wlt<500.1]=1.0
+
+        #Continuum-subtract the PHOENIX model
+        wlme,fxme=ops.envelope(wlm,fxm,5.0,selfrac=0.005)
+        e_s = interpolate.interp1d(wlme,fxme,fill_value='extrapolate')(wlm)
+        fxmn=fxm/e_s
+        fxmn[fxmn>1.0]=1.0
+        fxmn[fxmn<0.0]=0.0
+
+        fxmn=fxmn[wlm>300.0]
+        wlm=wlm[wlm>300.0]
+        wlm=ops.vactoair(wlm)#Everything in the world is in air.
+        #The stellar and telluric templates are now ready for application in cross-correlation at
+        #the very end of this script.
+
+
 
     #Start reading data files.
     filelist_raw=os.listdir(inpath)#If mode == UVES, these are folders. Else, they are fits files.
@@ -1310,6 +1353,9 @@ config=False,save_figure=True,skysub=False):
         DATA = read_gianob(inpath, filelist, read_s1d=read_s1d)
     elif mode == 'HIRES-MAKEE':
         DATA = read_hires_makee(inpath, filelist, construct_s1d=read_s1d)
+    elif mode == 'FIES':
+        DATA = read_fies()
+        raise ValueError("FIES Mode Under Developement!")
     else:
         raise ValueError(f'Error in read_e2ds: {mode} is not a valid instrument.')
 
@@ -1453,6 +1499,7 @@ config=False,save_figure=True,skysub=False):
     for i in range(len(sorting)): print(f'------{obstype[sorting[i]]}  {date[sorting[i]]}  '
         f'{mjd[sorting[i]]}')
 
+    #CONTINUE HERE! SPLIT OFF MOLECFIT STRAIGHT AND SAVE 2D WAVE FILES!
 
     #If we run diagnostic cross-correlations, we prepare to store output:
     if measure_RV:
@@ -1553,9 +1600,6 @@ config=False,save_figure=True,skysub=False):
         ut.tprint(f'---Dummy config file written to {outpath/"config_empty"}.')
 
 
-    print('\n \n \n')
-    print('Read_e2ds completed successfully.')
-    print('')
 
 
 
@@ -1566,298 +1610,28 @@ config=False,save_figure=True,skysub=False):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1D=True,
-    ignore_s1d=False,parallel=True):
-    """
-    Does a rudimentary cleaning (de-colour, outlier correction) of data read by read_e2ds
-    and performs cross-correlations with solar and telluric templates. Optionally attempts to
-    re-align spectra to a common rest-frame.
-
-    Set air to False to assume that the 2D orders are in vaccuum. Vactoair will be applied.
-    Set air1D to False to assume that the 1D orders are in vaccuum. Vactoair will be applied.
-    """
-
-    import pdb
-    import sys
-    import copy
-    import math
-    import pickle
-    import pathlib
-    import warnings
-    import numpy as np
-    from pathlib import Path
-    import astropy.io.fits as fits
-    import matplotlib.pyplot as plt
-    from contextlib import suppress
-    import astropy.constants as const
-    import scipy.interpolate as interp
-    from astropy.utils.data import download_file
-
-    import tayph.util as ut
-    from tayph.ccf import xcor
-    import tayph.models as models
-    import tayph.functions as fun
-    import tayph.operations as ops
-    import tayph.masking as masking
-    import tayph.system_parameters as sp
-    from matplotlib.widgets import Button, RadioButtons, Slider, TextBox
-    from tayph.phoenix import get_phoenix_wavelengths, get_phoenix_model_spectrum
-    from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest,lentest
-
-    if parallel:
-        from joblib import Parallel, delayed
-        import multiprocessing
-        ncores = int(multiprocessing.cpu_count())
-
-    typetest(star,str,'star in measure_RV')
-    typetest(instrument,str,'instrument in measure_RV')
-    typetest(save_figure,bool,'save_figure in measure_RV')
-    typetest(air,bool,'air in measure_RV')
-    typetest(air1D,bool,'air1D in measure_RV')
-    dp = ut.check_path(dp,exists=True)
-
-    mode=instrument
-
-
-
-
-    #Define the paths to the stellar and telluric templates if RV's need to be measured.
-    if star.lower()=='solar' or star.lower() =='medium':
-        T_eff = 6000
-    elif star.lower() =='hot' or star.lower() =='warm':
-        T_eff = 9000
-    elif star.lower() == 'cool' or star.lower() == 'cold':
-        T_eff = 4000
-    else:
-        warnings.warn(f"in read_e2ds: The star keyword was set to f{star} but only solar, hot "
-            "or cold are allowed. Assuming a solar template.",RuntimeWarning)
-        T_eff = 6000
-
-    ut.tprint(f'---Downloading / reading diagnostic telluric and {star} PHOENIX models.')
-
-    #Load the PHOENIX spectra from the Goettingen server:
-    fxm = get_phoenix_model_spectrum(T_eff=T_eff)
-    wlm = get_phoenix_wavelengths()/10.0#Angstrom to nm.
-
-    #Load the telluric spectrum from my Google Drive or the cache:
-    wlt,fxt = models.get_telluric()
-    #Continuum-subtract the telluric model
-    wlte,fxte=ops.envelope(wlt,fxt,2.0,selfrac=0.05,threshold=0.8)
-    e_t = interp.interp1d(wlte,fxte,fill_value='extrapolate')(wlt)
-    fxtn = fxt/e_t
-    fxtn[fxtn>1]=1.0
-
-    wlt=np.concatenate((np.array([100,200,300,400]),wlt))
-    wlt=ops.vactoair(wlt)
-    fxtn=np.concatenate((np.array([1.0,1.0,1.0,1.0]),fxtn))
-    fxtn[wlt<500.1]=1.0
-
-    #Continuum-subtract the PHOENIX model
-    wlme,fxme=ops.envelope(wlm,fxm,5.0,selfrac=0.005)
-    e_s = interp.interp1d(wlme,fxme,fill_value='extrapolate')(wlm)
-    fxmn=fxm/e_s
-    fxmn[fxmn>1.0]=1.0
-    fxmn[fxmn<0.0]=0.0
-
-    fxmn=fxmn[wlm>300.0]
-    wlm=wlm[wlm>300.0]
-    wlm=ops.vactoair(wlm)#Everything in the world is in air.
-    #The stellar and telluric templates are now ready for application in cross-correlation at
-    #the very end of this script.
-
-
-    berv = sp.berv(dp)#This is used later to plot, but also to determine the number of exposures for
-    #the filter width.
-    airmass = sp.airmass(dp)
-
-
-    npx_window=400#Total number of pixels that are included in a sliding window when measuring
-    #the standard deviation or the MAD. I.e. the sample size.
-    filter_width=np.max([np.min([math.ceil(npx_window/len(berv)),100]),10])#Make the window
-    #dependent on how many exposures there are, such that the block has a total number of npx_window
-    #pixels. Don't make the window wider than 100, and don't make it smaller than 10 either (in case
-    #there are many spectra).
-
-
-
-    if star =='hot':
-        RVrange=500.0
-        drv=2.0
-    else:
-        RVrange=250.0
+    #The rest is for if diagnostic radial velocity measurements are requested.
+    #We take and plot all the 1D and 2D spectra, do a rudimentary cleaning (de-colour, outlier
+    #correction) and perform cross-correlations with solar and telluric templates.
+    if measure_RV:
+        #From this moment on, I will start reusing some variable that I named above, i.e.
+        #overwriting them.
         drv=1.0
-
-    ut.tprint(f'---Preparing for diagnostic correlation with a telluric template and a {star} PHOENIX model.')
-    ut.tprint(f'---The wavelength axes of the spectra will be shown here as they were saved by read_e2ds.')
-
-
-
-
-
-
-
-
-
-
-
-    #After setup, we continue by reading in the data. First the 2D, and then the 1D if possible.
-    ut.tprint(f'---Loading 2D orders from {dp}.')
-    list_of_waves=[]
-    list_of_orders=[]
-
-    #Read in the file names from the datafolder.
-    filelist_orders= [str(i) for i in dp.glob('order_*.fits')]
-    if len(filelist_orders) == 0:#If no order FITS files are found:
-        raise Exception(f'Runtime error: No orders_*.fits files were found in {dp}.')
-    try:
-        order_numbers = [int(i.split('order_')[1].split('.')[0]) for i in filelist_orders]
-    except:
-        raise Exception('Runtime error: Failed at casting fits filename numerals to ints. Are '
-        'the filenames of all of the spectral orders correctly formatted (e.g. order_5.fits)?')
-    order_numbers.sort()#This is the ordered list of numerical order IDs.
-    n_orders = len(order_numbers)
-    if n_orders == 0:
-        raise Exception(f'Runtime error: n_orders may never have ended up as zero? ({n_orders})')
-
-
-    for i in order_numbers:
-        wavepath = ut.check_path(dp/f'wave_{i}.fits',exists=True)
-        orderpath= ut.check_path(dp/f'order_{i}.fits',exists=True)
-        wave_order = fits.getdata(wavepath)#2D or 1D?
-        order_i = fits.getdata(orderpath)
-        #Check dimensionality of wave axis and order. Either 2D or 1D.
-        if wave_order.ndim == 2:
-            if i == np.min(order_numbers):
-                ut.tprint('------Wavelength axes provided are 2-dimensional.')
-            n_px = np.shape(wave_order)[1]#Pixel width of the spectral order.
-            dimtest(wave_order,np.shape(order_i),'wave_order in run.measure_RV()')
-            #Need to have same shape.
-        elif wave_order.ndim == 1:
-            if i == np.min(order_numbers):
-                ut.tprint('------Wavelength axes provided are 1-dimensional.')
-            n_px = len(wave_order)
-            dimtest(order_i,[0,n_px],f'order {i} in run.measure_RV()')
+        if star =='hot':
+            RVrange=500.0
         else:
-            raise Exception(f'Wavelength axis of order {i} is neither 1D nor 2D.')
+            RVrange=200.0
 
-        if i == np.min(order_numbers):
-            n_exp = np.shape(order_i)[0]#For the first order, we fix n_exp.
-            #All other orders should have the same n_exp.
-            ut.tprint(f'------{n_exp} exposures recognised.')
-        else:
-            dimtest(order_i,[n_exp,n_px],f'order {i} in run_instance()')
+        print(f'---Preparing for diagnostic correlation with a telluric template and a {star} PHOENIX model.')
+        print(f'---The wavelength axes of the spectra will be shown here as they were saved by read_e2ds.')
+        print(f'---Cleaning 1D spectra for cross-correlation.')
 
-        list_of_orders.append(order_i)
-
-        #Deal with air or vaccuum wavelengths:
-        if air == True:
-            list_of_waves.append(copy.deepcopy(wave_order))
-        else:
-            if i == np.min(order_numbers):
-                ut.tprint("------Applying vactoair correction.")
-            list_of_waves.append(ops.vactoair(wave_order))
-
-        list_of_orders_initial=copy.deepcopy(list_of_orders)
-        list_of_waves_initial=copy.deepcopy(list_of_waves)#Save these for later.
-
-
-
-
-
-
-
-
-
-
-    #Reading in the 1D data:
-    s1d_path = dp/Path('s1ds.pkl')
-
-    if s1d_path.exists() and not ignore_s1d:
-        read_s1d=True
-    else:
-        read_s1d=False
-    if read_s1d:
-        print(f'---Presence of 1D spectra detected.')
-        print(f'---Reading 1D spectra.')
-        with open(s1d_path,"rb") as p:
-            s1dhdr_sorted,s1d_sorted,wave1d_sorted = pickle.load(p)
-
-        s1d_sorted_initial = copy.deepcopy(s1d_sorted)
-        wave1d_sorted_initial = copy.deepcopy(wave1d_sorted)#Save these for later.
-
-
-
-
-
-    #Here follow functions for cleaning the S1D and E2DS data. These will be called multiple times
-    #if RV-correction is going to be done.
-    def clean_s1d(wave1d_sorted,s1d_sorted,filter_width,parallel=False):
-        """
-        wave1d_sorted goes in angstroms here!
-        """
-        print('---Cleaning 1D spectra')
-        wave_1d = wave1d_sorted[0]/10.0#Berv-un-corrected wavelength axis in nm in air.
-        s1d_block=np.zeros((len(s1d_sorted),len(wave1d_sorted[0])))
-        for i in range(0,len(s1d_sorted)):
-            s1d_block[i]=interp.interp1d(wave1d_sorted[i]/10.0,s1d_sorted[i],bounds_error=False,
-            fill_value='extrapolate')(wave_1d)
+        if read_s1d:
+            wave_1d = wave1d[0]/10.0#Berv-un-corrected wavelength axis in nm in air.
+            s1d_block=np.zeros((len(s1d),len(wave1d[0])))
+            for i in range(0,len(s1d)):
+                s1d_block[i]=interp.interp1d(wave1d[i]/10.0,s1d[i],bounds_error=False,
+                fill_value='extrapolate')(wave_1d)
             #
             # plt.plot(wave_1d,s1d[0]/np.mean(s1d[0]),linewidth=0.5,label='Berv-un-corrected in nm.')
             # plt.plot(wave1d[1]/10.0,s1d[1]/np.mean(s1d[1]),linewidth=0.5,label=('Original '
@@ -1866,910 +1640,279 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
             # plt.legend()
             # plt.show()
             # pdb.set_trace()
-        wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False,
-        w=filter_width,parallel=parallel)
-        print(f"---Interpolating over NaN's")
-        s1d_block=masking.interpolate_over_NaNs([s1d_block])[0]
-
-        if not air1D:
-            wave_1d = ops.vactoair(wave_1d)
-        return(wave_1d,s1d_block)
+            wave_1d,s1d_block,r1,r2=ops.clean_block(wave_1d,s1d_block,deg=4,verbose=True,renorm=False,
+            w=np.max([np.min([800/len(s1d),200]),20]))#Make the window dependent on how many exposures there are,
+            #such that the block has a total number of 800 pixels. Don't make the window wider than 200,
+            #and don't make it smaller than 20 either (in case there are many spectra).
+            s1d_block=masking.interpolate_over_NaNs([s1d_block])[0]
 
 
 
-    def clean_e2ds(list_of_waves,list_of_orders,filter_width,parallel=False):
+
+        if mode in ['UVES-red','UVES-blue']:
+            pdb.set_trace()
+
+        # ut.writefits('test.fits',s1d_block)
+        # plt.plot(s1d_mjd,s1d_berv,'.')
+        # plt.show()
+        # for i in range(len(s1d)): plt.plot(wave_1d,s1d_block[i],color='blue',alpha=0.2)
+        # for i in range(len(s1d)): plt.plot(wave_1d_berv_corrected,s1d_block_berv_corrected[i],
+        # color='red',alpha=0.2)
+        # plt.show()
+
         print(f'---Cleaning 2D orders for cross-correlation.')
         list_of_orders_trimmed=[]
         list_of_waves_trimmed=[]
-        list_of_residuals=[]
-
-        #For cleaning the 2D orders in parallel, I need to do a lot of error-catching because joblib
-        #can be flaky. First define the for-looped function that cleans a single order. We'll loop over
-        #orders to parallelise.
-        def clean_order(i):
+        for i,o in enumerate(list_of_orders):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                if np.ndim(list_of_waves[i]) == 2:
-                    w_i = list_of_waves[i][0]
-                    o_i = np.zeros((len(list_of_orders[i]),len(w_i)))
-                    for j in range(len(list_of_orders[i])):
-                        o_i[j]=interp.interp1d(list_of_waves[i][j],list_of_orders[i][j],
-                        bounds_error=False,fill_value='extrapolate')(w_i)
-                else:
-                    w_i = list_of_waves[i]
-                    o_i = list_of_orders[i]
+                w_i = list_of_waves[i][0]
+                o_i = np.zeros((len(list_of_orders[i]),len(w_i)))
+                for j in range(len(list_of_orders[i])):
+                    o_i[j]=interp.interp1d(list_of_waves[i][j],list_of_orders[i][j],
+                    bounds_error=False,fill_value='extrapolate')(w_i)
                 try:
-                    w_trimmed,o_trimmed,r1,r2=ops.clean_block(w_i,o_i,w=filter_width,deg=4,renorm=True,
-                    parallel=False)#SET PARALLEL TO FALSE BECAUSE WE MAY ALREDY BE IN PARALLEL
+                    w_trimmed,o_trimmed,r1,r2=ops.clean_block(w_i,o_i,w=100,deg=4,renorm=True)
                 except:
                     pdb.set_trace()
-                if not parallel: ut.statusbar(i,len(list_of_orders))
-                return(w_trimmed,o_trimmed,r2)
+                #Slow. Needs parallelising.
+                list_of_waves_trimmed.append(w_trimmed)
+                list_of_orders_trimmed.append(o_trimmed)
+                ut.statusbar(i,len(list_of_orders))
 
-        #This little function of nothing will be needed later to seed a Parallel object to flush an
-        #error.
-        def void(i):
-            return(i)
-
-        #CARRY OUT THIS TIMING ON THE SERVER WITH LOKY BACKEND:
-        # t1=ut.start()
-        # list_of_waves_trimmed, list_of_orders_trimmed, list_of_residuals = zip(
-        # *Parallel(n_jobs=ncores,backend="loky")(delayed(clean_order)(i) for i in range(len(list_of_orders))))
-        # ut.end(t1)
-        # t2=ut.start()
-        # list_of_waves_trimmed, list_of_orders_trimmed, list_of_residuals = zip(
-        # *[clean_order(i) for i in range(len(list_of_orders))])
-        # ut.end(t2)
-        # pdb.set_trace()
-
-        if parallel:
-            try:
-                with Parallel(n_jobs=ncores,backend='loky') as P:
-                    list_of_waves_trimmed, list_of_orders_trimmed, list_of_residuals = zip(
-                    *P(delayed(clean_order)(i) for i in range(len(list_of_orders))))
-            except:
-                print('------Warning: Joblib triggered an error. Changing backend to threading.')
-                #On my 8-core laptop, this yields only a 25% speedup compared to serial.
-                #Under normal circumstances however, the loky backend will fare well, though.
-                try:
-                    with suppress(OSError, AttributeError):#This here is needed to flush out an OSError
-                    #that is triggered by the failure of the loky backend above. I spawn a Parallel
-                    #object that I let do nothing, supressing the error. Then the computation can
-                    #continue with a new series of Parallel objects with the threading backend.
-                    #This is a bit hacky, but hey...
-                        with Parallel(n_jobs=ncores) as P:
-                            a=P(delayed(void)(i) for i in range(len(list_of_orders)))
-                    with Parallel(n_jobs=ncores,backend="threading") as P:
-                        list_of_waves_trimmed, list_of_orders_trimmed, list_of_residuals = zip(
-                        *P(delayed(clean_order)(i) for i in range(len(list_of_orders))))
-                    print("------If you see an OSError here but the code keeps going, hang in there.")
-                except:
-                    print('------Warning: Unable to dislodge joblib by changing backend. Continuing '
-                    'this computation in serial.')
-                    with suppress(OSError, AttributeError):#I flush it again if there was a second fail.
-                        with Parallel(n_jobs=ncores) as P:
-                            a=P(delayed(void)(i) for i in range(len(list_of_orders)))
-                    list_of_waves_trimmed, list_of_orders_trimmed, list_of_residuals = zip(
-                    *[clean_order(i) for i in range(len(list_of_orders))])
-        else:
-            list_of_waves_trimmed, list_of_orders_trimmed, list_of_residuals = zip(
-            *[clean_order(i) for i in range(len(list_of_orders))])
-        #Done calling 2D order cleaning in parallel...
 
         print(f"---Interpolating over NaN's")
         list_of_orders_trimmed = masking.interpolate_over_NaNs(list_of_orders_trimmed)
         #Slow, also needs parallelising.
-        return(list_of_waves_trimmed,list_of_orders_trimmed,list_of_residuals)
-
-
-    def fit_ccf(rv,ccfs,mode='star',parallel=parallel,degree=2):
-        if mode.lower() == 'star':
-            def fit_stellar(i):
-                spec = i/np.nanmean(i)
-                fit = fun.fit_rotation_broadened_line(rv,spec,degree=degree)
-                # if not parallel: ut.statusbar(i,len(ccf))
-                return(fit[1],fit[2],fit[3],fit)
-
-            #DO TIMING AGAIN ON THE SERVER!
-            if parallel:#On my 8-core laptop, this yields a factor 2 speedup.
-                # t1=ut.start()
-                with Parallel(n_jobs=ncores) as P:
-                    centroids, vsini, E2d, fit = zip(*P(delayed(fit_stellar)(i)
-                for i in ccfs))
-                # ut.end(t1)
-            else:
-                # t2=ut.start()
-                centroids, vsini, E2d, fit = zip(*[fit_stellar(i) for i in ccfs])
-                # ut.end(t2)
-            return(centroids,vsini,E2d,fit)
-        if mode.lower() == 'tel' or mode.lower() == 'telluric' or mode.lower() == 'tellurics':
-            centroids=[]
-            widths=[]
-            fitparams = []
-            for n,i in enumerate(ccfs):
-                fit,void = fun.gaussfit(rv,i/np.nanmean(i),startparams=[-0.9,rv[np.argmin(i)],
-                3.0,1.0,0.0,0.0])
-                centroids.append(fit[1])
-                widths.append(fit[2])
-                fitparams.append(fit)
-            return(centroids,widths,fitparams)
-
-
-
-    def shift_spec_2D(low,dv):
-        """
-        The wavelength is shifted by an amount dv. If list_of_waves[i] is 1D, it is expanded
-        into a 2D array. Dv represents the velocities of a time-series.
-        """
-        list_of_waves_shifted=[]
-        for i in range(len(low)):
-            wl=low[i]
-            if np.ndim(wl) == 1:
-                wl=np.tile(wl,(len(dv),1))#broadcast in vertical direction.
-            dimtest(wl,[len(dv),0],'list_of_waves in shift_spec_2D in measure_RV')
-            list_of_waves_shifted.append((wl.T*(1+dv/const.c.to('km/s').value)).T)
-        return(list_of_waves_shifted)
-
-
-    def shift_spec_1D(wave1d,dv):
-        """
-        wave1d corresponds to wave1d sorted. It is therefore a list of wavelengths with length
-        equal to dv
-        """
-        lentest(wave1d,len(dv),'wave1d in shift_spec_1D in measure_RV')
-        wave_shifted=[]
-        for i in range(len(wave1d)):
-            wave_shifted.append(wave1d[i]*(1+dv[i]/const.c.to('km/s').value))
-        return(wave_shifted)
-
-
-    class Theprocessor(object):
-        """
-        This object can only live inside this script because it uses a TON of global variables and
-        functions. And it also changes them.
-        If you want to revamp this in the future: Lots comes from global so good luck.
-        """
-        def __init__(self):
-            self.list_of_waves = copy.deepcopy(list_of_waves)
-            self.list_of_orders = copy.deepcopy(list_of_orders)
-            if read_s1d:
-                self.wave1d_sorted = copy.deepcopy(wave1d_sorted)
-                self.s1d_sorted = copy.deepcopy(s1d_sorted)
-            self.vsys = 0
-            self.offset = 0
-            self.fit_done = 0
-            self.frame = 'star'#Shit to star by default. Altered by radiobutton.
-            self.apply = 'both'
-            self.source = '2D'
-            self.bervmult = 0.0#Add no BERV by default. Altered by radiobutton.
-            self.buttontrigger = 0
-            self.degree = 2 #Degree of continuum polynomial fit for stellar line. Add support for
-            #future freedom in this?
-            self.recompute()
-            self.fit()
-            self.save_output()#Save the computed parameters.
-            self.setup_figure()
-            self.plot_data()
-            self.decorate_figure()
-            self.fig.tight_layout()
-
-
-        def save_fit_result(self):
-            """
-            This saves the computed output to backup variables. Typically used to save the initial
-            run such that we can operate a Reset button.
-            """
-            self.list_of_waves_trimmed_SAV2 = copy.deepcopy(self.list_of_waves_trimmed)
-            self.list_of_orders_trimmed_SAV2 = copy.deepcopy(self.list_of_orders_trimmed)
-            self.list_of_residuals_SAV2 = copy.deepcopy(self.list_of_residuals)
-            if read_s1d:
-                self.wave_1d_SAV2 = copy.deepcopy(self.wave_1d)
-                self.s1d_block_SAV2 = copy.deepcopy(self.s1d_block)
-            self.rv_SAV2 = copy.deepcopy(self.rv)
-            self.ccf_SAV2 =  copy.deepcopy(self.ccf)
-            self.rvT2D_SAV2 = copy.deepcopy(self.rvT2D)
-            self.ccfT2D_SAV2 = copy.deepcopy(self.ccfT2D)
-            if read_s1d:
-                self.rv1d_SAV2 = copy.deepcopy(self.rv1d)
-                self.ccf1d_SAV2 = copy.deepcopy(self.ccf1d)
-                self.rvT1d_SAV2 = copy.deepcopy(self.rvT1d)
-                self.ccfT1d_SAV2 = copy.deepcopy(self.ccfT1d)
-            self.centroids2d_SAV2 = copy.deepcopy(self.centroids2d)
-            self.vsini2d_SAV2 = copy.deepcopy(self.vsini2d)
-            self.E2d_SAV2 = copy.deepcopy(self.E2d)
-            self.fit2d_SAV2 = copy.deepcopy(self.fit2d)
-            self.centroidsT2d_SAV2 = copy.deepcopy(self.centroidsT2d)
-            self.widthsT2d_SAV2 = copy.deepcopy(self.widthsT2d)
-            self.fitT2d_SAV2 = copy.deepcopy(self.fitT2d)
-            if read_s1d:
-                self.centroids1d_SAV2 = copy.deepcopy(self.centroids1d)
-                self.centroidsT1d_SAV2 = copy.deepcopy(self.centroidsT1d)
+        print(f'---Performing cross-correlation and plotting output.')
+        rv,ccf,Tsums=xcor(list_of_waves_trimmed,list_of_orders_trimmed,[wlm],
+        [fxmn-1.0],drv,RVrange)
+        rvT2D,ccfT2D,TsusmT2D=xcor(list_of_waves_trimmed,list_of_orders_trimmed,[wlt],[fxtn-1.0],
+        drv,RVrange)
+        ccf=ccf[0]
+        ccfT2D=ccfT2D[0]
 
 
 
 
-        def save_output(self):
-            """
-            This saves the computed output to backup variables. Typically used to save the initial
-            run such that we can operate a Reset button.
-            """
-            self.list_of_waves_trimmed_SAV = copy.deepcopy(self.list_of_waves_trimmed)
-            self.list_of_orders_trimmed_SAV = copy.deepcopy(self.list_of_orders_trimmed)
-            self.list_of_residuals_SAV = copy.deepcopy(self.list_of_residuals)
-            if read_s1d:
-                self.wave_1d_SAV = copy.deepcopy(self.wave_1d)
-                self.s1d_block_SAV = copy.deepcopy(self.s1d_block)
-            self.rv_SAV = copy.deepcopy(self.rv)
-            self.ccf_SAV =  copy.deepcopy(self.ccf)
-            self.rvT2D_SAV = copy.deepcopy(self.rvT2D)
-            self.ccfT2D_SAV = copy.deepcopy(self.ccfT2D)
-            if read_s1d:
-                self.rv1d_SAV = copy.deepcopy(self.rv1d)
-                self.ccf1d_SAV = copy.deepcopy(self.ccf1d)
-                self.rvT1d_SAV = copy.deepcopy(self.rvT1d)
-                self.ccfT1d_SAV = copy.deepcopy(self.ccfT1d)
-            self.centroids2d_SAV = copy.deepcopy(self.centroids2d)
-            self.vsini2d_SAV = copy.deepcopy(self.vsini2d)
-            self.E2d_SAV = copy.deepcopy(self.E2d)
-            self.fit2d_SAV = copy.deepcopy(self.fit2d)
-            self.centroidsT2d_SAV = copy.deepcopy(self.centroidsT2d)
-            self.widthsT2d_SAV = copy.deepcopy(self.widthsT2d)
-            self.fitT2d_SAV = copy.deepcopy(self.fitT2d)
-            if read_s1d:
-                self.centroids1d_SAV = copy.deepcopy(self.centroids1d)
-                self.centroidsT1d_SAV = copy.deepcopy(self.centroidsT1d)
 
-
-        def load_fit_result(self):
-            """
-            This loads the computed output from backup variables. Typically used to save the initial
-            run such that we can operate a Reset button.
-            """
-            self.list_of_waves_trimmed = copy.deepcopy(self.list_of_waves_trimmed_SAV2)
-            self.list_of_orders_trimmed = copy.deepcopy(self.list_of_orders_trimmed_SAV2)
-            self.list_of_residuals = copy.deepcopy(self.list_of_residuals_SAV2)
-            if read_s1d:
-                self.wave_1d = copy.deepcopy(self.wave_1d_SAV2)
-                self.s1d_block = copy.deepcopy(self.s1d_block_SAV2)
-            self.rv = copy.deepcopy(self.rv_SAV2)
-            self.ccf =  copy.deepcopy(self.ccf_SAV2)
-            self.rvT2D = copy.deepcopy(self.rvT2D_SAV2)
-            self.ccfT2D = copy.deepcopy(self.ccfT2D_SAV2)
-            if read_s1d:
-                self.rv1d = copy.deepcopy(self.rv1d_SAV2)
-                self.ccf1d = copy.deepcopy(self.ccf1d_SAV2)
-                self.rvT1d = copy.deepcopy(self.rvT1d_SAV2)
-                self.ccfT1d = copy.deepcopy(self.ccfT1d_SAV2)
-            self.centroids2d = copy.deepcopy(self.centroids2d_SAV2)
-            self.vsini2d = copy.deepcopy(self.vsini2d_SAV2)
-            self.E2d = copy.deepcopy(self.E2d_SAV2)
-            self.fit2d = copy.deepcopy(self.fit2d_SAV2)
-            self.centroidsT2d = copy.deepcopy(self.centroidsT2d_SAV2)
-            self.widthsT2d = copy.deepcopy(self.widthsT2d_SAV2)
-            self.fitT2d = copy.deepcopy(self.fitT2d_SAV2)
-            if read_s1d:
-                self.centroids1d = copy.deepcopy(self.centroids1d_SAV2)
-                self.centroidsT1d = copy.deepcopy(self.centroidsT1d_SAV2)
+        if read_s1d:
+            rv1d,ccf1d,Tsums1d=xcor([wave_1d],[s1d_block],[wlm],[fxmn-1.0],drv,RVrange)
+            rvT,ccfT,TsusmT=xcor([wave_1d],[s1d_block],[wlt],[fxtn-1.0],drv,RVrange)
+            ccf1d=ccf1d[0]
+            ccfT=ccfT[0]
 
 
 
-        def load_output(self):
-            """
-            This loads the computed output from backup variables. Typically used to save the initial
-            run such that we can operate a Reset button.
-            """
-            self.list_of_waves_trimmed = copy.deepcopy(self.list_of_waves_trimmed_SAV)
-            self.list_of_orders_trimmed = copy.deepcopy(self.list_of_orders_trimmed_SAV)
-            self.list_of_residuals = copy.deepcopy(self.list_of_residuals_SAV)
-            if read_s1d:
-                self.wave_1d = copy.deepcopy(self.wave_1d_SAV)
-                self.s1d_block = copy.deepcopy(self.s1d_block_SAV)
-            self.rv = copy.deepcopy(self.rv_SAV)
-            self.ccf =  copy.deepcopy(self.ccf_SAV)
-            self.rvT2D = copy.deepcopy(self.rvT2D_SAV)
-            self.ccfT2D = copy.deepcopy(self.ccfT2D_SAV)
-            if read_s1d:
-                self.rv1d = copy.deepcopy(self.rv1d_SAV)
-                self.ccf1d = copy.deepcopy(self.ccf1d_SAV)
-                self.rvT1d = copy.deepcopy(self.rvT1d_SAV)
-                self.ccfT1d = copy.deepcopy(self.ccfT1d_SAV)
-            self.centroids2d = copy.deepcopy(self.centroids2d_SAV)
-            self.vsini2d = copy.deepcopy(self.vsini2d_SAV)
-            self.E2d = copy.deepcopy(self.E2d_SAV)
-            self.fit2d = copy.deepcopy(self.fit2d_SAV)
-            self.centroidsT2d = copy.deepcopy(self.centroidsT2d_SAV)
-            self.widthsT2d = copy.deepcopy(self.widthsT2d_SAV)
-            self.fitT2d = copy.deepcopy(self.fitT2d_SAV)
-            if read_s1d:
-                self.centroids1d = copy.deepcopy(self.centroids1d_SAV)
-                self.centroidsT1d = copy.deepcopy(self.centroidsT1d_SAV)
 
 
-        def recompute(self):
-            #Function definitions are finished, let's proceed to execute them:
-
-            if self.apply in ['2D','both']:
-                self.list_of_waves_trimmed,self.list_of_orders_trimmed,self.list_of_residuals = clean_e2ds(self.list_of_waves,
-                self.list_of_orders,filter_width,parallel=parallel)
-
-            if read_s1d and self.apply in ['1D','both']:
-                self.wave_1d,self.s1d_block=clean_s1d(self.wave1d_sorted,self.s1d_sorted,filter_width,parallel=parallel)
-
-            print(f'---Performing cross-correlation')
-            if self.apply in ['2D','both']:
-                self.rv,self.ccf,Tsums=xcor(self.list_of_waves_trimmed,self.list_of_orders_trimmed,[wlm],[fxmn-1.0],drv,RVrange)
-                self.rvT2D,self.ccfT2D,TsusmT2D=xcor(self.list_of_waves_trimmed,self.list_of_orders_trimmed,[wlt],[fxtn-1.0],
-                drv,RVrange)
-                self.ccf=self.ccf[0]
-                self.ccfT2D=self.ccfT2D[0]
-
-            if read_s1d and self.apply in ['1D','both']:
-                self.rv1d,self.ccf1d,Tsums1d=xcor([self.wave_1d],[self.s1d_block],[wlm],[fxmn-1.0],drv,RVrange)
-                self.rvT1d,self.ccfT,TsusmT=xcor([self.wave_1d],[self.s1d_block],[wlt],[fxtn-1.0],drv,RVrange)
-                self.ccf1d=self.ccf1d[0]
-                self.ccfT1d=self.ccfT[0]
 
 
-        def fit(self):
-            if self.apply in ['2D','both']:
-                print('---Fitting 2D centroids')
-                self.centroids2d, self.vsini2d, self.E2d, self.fit2d = fit_ccf(self.rv,self.ccf,mode='star',parallel=parallel,degree=self.degree)
-                self.centroidsT2d, self.widthsT2d, self.fitT2d = fit_ccf(self.rvT2D,self.ccfT2D,mode='tel')
+        #The rest is for plotting.
+        minwl=np.inf#For determining in the for-loop what the min and max wl range of the data are.
+        maxwl=0.0
 
-            if read_s1d and self.apply in ['1D','both']:
-                print('---Fitting 1D centroids')
-                self.centroids1d, void1, void2, self.fit1d = fit_ccf(self.rv1d,self.ccf1d,mode='star',parallel=parallel,degree=self.degree)
-                self.centroidsT1d, void1, self.fitT1d = fit_ccf(self.rvT1d,self.ccfT1d,mode='tel',parallel=parallel)
-            print('---Velocity computation complete')
+        mean_of_orders = np.nanmean(np.hstack(list_of_orders_trimmed))
 
-        def plot_data(self):
-            #The rest is for plotting.
-            minwl=np.inf#For determining in the for-loop what the min and max wl range of the data are.
-            maxwl=0.0
-            mean_of_orders = np.nanmean(np.hstack(self.list_of_orders_trimmed))
-            for i in range(len(self.list_of_orders)):
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    s_avg = np.nanmean(self.list_of_orders_trimmed[i],axis=0)
-                minwl=np.min([np.min(self.list_of_waves[i]),minwl])
-                maxwl=np.max([np.max(self.list_of_waves[i]),maxwl])
-                if i == 0:
-                    self.ax[0].plot(self.list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',
+
+        fig,ax=plt.subplots(2,1,figsize=(13,7))
+        for i in range(len(list_of_orders)):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                s_avg = np.nanmean(list_of_orders_trimmed[i],axis=0)
+            minwl=np.min([np.min(list_of_waves[i]),minwl])
+            maxwl=np.max([np.max(list_of_waves[i]),maxwl])
+
+            if i == 0:
+                if mode=='ESPRESSO':
+                    ax[0].plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',
                     linewidth=0.9,alpha=0.5,label='2D echelle orders to be '
-                    'cross-correlated')
+                    'cross-correlated (barycentric frame, BERV-corrected)')
                 else:
-                    self.ax[0].plot(self.list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.7,
-                    alpha=0.5)
+                    ax[0].plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',
+                    linewidth=0.9,alpha=0.5,label='2D echelle orders to be '
+                    'cross-correlated (geocentric frame)')
+            else:
+                ax[0].plot(list_of_waves_trimmed[i],s_avg/mean_of_orders,color='red',linewidth=0.7,
+                alpha=0.5)
 
-            if read_s1d:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    s1d_avg=np.nanmean(self.s1d_block,axis=0)
-                self.ax[0].plot(self.wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
-                label='1D spectrum to be cross-correlated',linewidth=0.9,alpha=0.5)
-            self.ax[0].set_xlim(minwl-5,maxwl+5)#Always nm.
 
-            for n,i in enumerate(self.ccf):#Overplot onto all of the lines and spans.
+        if read_s1d:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                s1d_avg=np.nanmean(s1d_block,axis=0)
+            if mode=='ESPRESSO':
+                ax[0].plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
+                label='1D spectrum to be cross-correlated (geo-centric frame, after undoing '
+                'BERV correction)',linewidth=0.9,alpha=0.5)
+            else:
+                ax[0].plot(wave_1d,s1d_avg/np.nanmean(s1d_avg),color='orange',
+                label='1D spectrum to be cross-correlated (geo-centric frame)',linewidth=0.9,alpha=0.5)
+
+
+
+        ax[0].plot(wlt,fxtn,color='blue',linewidth=0.7,label='Skycalc telluric model (air)',alpha=0.6)
+        ax[0].set_title(f'Time-averaged spectral orders and {star} PHOENIX model')
+        ax[0].set_xlabel('Wavelength (nm)')
+        ax[0].set_ylabel('Flux (normalised to order average)')
+        ax[0].plot(wlm,fxmn,color='green',linewidth=0.7,label='PHOENIX template (air)',
+            alpha=0.5)
+        ax[0].set_xlim(minwl-5,maxwl+5)#Always nm.
+        ax[0].legend(loc='upper right',fontsize=8)
+
+
+        centroids2d=[]
+        centroidsT2d=[]
+
+
+        for n,i in enumerate(ccf):
+            if n == 0:
+                ax[1].plot(rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red',
+                label='2D orders w. PHOENIX')
+            else:
+                ax[1].plot(rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red')
+            centroids2d.append(rv[np.argmin(i)])
+        for n,i in enumerate(ccfT2D):
+            if n == 0:
+                ax[1].plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='green',
+                label='2D orders w. TELLURIC')
+            else:
+                ax[1].plot(rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='green')
+            centroidsT2d.append(rvT2D[np.argmin(i)])
+
+
+        ax[1].axvline(np.nanmedian(centroids2d),color='red',alpha=0.5)
+        ax[1].axvline(np.nanmedian(centroidsT2d),color='green',alpha=1.0)
+
+
+
+        if read_s1d:
+            centroids1d=[]
+            centroidsT1d=[]
+            for n,i in enumerate(ccf1d):
                 if n == 0:
-                    self.ax[1].plot(self.rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red',
-                    label='2D orders w. PHOENIX')
+                    ax[1].plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='orange',
+                    label='1D spectraw w. PHOENIX')
                 else:
-                    self.ax[1].plot(self.rv,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='red')
-                self.ax[1].axvline(self.centroids2d[n],color='red',alpha=1.0/len(self.ccf))
-            for n,i in enumerate(self.ccfT2D):
+                    ax[1].plot(rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='orange')
+                centroids1d.append(rv1d[np.argmin(i)])
+            for n,i in enumerate(ccfT):
                 if n == 0:
-                    self.ax[1].plot(self.rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='royalblue',
-                    label='2D orders w. TELLURIC')
+                    ax[1].plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='blue',
+                    label='1D spectra w. TELLURIC')
                 else:
-                    self.ax[1].plot(self.rvT2D,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='royalblue')
-                self.ax[1].axvline(self.centroidsT2d[n],color='royalblue',alpha=1.0/len(self.ccfT2D))
-
-            if read_s1d:
-                for n,i in enumerate(self.ccf1d):
-                    if n == 0:
-                        self.ax[1].plot(self.rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='orange',
-                        label='1D spectra w. PHOENIX')
-                    else:
-                        self.ax[1].plot(self.rv1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='orange')
-                    self.ax[1].axvline(self.centroids1d[n],color='orange',alpha=1.0/len(self.ccf))
-                for n,i in enumerate(self.ccfT1d):
-                    if n == 0:
-                        self.ax[1].plot(self.rvT1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='lightseagreen',
-                        label='1D spectra w. TELLURIC')
-                    else:
-                        self.ax[1].plot(self.rvT1d,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='lightseagreen')
-                    self.ax[1].axvline(self.centroidsT1d[n],color='lightseagreen',alpha=1.0/len(self.ccfT1d))
-
-            if star == 'hot':
-                sf = 4
-            else:
-                sf = 2.5
-
-            if self.source == '2D':
-                print('------Showing 2D centroids in middle-left panels.')
-                # rv_hi = np.linspace(np.min(self.rv),np.max(self.rv),len(self.rv)*5)#This creates a weird error. Nvm then...
-                rv_hi = self.rv
-                p_ccfs = [self.ccf[0],self.ccf[int(len(self.ccf)/2)],self.ccf[-1]]#First, middle last, to plot.
-                p_fits = [fun.rotation_broadened_line(rv_hi,*self.fit2d[0]),
-                fun.rotation_broadened_line(rv_hi,*self.fit2d[int(len(self.ccf)/2)]),
-                fun.rotation_broadened_line(rv_hi,*self.fit2d[-1])]
-                min_centroid_plot = np.min([self.fit2d[0][1],self.fit2d[1][1],self.fit2d[2][1]])
-                max_centroid_plot = np.max([self.fit2d[0][1],self.fit2d[1][1],self.fit2d[2][1]])
-                max_vsini_plot = np.max([np.max([self.fit2d[0][2],self.fit2d[1][2],self.fit2d[2][2]])*sf,25])#15km/s
-                p_ccfsT = [self.ccfT2D[0],self.ccfT2D[int(len(self.ccfT2D)/2)],self.ccfT2D[-1]]#First, middle last, to plot.
-                rv_hiT = np.linspace(np.min(self.rvT2D),np.max(self.rvT2D),len(self.rvT2D)*5)
-                p_fitsT = [fun.gaussian(rv_hiT,*self.fitT2d[0]),
-                fun.gaussian(rv_hiT,*self.fitT2d[int(len(self.ccfT2D)/2)]),
-                fun.gaussian(rv_hiT,*self.fitT2d[-1])]
-                min_centroid_plotT = np.min([self.fitT2d[0][1],self.fitT2d[1][1],self.fitT2d[2][1]])
-                max_centroid_plotT = np.max([self.fitT2d[0][1],self.fitT2d[1][1],self.fitT2d[2][1]])
-                width_plotT = np.max([np.max([self.fitT2d[0][2],self.fitT2d[1][2],self.fitT2d[2][2]])*5,10])#10km/s
-            if self.source == '1D' and read_s1d == True:
-                print('------Showing 1D centroids in middle-left panels.')
-                p_ccfs = [self.ccf1d[0],self.ccf1d[int(len(self.ccf1d)/2)],self.ccf1d[-1]]#First, middle last, to plot.
-                # rv_hi = np.linspace(np.min(self.rv1d),np.max(self.rv1d),len(self.rv1d)*5)
-                rv_hi = self.rv1d
-                p_fits = [fun.rotation_broadened_line(rv_hi,*self.fit1d[0]),
-                fun.rotation_broadened_line(rv_hi,*self.fit1d[int(len(self.ccf1d)/2)]),
-                fun.rotation_broadened_line(rv_hi,*self.fit1d[-1])]
-                min_centroid_plot = np.min([self.fit1d[0][1],self.fit1d[1][1],self.fit1d[2][1]])
-                max_centroid_plot = np.max([self.fit1d[0][1],self.fit1d[1][1],self.fit1d[2][1]])
-                max_vsini_plot = np.max([np.max([self.fit1d[0][2],self.fit1d[1][2],self.fit1d[2][2]])*sf,25])#15km/s
-                p_ccfsT = [self.ccfT1d[0],self.ccfT1d[int(len(self.ccfT1d)/2)],self.ccfT1d[-1]]#First, middle last, to plot.
-                rv_hiT = np.linspace(np.min(self.rvT1d),np.max(self.rvT1d),len(self.rvT1d)*5)
-                p_fitsT = [fun.gaussian(rv_hiT,*self.fitT1d[0]),
-                fun.gaussian(rv_hiT,*self.fitT1d[int(len(self.ccfT1d)/2)]),
-                fun.gaussian(rv_hiT,*self.fitT1d[-1])]
-                min_centroid_plotT = np.min([self.fitT1d[0][1],self.fitT1d[1][1],self.fitT1d[2][1]])
-                max_centroid_plotT = np.max([self.fitT1d[0][1],self.fitT1d[1][1],self.fitT1d[2][1]])
-                width_plotT = np.max([np.max([self.fitT1d[0][2],self.fitT1d[1][2],self.fitT1d[2][2]])*5,10])#10km/s
-
-            #The plot that shows the stellar fits.
-            self.ax[2].plot(self.rv,p_ccfs[0]/np.nanmean(p_ccfs[0]),'.',label='First',alpha=0.4,color='C0')
-            self.ax[2].plot(self.rv,p_ccfs[1]/np.nanmean(p_ccfs[1]),'.',label='Middle',alpha=0.4,color='C1')
-            self.ax[2].plot(self.rv,p_ccfs[2]/np.nanmean(p_ccfs[2]),'.',label='Last',alpha=0.4,color='C2')
-            self.ax[2].plot(rv_hi,p_fits[0],'--',alpha=1,color='C0')
-            self.ax[2].plot(rv_hi,p_fits[1],'--',alpha=1,color='C1')
-            self.ax[2].plot(rv_hi,p_fits[2],'--',alpha=1,color='C2')
-            self.ax[2].set_xlim(min_centroid_plot-max_vsini_plot,max_centroid_plot+max_vsini_plot)
-            self.ax[3].plot(np.arange(len(self.centroids2d)),self.centroids2d,'.',label='E2DS centroids of star',color='red')
-            self.ax[3].plot(np.arange(len(berv)),-1*(berv-np.mean(berv))+np.mean(self.centroids2d),'--',label='Barycentric RV (inv. & offset)',color='red')
-
-            self.ax[4].plot(self.rvT2D,p_ccfsT[0]/np.nanmean(p_ccfsT[0]),'.',label='First',alpha=0.4,color='C0')
-            self.ax[4].plot(self.rvT2D,p_ccfsT[1]/np.nanmean(p_ccfsT[1]),'.',label='Middle',alpha=0.4,color='C1')
-            self.ax[4].plot(self.rvT2D,p_ccfsT[2]/np.nanmean(p_ccfsT[2]),'.',label='Last',alpha=0.4,color='C2')
-            self.ax[4].plot(rv_hiT,p_fitsT[0],'--',alpha=1,color='C0')
-            self.ax[4].plot(rv_hiT,p_fitsT[1],'--',alpha=1,color='C1')
-            self.ax[4].plot(rv_hiT,p_fitsT[2],'--',alpha=1,color='C2')
-            self.ax[4].set_xlim(min_centroid_plotT-width_plotT,max_centroid_plotT+width_plotT)
-            self.ax[5].plot(np.arange(len(self.centroidsT2d)),self.centroidsT2d,'.',label='E2DS centroids of tellurics',color='royalblue')
-            self.ax[5].plot(np.arange(len(berv)),1*(berv-np.mean(berv))+np.mean(self.centroidsT2d),'--',label='Barycentric RV (offset)',color='royalblue')
-
-            if read_s1d:
-                self.ax[6].plot(np.arange(len(self.centroids1d)),self.centroids1d,'.',label='S1D centroids of star',color='orange')
-                self.ax[6].plot(np.arange(len(berv)),-1*(berv-np.mean(berv))+np.mean(self.centroids1d),'--',label='Barycentric RV (inv. & offset)',color='orange')
-                self.ax[7].plot(np.arange(len(self.centroidsT1d)),self.centroidsT1d,'.',label='S1D centroids of tellurics',color='lightseagreen')
-                self.ax[7].plot(np.arange(len(berv)),1*(berv-np.mean(berv))+np.mean(self.centroidsT1d),'--',label='Barycentric RV (offset)',color='lightseagreen')
-            #The plot that shows the telluric fits.
-            #Start the figure
-
-
-
-        def setup_figure(self):
-            if read_s1d:
-                self.fig, axs = plt.subplot_mosaic([['top','top','top','top'],['lower left', 'middle middle',
-                'middle right1','middle right2'],['lower left', 'lower middle','lower right1','lower right2']],figsize=(14,7))
-                self.ax=[axs['top'],axs['lower left'],axs['middle middle'],axs['middle right1'],axs['lower middle'],axs['lower right1'],axs['middle right2'],axs['lower right2']]
-            else:
-                self.fig, axs = plt.subplot_mosaic([['top','top','top'],['lower left', 'middle middle',
-                'middle right1'],['lower left', 'lower middle','lower right1']],figsize=(14,7))
-                self.ax=[axs['top'],axs['lower left'],axs['middle middle'],axs['middle right1'],axs['lower middle'],axs['lower right1']]
-
-
-        def decorate_figure(self):
-            self.ax[0].set_title(f'Time-averaged spectral orders and {star} PHOENIX model.')
-            self.ax[0].set_xlabel('Wavelength (nm)')
-            self.ax[0].set_ylabel('Normalised flux')
-            self.ax[0].legend(loc='upper right',fontsize=6)
-            self.ax[0].tick_params(labelsize=10)
-            self.ax[0].plot(wlm,fxmn,color='green',linewidth=0.7,label='PHOENIX template (air)',alpha=0.5)#These two are globals and dont change.
-            self.ax[0].plot(wlt,fxtn,color='blue',linewidth=0.7,label='Skycalc telluric model (air)',alpha=0.6)
-            self.ax[1].set_title(f'CCF between data with PHOENIX and telluric models',fontsize=9)
-            self.ax[1].set_xlabel('Radial velocity (km/s)')
-            self.ax[1].set_ylabel('Mean flux')
-            legend=self.ax[1].legend(fontsize=6)
-            for lh in legend.legendHandles:
-                try:
-                    lh._legmarker.set_alpha(1.0)
-                except:
-                    pass
-            for lh in legend.get_lines():
-                try:
-                    lh.set_linewidth(2)
-                except:
-                    pass
-            self.ax[2].set_xlabel('Radial velocity (km/s)')
-            if self.source == '2D':
-                self.ax[2].set_title('Fits of stellar line centroid (E2DS)',fontsize=9)
-            if self.source == '1D' and read_s1d == True:
-                self.ax[2].set_title('Fits of stellar line centroid (S1D)',fontsize=9)
-            self.ax[2].legend(fontsize=6)
-            self.ax[3].set_xlabel('Exposure number')
-            self.ax[3].set_title('Evolution/drift of stellar centroid RV (E2DS)',fontsize=8)
-            self.ax[3].legend(fontsize=6)
-            self.ax[4].set_xlabel('Radial velocity (km/s)')
-            if self.source == '2D':
-                self.ax[4].set_title('Fits of telluric line centroid (E2DS)',fontsize=9)
-            if self.source == '1D' and read_s1d == True:
-                self.ax[4].set_title('Fits of telluric line centroid (S1D)',fontsize=9)
-            self.ax[4].legend(fontsize=6)
-            self.ax[5].legend(fontsize=6)
-            self.ax[5].set_xlabel('Exposure number')
-            self.ax[5].set_title('Evolution/drift of telluric centroid RV (E2DS)',fontsize=8)
-            if read_s1d:
-                self.ax[6].set_xlabel('Exposure number')
-                self.ax[6].set_title('Evolution/drift of stellar centroid RV (S1D)',fontsize=8)
-                self.ax[6].legend(fontsize=6)
-                self.ax[7].legend(fontsize=6)
-                self.ax[7].set_xlabel('Exposure number')
-                self.ax[7].set_title('Evolution/drift of telluric centroid RV (S1D)',fontsize=8)
-            plt.subplots_adjust(left=0.05)#Make them more tight, we need all the space we can get.
-            plt.subplots_adjust(right=0.85)
-
-        def replot(self):
-            for a in self.ax:
-                a.clear()
-            self.plot_data()
-            self.decorate_figure()
-            self.fig.canvas.draw_idle()
-
-
-        def align_spectra(self,event):
-            """
-            This here is the core functionality.
-            It shifts the spectra and recomputes to show the result.
-            The shifting is only a applied to a certain set of spectra (2D or 1D) if so chosen.
-            The shifting can also be chosen to put the star in the restframe or the tellurics.
-            The user may also choose to add/subtract the BERV, or to add a systemic velocity.
-            """
-            if self.source == '2D' and self.frame == 'star':
-                cent = self.centroids2d
-            elif self.source == '1D' and self.frame == 'star':
-                cent = self.centroids1d
-            elif self.source == '2D' and self.frame == 'tel':
-                cent = self.centroidsT2d
-            elif self.source == '1D' and self.frame == 'tel':
-                cent = self.centroidsT1d
-
-            #Reset to initial. We dont want cumulative shifts. But you can do one after the other..!
-            self.load_output()
-
-
-            self.offset = self.vsys+berv*self.bervmult
-
-            if self.apply in ['2D','both']:
-                # print(np.min(self.list_of_waves[0]),np.array(cent)*(-1),self.offset)
-                self.list_of_waves = shift_spec_2D(self.list_of_waves,np.array(cent)*-1+self.offset)
-            if read_s1d and self.apply in ['1D','both']:
-                self.wave1d_sorted = shift_spec_1D(self.wave1d_sorted,np.array(cent)*-1+self.offset)
-            self.recompute()
-            self.fit()
-            self.fit_done+=1
-            self.save_fit_result()
-            self.replot()
-
-            # plt.close('all')#We continue by closing the figure, ending the callback.
-            # self.shifted_spectra = shift_spec
-            #AFTER SHIFTING, I NEED TO RERUN ALL OF THE ABOVE.
-            #THAT MEANS THAT ALL CLEANING AND XCOR STEPS NEED TO BE PUT IN FUNCTIONS, TO BE
-            #REPEATED HERE. LOTS OF WORK, BUT WILL SIMPLIFY THE CODE.
-
-        def activate_back_to_fit_button(self):
-            self.bbacktofit.color='lightgray'
-            self.bbacktofit.on_clicked(callback.reset_to_fit)
-
-
-        def replot_button(self,event):
-            print('------Replotting')
-            self.replot()
-        def refit(self,event):
-            self.fit()
-            self.fit_done+=1
-            self.save_fit_result()
-            self.replot()
-
-        def reset_to_fit(self,event):
-            """Goes with the add_back_to_fit button"""
-            print('------Resetting to fit result')
-            self.fit_done+=1
-            self.load_fit_result()
-            self.replot()
-
-        def reset_to_initial(self,event):
-            print('------Resetting to initial result')
-            if self.fit_done >0 and self.buttontrigger ==0:#only do this once.
-                self.activate_back_to_fit_button()
-                self.buttontrigger=1
-            self.fit_done = 0#if closing in this state, this prevents writing files.
-            self.load_output()
-            self.replot()
-
-        def close(self,event):
-            if self.fit_done > 0:
-                print(f'---Saving to {dp}')
-                for i in range(len(self.list_of_waves)):
-                    fits.writeto(dp/('wave_'+str(i)+'.fits'),self.list_of_waves[i],overwrite=True)
-                if read_s1d:
-                    with open(dp/'s1ds.pkl', 'wb') as f: pickle.dump([s1dhdr_sorted,s1d_sorted,self.wave1d_sorted],f)
-            else:
-                print('---Accepting wavelength solutions without re-alignment')
-            plt.close('all')
-            print('---Exiting')
-
-
-    callback=Theprocessor()
-
-    if save_figure:
-        plt.savefig(dp/'read_data.pdf', dpi=400)#Global dp.
-    plt.subplots_adjust(left=0.05)#Make them more tight, we need all the space we can get.
-    plt.subplots_adjust(right=0.85)
-
-
-    if read_s1d:
-        ax_source = callback.fig.add_axes([0.87, 0.85, 0.11, 0.1])
-        ax_target = callback.fig.add_axes([0.87, 0.75, 0.11, 0.1])
-    ax_addberv = callback.fig.add_axes([0.87, 0.65, 0.11, 0.1])
-    ax_startel = callback.fig.add_axes([0.87, 0.55, 0.11, 0.1])
-
-    # ax_slider1 = callback.fig.add_axes([0.87, 0.50, 0.11, 0.02])
-    # ax_slider2 = callback.fig.add_axes([0.87, 0.45, 0.11, 0.02])
-    ax_vsys = callback.fig.add_axes([0.93,0.45,0.05,0.05])
-    ax_shift = callback.fig.add_axes([0.87, 0.35, 0.11, 0.07])
-    ax_refit = callback.fig.add_axes([0.93, 0.27, 0.05, 0.07])  #Not yet implemented
-    ax_replot = callback.fig.add_axes([0.87, 0.27, 0.05, 0.07]) #Not yet implemented
-    ax_backtofit = callback.fig.add_axes([0.93, 0.19, 0.05, 0.07])
-    ax_reset = callback.fig.add_axes([0.87, 0.19, 0.05, 0.07])
-    ax_close  = callback.fig.add_axes([0.87, 0.11, 0.11, 0.07])
-    ax_adv  = callback.fig.add_axes([0.87, 0.03, 0.11, 0.07])
-
-    if read_s1d:
-        ax_source.set_title('')
-        ax_target.set_title('')
-    ax_addberv.set_title('')
-    ax_startel.set_title('')
-    ax_vsys.set_title('')
-    ax_shift.set_title('')
-    ax_reset.set_title('')
-    ax_close.set_title('')
-    ax_adv.set_title('')
-
-    clabels = ['Align to star', 'Align to telluric']
-    clabels2 = ['No BERV', 'Subtract BERV']
-    clabels3 = ['To both', 'To only E2DS', 'To only S1D']
-    clabels4 = ['From E2DS', 'From S1D']
-
-    def framechoice(label):
-        index = clabels.index(label)
-        if index == 0:
-            print('---Align to star')
-            callback.frame = 'star'
-        if index == 1:
-            print('---Align to tellurics')
-            callback.frame = 'tel'
-
-    def bervchoice(label):
-        index = clabels2.index(label)
-        if index == 0:
-            print('---No berv')
-            callback.bervmult = 0
-        if index == 1:
-            print('---Subtract berv')
-            callback.bervmult = -1.0
-        if index == 2:
-            print('---Add berv')
-            callback.bervmult = 1.0
-
-    def targetchoice(label):
-        index = clabels3.index(label)
-        if index == 0:
-            print('---Apply shifts to both')
-            callback.apply = 'both'
-        if index == 1:
-            print('---Subtract berv')
-            callback.apply = '2D'
-        if index == 2:
-            print('---Add berv')
-            callback.apply = '1D'
-
-    def sourcechoice(label):
-        index = clabels4.index(label)
-        if index == 0:
-            print('---Use E2DS')
-            callback.source = '2D'
-        if index == 1:
-            print('---Use S1D')
-            callback.source = '1D'
-
-    def update_rv_offset(text):
-        if np.char.isnumeric(text):
-            callback.vsys = np.float(text)
-            print(f'------Changed vsys to {callback.vsys} km/s')
-    # def update_rv_offset_whole(val):
-    #     rest = callback.offset % 1
-    #     callback.offset = val+rest
-    # def update_rv_offset_decimal(val):
-    #     callback.offset=math.floor(np.abs(callback.offset))*np.sign(callback.offset)+val
-
-
-
-    if read_s1d:
-        rsource    = RadioButtons(ax_source,clabels4)
-        rtarget    = RadioButtons(ax_target,clabels3)
-    raddberv   = RadioButtons(ax_addberv,clabels2)
-    rstartel   = RadioButtons(ax_startel,clabels)
-    tvsys      = TextBox(ax_vsys,'Vsys (km/s)  ',initial=0.0)
-    # offset_slider1 = Slider(ax_slider1,'',-80,80,valinit=0.0,valstep=1.0)
-    # offset_slider2 = Slider(ax_slider2,'',-1,1,valinit=0.0,valstep=0.01)
-    callback.bbacktofit = Button(ax_backtofit, 'Back \n to fit',color='lightcoral',hovercolor='orangered')
-    brefit     = Button(ax_refit, 'Re-fit',color='lightcoral') #Done after changing fitting params. In future.
-    breplot    = Button(ax_replot, 'Refresh')
-    bshift     = Button(ax_shift, 'Align spectra')#This fills in a button object in the above axes.
-    breset     = Button(ax_reset, 'Reset to \n initial')
-    bclose     = Button(ax_close,'Save & Close')
-    badv       = Button(ax_adv,'Adv correction',color='lightcoral',hovercolor='orangered')
-
-
-    if read_s1d:
-        rsource.on_clicked(sourcechoice)
-        rtarget.on_clicked(targetchoice)
-    raddberv.on_clicked(bervchoice)
-    rstartel.on_clicked(framechoice)
-    # offset_slider1.on_changed(update_rv_offset_whole)
-    # offset_slider2.on_changed(update_rv_offset_decimal)
-    tvsys.on_submit(update_rv_offset)
-    # brefit.on_clicked(callback.refit)
-    breplot.on_clicked(callback.replot_button)
-    bshift.on_clicked(callback.align_spectra)#Now this goes back into the class object.
-    breset.on_clicked(callback.reset_to_initial)
-    bclose.on_clicked(callback.close)
-
-    plt.show()
-
-
-
-    # if read_s1d:
-    #     print('---Fitting 1D centroids')
-    #     centroids1d=[]
-    #     centroidsT1d=[]
-    #     widthsT1d=[]
-    #     for n,i in enumerate(ccfT):
-    #         fit,void = fun.gaussfit(rvT,i/np.nanmean(i),startparams=[-0.9,
-    #         rvT[np.argmin(i)],3.0,1.0,0.0,0.0])
-    #         centroidsT1d.append(fit[1])
-    #         widthsT1d.append(fit[2])
-    #
-    #     if parallel:#On my 8-core laptop, this yields a factor 2 speedup.
-    #         centroids1d, void1, void2, void3 = zip(*Parallel(n_jobs=ncores)(delayed(fit_ccf)(i)
-    #         for i in ccf1d))
-    #     else:
-    #         centroids1d, void1, void2, void3 = zip(*[fit_ccf(i) for i in ccf1d])
-
-
-
-
-
-
-
-
-    #
-    #
-    #
-    #
-    #
-    # if instrument == 'ESPRESSO':
-    #     explanation=[(f'For ESPRESSO, the S1D and S2D spectra are typically provided in the '
-    #     'barycentric frame, in air. Because the S1D spectra are used for telluric correction, '
-    #     'this code undoes this barycentric correction so that the S1Ds are saved in the '
-    #     'telluric rest-frame while the S2D spectra remain in the barycentric frame.'),'',
-    #     ('Therefore, you should see the following values for the the measured line centers:'),
-    #     ('- The 1D spectra correlated with PHOENIX should peak at the systemic velocity minus '
-    #     f'the BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).'),
-    #     '- The 1D spectra correlated with the telluric model should peak at 0 km/s.',
-    #     ('- The 2D spectra correlated with PHOENIX should peak the systemic velocity of this '
-    #     'star.'),('- The 2D spectra correlated with the tellurics should peak at the '
-    #     'barycentric velocity.'),'',('If this is correct, in the Tayph runfile of this dataset,'
-    #     ' do_berv_correction should be set to False and air in the config file of this dataset '
-    #     'should be set to True.')]
-    #
-    #
-    # if instrument in ['HARPS','HARPSN','GIANO-B']:
-    #     explanation=[(f'For {mode}, the s1d spectra are typically provided in the barycentric '
-    #     'restframe, while the e2ds spectra are left in the observatory frame, both in air. '
-    #     'Because the s1d spectra are used for telluric correction, this code undoes this '
-    #     'barycentric correction so that the s1ds are saved in the telluric rest-frame so that '
-    #     'they end up in the same frame as the e2ds spectra.'),'',('Therefore, you should see '
-    #     'the following values for the the measured line centers:'),('- The 1D spectra '
-    #     'correlated with PHOENIX should peak at the systemic velocity minus the BERV correction'
-    #     f' (equal to {np.round(np.nanmean(berv),2)} km/s on average).'),('- The 1D spectra '
-    #     'correlated with the telluric model should peak at 0 km/s.'),('- The 2D spectra '
-    #     'correlated with PHOENIX should peak the systemic velocity minus the BERV correction '
-    #     f'(equal to {np.round(np.nanmean(berv),2)} km/s on average).'),('- The 2D spectra '
-    #     'correlated with the tellurics should peak at 0 km/s.'),'',('If this is correct, in '
-    #     'the Tayph runfile of this dataset, do_berv_correction should be set to True and air '
-    #     'in the config file of this dataset should be set to True.')]
-    #
-    #
-    # if instrument in ['SPIROU']:
-    #     explanation=[('For SPIROU, no s1d spectra are provided, and the telluric correction is'
-    #     ' carried out by the pipeline on the e2ds spectra which are in the observatory '
-    #     'rest-frame. The pipeline originally provided these in vaccuum wavelengths, but the '
-    #     'read_spirou function should have converted these to air.'),'',('Therefore, you should'
-    #     ' see the following values for the the measured line centers:'),('- The 2D spectra '
-    #     'correlated with PHOENIX should peak the systemic velocity minus the BERV correction '
-    #     f'(equal to {np.round(np.nanmean(berv),2)} km/s on average).'),('- The 2D spectra '
-    #     'correlated with the tellurics should peak at 0 km/s.'),'',('If this is correct, in '
-    #     'the Tayph runfile of this dataset, do_berv_correction should be set to True and air '
-    #     'in the config file of this dataset should be set to True.')]
-    #
-    # if instrument in ['GIANO-B','CARMENES-VIS']:
-    #     explanation=[('No explanation provided yet.')]
-    #
-    # if instrument in ['HIRES-MAKEE']:
-    #     explanation=[('do_berv_correction should be set to True and air should be set to'
-    #     ' True. Evidently, this information message still needs to be expanded.')]
-    #
-    #     for s in explanation: ut.tprint(s)
-    #
-    # print('\n \n \n')
-    #
-    # print('The derived line positions are as follows:')
-    #
-    # if read_s1d:
-    #     print(f'1D spectra with PHOENIX:  Line center near RV = '
-    #     f'{int(np.round(np.nanmedian(centroids1d),1))} km/s.')
-    #     print(f'1D spectra with tellurics:  Line center near RV = '
-    #     f'{int(np.round(np.nanmedian(centroidsT1d),1))} km/s.')
-    # print(f'2D orders with PHOENIX:  Line center near RV = '
-    # f'{int(np.round(np.nanmedian(centroids2d),1))} km/s.')
-    # print(f'2D orders with tellurics:  Line center near RV = '
-    # f'{int(np.round(np.nanmedian(centroidsT2d),1))} km/s.')
-    # print('\n \n \n')
-    #
-    # final_notes = ('Large deviations can occur if the wavelength solution from the pipeline is '
-    # 'incorrectly assumed to be in air, or if for whatever reason, the wavelength solution is '
-    # 'provided in the reference frame of the star. In the former case, you need to specify in '
-    # 'the config file of the data that the wavelength solution written by this file is in '
-    # 'vaccuum. This wil be read by Tayph and Molecfit. In the latter case, barycentric '
-    # 'correction (and possibly Keplerian corrections) are likely implicily taken into account '
-    # 'in the wavelength solution, meaning that these corrections need to be switched off when '
-    # "running Tayph's cascade. Molecfit can't be run in the default way in this case, because "
-    # 'the systemic velocity is offsetting the telluric spectrum. If no peak is visible at all, '
-    # 'the spectral orders are suffering from unknown velocity shifts or continuum fluctuations '
-    # 'that this code was not able to take out. In this case, please inspect your data carefully '
-    # 'to determine whether you can locate the source of the problem. Continuing to run Tayph '
-    # 'from this point on would probably make it very difficult to obtain meaningful '
-    # 'cross-correlations.')
-    #
-    # ut.tprint(final_notes)
+                    ax[1].plot(rvT,i/np.nanmean(i),linewidth=0.7,alpha=0.3,color='blue')
+                centroidsT1d.append(rvT[np.argmin(i)])
+
+
+            ax[1].axvline(np.nanmedian(centroids1d),color='orange',alpha=0.5)
+            ax[1].axvline(np.nanmedian(centroidsT1d),color='blue',alpha=0.5)
+
+
+        ax[1].set_title(f'CCF between {mode} data and {star} PHOENIX and telluric models. See commentary '
+        'in terminal for details',fontsize=9)
+        ax[1].set_xlabel('Radial velocity (km/s)')
+        ax[1].set_ylabel('Mean flux')
+        legend=ax[1].legend()
+        for lh in legend.legendHandles: lh._legmarker.set_alpha(1.0)
+        for lh in legend.get_lines(): lh.set_linewidth(4)
+        print('\n \n \n')
+
+
+        if mode == 'ESPRESSO':
+            explanation=[(f'For ESPRESSO, the S1D and S2D spectra are typically provided in the '
+            'barycentric frame, in air. Because the S1D spectra are used for telluric correction, '
+            'this code undoes this barycentric correction so that the S1Ds are saved in the '
+            'telluric rest-frame while the S2D spectra remain in the barycentric frame.'),'',
+            ('Therefore, you should see the following values for the the measured line centers:'),
+            ('- The 1D spectra correlated with PHOENIX should peak at the systemic velocity minus '
+            f'the BERV correction (equal to {np.round(np.nanmean(berv),2)} km/s on average).'),
+            '- The 1D spectra correlated with the telluric model should peak at 0 km/s.',
+            ('- The 2D spectra correlated with PHOENIX should peak the systemic velocity of this '
+            'star.'),('- The 2D spectra correlated with the tellurics should peak at the '
+            'barycentric velocity.'),'',('If this is correct, in the Tayph runfile of this dataset,'
+            ' do_berv_correction should be set to False and air in the config file of this dataset '
+            'should be set to True.')]
+
+
+        if mode in ['HARPS','HARPSN','GIANO-B']:
+            explanation=[(f'For {mode}, the s1d spectra are typically provided in the barycentric '
+            'restframe, while the e2ds spectra are left in the observatory frame, both in air. '
+            'Because the s1d spectra are used for telluric correction, this code undoes this '
+            'barycentric correction so that the s1ds are saved in the telluric rest-frame so that '
+            'they end up in the same frame as the e2ds spectra.'),'',('Therefore, you should see '
+            'the following values for the the measured line centers:'),('- The 1D spectra '
+            'correlated with PHOENIX should peak at the systemic velocity minus the BERV correction'
+            f' (equal to {np.round(np.nanmean(berv),2)} km/s on average).'),('- The 1D spectra '
+            'correlated with the telluric model should peak at 0 km/s.'),('- The 2D spectra '
+            'correlated with PHOENIX should peak the systemic velocity minus the BERV correction '
+            f'(equal to {np.round(np.nanmean(berv),2)} km/s on average).'),('- The 2D spectra '
+            'correlated with the tellurics should peak at 0 km/s.'),'',('If this is correct, in '
+            'the Tayph runfile of this dataset, do_berv_correction should be set to True and air '
+            'in the config file of this dataset should be set to True.')]
+
+
+        if mode in ['SPIROU']:
+            explanation=[('For SPIROU, no s1d spectra are provided, and the telluric correction is'
+            ' carried out by the pipeline on the e2ds spectra which are in the observatory '
+            'rest-frame. The pipeline originally provided these in vaccuum wavelengths, but the '
+            'read_spirou function should have converted these to air.'),'',('Therefore, you should'
+            ' see the following values for the the measured line centers:'),('- The 2D spectra '
+            'correlated with PHOENIX should peak the systemic velocity minus the BERV correction '
+            f'(equal to {np.round(np.nanmean(berv),2)} km/s on average).'),('- The 2D spectra '
+            'correlated with the tellurics should peak at 0 km/s.'),'',('If this is correct, in '
+            'the Tayph runfile of this dataset, do_berv_correction should be set to True and air '
+            'in the config file of this dataset should be set to True.')]
+
+        if mode in ['GIANO-B','CARMENES-VIS']:
+            explanation=[('No explanation provided yet.')]
+
+        if mode in ['HIRES-MAKEE']:
+            explanation=[('do_berv_correction should be set to True and air should be set to'
+            ' True. Evidently, this information message still needs to be expanded.')]
+
+            for s in explanation: ut.tprint(s)
+
+        print('\n \n \n')
+
+        print('The derived line positions are as follows:')
+
+        if read_s1d:
+            print(f'1D spectra with PHOENIX:  Line center near RV = '
+            f'{int(np.round(np.nanmedian(centroids1d),1))} km/s.')
+            print(f'1D spectra with tellurics:  Line center near RV = '
+            f'{int(np.round(np.nanmedian(centroidsT1d),1))} km/s.')
+        print(f'2D orders with PHOENIX:  Line center near RV = '
+        f'{int(np.round(np.nanmedian(centroids2d),1))} km/s.')
+        print(f'2D orders with tellurics:  Line center near RV = '
+        f'{int(np.round(np.nanmedian(centroidsT2d),1))} km/s.')
+        print('\n \n \n')
+
+        final_notes = ('Large deviations can occur if the wavelength solution from the pipeline is '
+        'incorrectly assumed to be in air, or if for whatever reason, the wavelength solution is '
+        'provided in the reference frame of the star. In the former case, you need to specify in '
+        'the config file of the data that the wavelength solution written by this file is in '
+        'vaccuum. This wil be read by Tayph and Molecfit. In the latter case, barycentric '
+        'correction (and possibly Keplerian corrections) are likely implicily taken into account '
+        'in the wavelength solution, meaning that these corrections need to be switched off when '
+        "running Tayph's cascade. Molecfit can't be run in the default way in this case, because "
+        'the systemic velocity is offsetting the telluric spectrum. If no peak is visible at all, '
+        'the spectral orders are suffering from unknown velocity shifts or continuum fluctuations '
+        'that this code was not able to take out. In this case, please inspect your data carefully '
+        'to determine whether you can locate the source of the problem. Continuing to run Tayph '
+        'from this point on would probably make it very difficult to obtain meaningful '
+        'cross-correlations.')
 
+        ut.tprint(final_notes)
 
+        fig.tight_layout()
+        if save_figure:
+            plt.savefig(outpath/'read_data.pdf', dpi=300)
+        plt.show()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    print('\n \n \n')
+    print('Read_e2ds completed successfully.')
+    print('')
 
 
 

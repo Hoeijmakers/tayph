@@ -195,10 +195,8 @@ def read_fies():
 
     hdul = fits.open("/Users/nicholasborsato/mysandbox/mysandbox/1paper/read_fies/FIES-N1/FIDi180396_step011_merge.fits")
     hdr = hdul[0].header
-    lapalma_loc = EarthLocation.from_geocentric(x=hdr['OBSGEO-X'], y=hdr['OBSGEO-Y'], z=hdr['OBSGEO-Z'], unit=u.m)
-    sc = SkyCoord(ra=hdr['RA']* u.deg, dec=hdr['DEC'] * u.deg)
-    barycorr = sc.radial_velocity_correction(obstime=Time(hdr['DATE-OBS']), location=lapalma_loc)
-    berv_correction = calculateberv(Time(hdr['DATE-OBS']),
+
+    berv_correction = sp.calculateberv(Time(hdr['DATE-OBS']),
                                     [hdr['OBSGEO-X'], hdr['OBSGEO-Y'], hdr['OBSGEO-Z']],
                                     hdr['RA'],
                                     hdr['DEC'],

@@ -1162,17 +1162,13 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False,l
         dimtest(list_of_wls[i],[len(list_of_orders[i][0])],'list_of_wls in mask_orders()')
 
     if c_thresh <= 0 and manual == False:
-        print('---WARNING in mask_orders: c_thresh is set to zero and manual masking is turned off.')
-        print('---Returning orders unmasked.')
+        ut.tprint('---WARNING in mask_orders: c_thresh is set to zero and manual masking is turned '
+        'off. Returning orders unmasked.')
         return(list_of_orders)
 
     N = len(list_of_orders)
-    void = np.arange(N, dtype=float) #fun.findgen(N)
+    void = np.arange(N, dtype=float)
 
-    list_of_orders = ops.normalize_orders(list_of_orders,list_of_orders)[0]#first normalize. Dont want outliers to
-    #affect the colour correction later on, so colour correction cant be done before masking, meaning
-    #that this needs to be done twice; as colour correction is also needed for proper maskng. The second variable is
-    #a dummy to replace the expected list_of_sigmas input.
     N_NaN = 0
     N_total = 0
     for i in range(len(list_of_orders)): N_total+=np.size(list_of_orders[i])
@@ -1184,7 +1180,7 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False,l
     list_of_masks = []
 
     if c_thresh > 0:#Check that c_thresh is positive. If not, skip sigma clipping.
-        print('------Sigma-clipping mask')
+        ut.tprint(f'------Sigma-clipping mask with width {w}')
         for i in range(N):
             order = list_of_orders[i]
             N_exp = np.shape(order)[0]
@@ -1192,8 +1188,7 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False,l
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=RuntimeWarning)
                 meanspec = np.nanmean(order,axis = 0)
-            meanblock = fun.rebinreform(meanspec,N_exp)
-            res = order / meanblock - 1.0
+            res = order / meanspec - 1.0
             sigma = fun.running_MAD_2D(res,w)
             with np.errstate(invalid='ignore'):#https://stackoverflow.com/questions/25345843/inequality-comparison-of-numpy-array-with-nan-to-a-scalar
                 sel = np.abs(res) >= c_thresh*sigma
@@ -1202,9 +1197,9 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False,l
             list_of_masks.append(order*0.0)
             ut.statusbar(i,void)
 
-        print(f'{N_NaN} outliers identified and set to NaN ({round(N_NaN/N_total*100.0,3)}%).')
+        ut.tprint(f'{N_NaN} outliers identified and set to NaN ({round(N_NaN/N_total*100.0,3)}%).')
     else:
-        print('------Skipping sigma-clipping (c_thres <= 0)')
+        ut.tprint('------Skipping sigma-clipping (c_thres <= 0)')
         #Do nothing to list_of_masks. It is now an empty list.
         #We now automatically proceed to manual masking, because at this point
         #it has already been established that it must have been turned on.

@@ -203,8 +203,8 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=0,nsigma=4,sinusoid=False
         The normalised 2D orders.
     out_list_of_sigmas : list
         The corresponding errors.
-    meanfluxes : np.array
-        The mean flux of each exposure in the time series, averaged over all orders.
+    t_weights : np.array
+        Weight based on the mean flux of each exposure in the time series, averaged over all orders.
     """
     import numpy as np
     import tayph.functions as fun
@@ -223,7 +223,6 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=0,nsigma=4,sinusoid=False
         dimtest(list_of_sigmas[i],np.shape(list_of_orders[i]))
     typetest(deg,int,'degree in ops.normalize_orders()')
     typetest(nsigma,[int,float],'nsigma in ops.normalize_orders()')
-    # postest(deg,'degree in ops.normalize_orders()')
     postest(nsigma,'nsigma in ops.normalize_orders()')
     notnegativetest(deg,'degree in ops.normalize_orders()')
 
@@ -231,43 +230,43 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=0,nsigma=4,sinusoid=False
     out_list_of_orders=[]
     out_list_of_sigmas=[]
 
-
     #First compute the exposure-to-exposure flux variations to be used as weights.
-    meanfluxes = np.zeros(n_exp) #fun.findgen(n_exp)*0.0
+    t_weights = np.zeros(n_exp)
+
+
 
     ### suggestions for improvement
     """
     m = [np.nanmedian(list_of_orders[i], axis=1) for i in range(N)]
     skipped = np.where(np.sum(np.isnan(m)) > 0)[0]
-    meanfluxes = np.sum(m[np.sum(np.isnan(m)) <= 0]) / len(m[np.sum(np.isnan(m)) <= 0])
+    t_weights = np.sum(m[np.sum(np.isnan(m)) <= 0]) / len(m[np.sum(np.isnan(m)) <= 0])
     """
 
+
     N_i = 0
+    meanflux = []
     for i in range(N):
-        m = np.nanmedian(list_of_orders[i],axis=1)#Median or mean?
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            m = np.nanmedian(list_of_orders[i],axis=1)#Median or mean? This returns a NaN for each
+            #row that is all NaNs.
         if np.sum(np.isnan(m)) > 0:
-            print('---Warning in normalise_orders: Skipping order %s because many nans are present.'%i)
+            ut.tprint(f'---Warning in normalise_orders: Skipping order {i} when calculating total '
+            'flux in the time-series because many nans are present.')
         else:
             N_i+=1
-            meanfluxes+=m#These contain the exposure-to-exposure variability of the time-series.
-    meanfluxes/=N_i#These are the weights.
+            t_weights+=m#These contain the exposure-to-exposure variability of the time-series.
+            #These have length equal to n_exp.
+    t_weights/=N_i#These are the weights.
+
 
     if deg == 0:
-
-        ### suggestion for improvement: (no loop needed)!
-        """
-        #meanflux = m # we already did that above!
-        meanblock = m / np.nanmean(meanflux)
-        out_list_of_orders.append((list_of_orders[i].T/meanblock).T)
-        """
         for i in range(N):
-            #What I'm doing here is probably stupid and numpy division will probably work just fine without
-            #IDL-relics.
-            n_px=np.shape(list_of_orders[i])[1]
-            meanflux=np.nanmedian(list_of_orders[i],axis=1) #Average flux in each order. Median or mean?
-            meanblock=fun.rebinreform(meanflux/np.nanmean(meanflux),n_px).T#This is a slow operation. Row-by-row division is better done using a double-transpose...
-            out_list_of_orders.append(list_of_orders[i]/meanblock)
-            out_list_of_sigmas.append(list_of_sigmas[i]/meanblock)
+            meanflux=np.nanmedian(list_of_orders[i],axis=1) #Average flux in each order as above.
+            #Median or mean? If this is all NaN for some exposure, then in the out_order this will
+            #be all NaN, too. Then it should be skipped?
+            out_list_of_orders.append((list_of_orders[i].T/(meanflux/np.nanmean(meanflux))).T)
+            out_list_of_sigmas.append((list_of_sigmas[i].T/(meanflux/np.nanmean(meanflux))).T)
     else:
         for i in range(N):
             with warnings.catch_warnings():
@@ -275,13 +274,17 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=0,nsigma=4,sinusoid=False
                 meanspec=np.nanmean(list_of_orders[i],axis=0)#Average spectrum in each order.
             x=np.array(range(len(meanspec)))
             poly_block = list_of_orders[i]*0.0#Array that will host the polynomial fits.
-            colour = list_of_orders[i]/meanspec#What if there are zeroes? I.e. padding around the edges of the order?
+            meanspec[meanspec<=0]=np.nan#If there are zeroes, these are set to NaN.
+            colour = list_of_orders[i]/meanspec#NaNs propagate into here and are ignored below.
             for j,s in enumerate(list_of_orders[i]):
                 idx = np.isfinite(colour[j])
                 if np.sum(idx) > 0:
-                    p = np.poly1d(np.polyfit(x[idx],colour[j][idx],deg))(x)#Polynomial fit to the colour variation.
-                    res = colour[j]/p-1.0 #The residual, which is flat around zero if it's a good fit. This has all sorts of line residuals that we need to throw out.
-                    #We do that using the weight keyword of polyfit, and just set all those weights to zero.
+                    p = np.poly1d(np.polyfit(x[idx],colour[j][idx],deg))(x)#Polynomial fit to the
+                    #colour variation.
+                    res = colour[j]/p-1.0 #The residual, which is flat around zero if it's a good
+                    #fit. This has all sorts of line residuals that we need to throw out. We do
+                    #that using the weight keyword of polyfit, and just set all those weights to
+                    #zero.
                     sigma = np.nanstd(res)
                     w = x*0.0+1.0#Start with a weight function that is 1.0 everywhere.
                     with warnings.catch_warnings():
@@ -296,7 +299,7 @@ def normalize_orders(list_of_orders,list_of_sigmas,deg=0,nsigma=4,sinusoid=False
             out_list_of_orders.append(list_of_orders[i]/poly_block)
             out_list_of_sigmas.append(list_of_sigmas[i]/poly_block)
             ut.statusbar(i,N)
-    return(out_list_of_orders,out_list_of_sigmas,meanfluxes)
+    return(out_list_of_orders,out_list_of_sigmas,t_weights)
 
 
 

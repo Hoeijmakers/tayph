@@ -254,7 +254,8 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     #We start by defining constants and preparing for generating output.
     c=const.c.value/1000.0#in km/s
     colourdeg = 3 #A fitting degree for the colour correction. #should be set in the config file?
-
+    mw = 20.0
+    c_thresh = 5.0
 
     ut.tprint('---Passed parameter input tests.')
 
@@ -578,20 +579,25 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     #Compute / create a mask and save it to file (or not)
     if make_mask == True and len(list_of_orders) > 0:
         if do_colour_correction == True:
-            print('---Constructing mask with intra-order colour correction applied')
-            masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,20.0,5.0,manual=True,
-            list_of_Ts=list_of_Ts_1D)
-            #There are some hardcoded values here.
-            #Should set w to np.max([np.min([math.ceil(npx_window/n_exp),100]),10]) for a window that is at
-            #least 10 and at most 100px wide; but otherwise with a number of npx_window pixels
-            #guaranteed over which to take standard deviations.
+
+            list_of_orders_mask = ops.normalize_orders(list_of_orders,list_of_orders,colourdeg)[0]
+            #I dont want outliers to affect the colour correction later on, so colour correction
+            #can't be done before masking. At the same time, masking shouldn't suffer from colour
+            #variations either. So this needs to be done twice.
+            #The second variable is a dummy to replace the expected list_of_sigmas input.
+            ut.tprint('---Constructing mask with intra-order colour correction applied')
+            masking.mask_orders(list_of_wls,list_of_orders_mask,dp,maskname,mw,c_thresh,
+            manual=True,list_of_Ts=list_of_Ts_1D)
+            #There are some hardcoded values here: mw and c_thresh
             #List of Ts is set to None if telluric correction is not applied.
+            del list_of_orders_mask
+
         else:
             ut.tprint('---Constructing mask WITHOUT intra-order colour correction applied.')
             ut.tprint('---Switch on colour correction if you see colour variations in the 2D '
                 'spectra.')
-            masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,20.0,5.0,manual=True,
-            list_of_Ts=list_of_Ts_1D)
+            masking.mask_orders(list_of_wls,list_of_orders,dp,maskname,mw,c_thresh,
+            manual=True,list_of_Ts=list_of_Ts_1D)
         if apply_mask == False:
             ut.tprint('---WARNING in run_instance: Mask was made but is not applied to data '
                 '(apply_mask == False)')
@@ -2045,6 +2051,9 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
             self.buttontrigger = 0
             self.degree = 2 #Degree of continuum polynomial fit for stellar line. Add support for
             #future freedom in this?
+            self.adv_trigger = False
+            self.centroids2d = None
+            self.centroidsT2d = None
             self.recompute()
             self.fit()
             self.save_output()#Save the computed parameters.
@@ -2052,8 +2061,6 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
             self.plot_data()
             self.decorate_figure()
             self.fig.tight_layout()
-
-
         def save_fit_result(self):
             """
             This saves the computed output to backup variables. Typically used to save the initial
@@ -2084,10 +2091,6 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
             if read_s1d:
                 self.centroids1d_SAV2 = copy.deepcopy(self.centroids1d)
                 self.centroidsT1d_SAV2 = copy.deepcopy(self.centroidsT1d)
-
-
-
-
         def save_output(self):
             """
             This saves the computed output to backup variables. Typically used to save the initial
@@ -2118,8 +2121,6 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
             if read_s1d:
                 self.centroids1d_SAV = copy.deepcopy(self.centroids1d)
                 self.centroidsT1d_SAV = copy.deepcopy(self.centroidsT1d)
-
-
         def load_fit_result(self):
             """
             This loads the computed output from backup variables. Typically used to save the initial
@@ -2150,9 +2151,6 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
             if read_s1d:
                 self.centroids1d = copy.deepcopy(self.centroids1d_SAV2)
                 self.centroidsT1d = copy.deepcopy(self.centroidsT1d_SAV2)
-
-
-
         def load_output(self):
             """
             This loads the computed output from backup variables. Typically used to save the initial
@@ -2183,8 +2181,6 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
             if read_s1d:
                 self.centroids1d = copy.deepcopy(self.centroids1d_SAV)
                 self.centroidsT1d = copy.deepcopy(self.centroidsT1d_SAV)
-
-
         def recompute(self):
             #Function definitions are finished, let's proceed to execute them:
 
@@ -2208,8 +2204,6 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
                 self.rvT1d,self.ccfT,TsusmT=xcor([self.wave_1d],[self.s1d_block],[wlt],[fxtn-1.0],drv,RVrange)
                 self.ccf1d=self.ccf1d[0]
                 self.ccfT1d=self.ccfT[0]
-
-
         def fit(self):
             if self.apply in ['2D','both']:
                 print('---Fitting 2D centroids')
@@ -2221,7 +2215,6 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
                 self.centroids1d, void1, void2, self.fit1d = fit_ccf(self.rv1d,self.ccf1d,mode='star',parallel=parallel,degree=self.degree)
                 self.centroidsT1d, void1, self.fitT1d = fit_ccf(self.rvT1d,self.ccfT1d,mode='tel',parallel=parallel)
             print('---Velocity computation complete')
-
         def plot_data(self):
             #The rest is for plotting.
             minwl=np.inf#For determining in the for-loop what the min and max wl range of the data are.
@@ -2352,9 +2345,6 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
                 self.ax[7].plot(np.arange(len(berv)),1*(berv-np.mean(berv))+np.mean(self.centroidsT1d),'--',label='Barycentric RV (offset)',color='lightseagreen')
             #The plot that shows the telluric fits.
             #Start the figure
-
-
-
         def setup_figure(self):
             if read_s1d:
                 self.fig, axs = plt.subplot_mosaic([['top','top','top','top'],['lower left', 'middle middle',
@@ -2364,8 +2354,6 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
                 self.fig, axs = plt.subplot_mosaic([['top','top','top'],['lower left', 'middle middle',
                 'middle right1'],['lower left', 'lower middle','lower right1']],figsize=(14,7))
                 self.ax=[axs['top'],axs['lower left'],axs['middle middle'],axs['middle right1'],axs['lower middle'],axs['lower right1']]
-
-
         def decorate_figure(self):
             self.ax[0].set_title(f'Time-averaged spectral orders and {star} PHOENIX model.')
             self.ax[0].set_xlabel('Wavelength (nm)')
@@ -2415,15 +2403,12 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
                 self.ax[7].set_title('Evolution/drift of telluric centroid RV (S1D)',fontsize=8)
             plt.subplots_adjust(left=0.05)#Make them more tight, we need all the space we can get.
             plt.subplots_adjust(right=0.85)
-
         def replot(self):
             for a in self.ax:
                 a.clear()
             self.plot_data()
             self.decorate_figure()
             self.fig.canvas.draw_idle()
-
-
         def align_spectra(self,event):
             """
             This here is the core functionality.
@@ -2463,12 +2448,9 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
             #AFTER SHIFTING, I NEED TO RERUN ALL OF THE ABOVE.
             #THAT MEANS THAT ALL CLEANING AND XCOR STEPS NEED TO BE PUT IN FUNCTIONS, TO BE
             #REPEATED HERE. LOTS OF WORK, BUT WILL SIMPLIFY THE CODE.
-
         def activate_back_to_fit_button(self):
             self.bbacktofit.color='lightgray'
             self.bbacktofit.on_clicked(callback.reset_to_fit)
-
-
         def replot_button(self,event):
             print('------Replotting')
             self.replot()
@@ -2477,14 +2459,12 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
             self.fit_done+=1
             self.save_fit_result()
             self.replot()
-
         def reset_to_fit(self,event):
             """Goes with the add_back_to_fit button"""
             print('------Resetting to fit result')
             self.fit_done+=1
             self.load_fit_result()
             self.replot()
-
         def reset_to_initial(self,event):
             print('------Resetting to initial result')
             if self.fit_done >0 and self.buttontrigger ==0:#only do this once.
@@ -2493,7 +2473,19 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
             self.fit_done = 0#if closing in this state, this prevents writing files.
             self.load_output()
             self.replot()
-
+        def go_to_adv(self,event):
+            self.adv_trigger = True
+            Npx = len(self.list_of_orders[0][0])
+            for i in range(len(self.list_of_orders)):#Check that all orders are defined on the same
+                #wavelength frame.
+                if len(self.list_of_orders[i][0]) != Npx: #If that is not the case, cancel this.
+                    self.adv_trigger = False
+            if self.adv_trigger == False:
+                ut.tprint('---Not all orders have the same length. This means that the original '
+                'extraction is not preserved, and 2D wavelength correction cannot be performed.')
+            else:
+                ut.tprint('---Proceeding with 2D wavelength correction.')
+                plt.close('all')
         def close(self,event):
             if self.fit_done > 0:
                 print(f'---Saving to {dp}')
@@ -2504,7 +2496,12 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
             else:
                 print('---Accepting wavelength solutions without re-alignment')
             plt.close('all')
+
             print('---Exiting')
+
+
+
+
 
 
     callback=Theprocessor()
@@ -2632,8 +2629,41 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
     bshift.on_clicked(callback.align_spectra)#Now this goes back into the class object.
     breset.on_clicked(callback.reset_to_initial)
     bclose.on_clicked(callback.close)
+    # badv.on_clicked(callback.go_to_adv)
 
     plt.show()
+
+
+
+    class advcorrector(object,c2d,cT2d):
+        def __init__(self):
+            if c2d and cT2d:
+                self.mode='both'
+            elif c2d:
+                self.mode='star'
+            elif cT2D:
+                self.mode='tel'
+            else:
+                raise Exception('Either centroids 2d or telluric centroids2d is supposed to be set')
+
+            self.list_of_waves = copy.deepcopy(list_of_waves)
+            self.list_of_orders = copy.deepcopy(list_of_orders)
+
+
+
+        def setup_plot(self):
+            self.fig, axs = plt.subplot_mosaic([['top','top','top'],['lower left', 'middle middle',
+            'middle right1'],['lower left', 'lower middle','lower right1']],figsize=(14,7))
+            self.ax=[axs['top'],axs['lower left'],axs['middle middle'],axs['middle right1'],axs['lower middle'],axs['lower right1']]
+            #START HERE
+
+
+
+
+
+    if M.adv_trigger == True:
+        callback2 = advcorrector(copy.deepcopy(M.centroids2d),copy.deepcopy(M.centroidsT2d))
+        del callback #This was probably quite big in memory but all we need are the centroids.
 
 
 

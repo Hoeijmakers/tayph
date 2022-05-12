@@ -549,8 +549,8 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                     order_cor[j]=order[j]
                     sigma_cor[j]=sigma[j]
             if do_telluric_correction:
-                lentest(list_of_wls[i]*gamma[j],len(T_order[j]),varname='list_of_wls[i]')
-                T_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j],T_order[j],
+                lentest(list_of_wls[i]*gamma[j].value,len(T_order[j]),varname='list_of_wls[i]')
+                T_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j].value,T_order[j],
                 bounds_error=False,fill_value=1)(wl_cor)
 
 

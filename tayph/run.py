@@ -170,6 +170,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     import tayph.models as models
     from tayph.ccf import xcor,clean_ccf,filter_ccf,construct_KpVsys,mask_cor
     from tayph.vartests import typetest,notnegativetest,nantest,postest,typetest_array,dimtest
+    from tayph.vartests import lentest
     import tayph.shadow as shadow
 
     #First parse the parameter dictionary into required variables and test the datapath.
@@ -548,6 +549,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                     order_cor[j]=order[j]
                     sigma_cor[j]=sigma[j]
             if do_telluric_correction:
+                lentest(list_of_wls[i]*gamma[j],len(T_order[j]),varname='list_of_wls[i]')
                 T_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j],T_order[j],
                 bounds_error=False,fill_value=1)(wl_cor)
 
@@ -2279,7 +2281,16 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
                 sf = 2.5
 
             if self.source == '2D':
+
+                self.Gw = []
+                self.Lw = []
+                self.Sw = []
                 print('------Showing 2D centroids in middle-left panels.')
+                for i in range(len(self.fit2d)):
+                    print(self.fit2d[i][4],self.fit2d[i][5])
+                    self.Gw.append(self.fit2d[i][4])
+                    self.Lw.append(self.fit2d[i][5])
+                    self.Sw.append(self.fit2d[i][2])
                 # rv_hi = np.linspace(np.min(self.rv),np.max(self.rv),len(self.rv)*5)#This creates a weird error. Nvm then...
                 rv_hi = self.rv
                 p_ccfs = [self.ccf[0],self.ccf[int(len(self.ccf)/2)],self.ccf[-1]]#First, middle last, to plot.
@@ -2633,6 +2644,13 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
 
     plt.show()
 
+    plt.plot(callback.Gw)
+    plt.show()
+
+    plt.plot(callback.Lw)
+    plt.show()
+    pdb.set_trace()
+    sys.exit()
 
 
     class advcorrector(object,c2d,cT2d):

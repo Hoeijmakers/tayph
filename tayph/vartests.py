@@ -159,9 +159,10 @@ def lentest(var,length,varname='var'):
     >>> lentest(a,5)
     """
     import numpy as np
+    import numpy
     typetest(length,[int])
     typetest(varname,str)
-    typetest(var,[list,tuple])
+    typetest(var,[list,tuple,numpy.ndarray])
     if len(var) != length:
         raise ValueError(f"Wrong length of {varname}:  len = {len(var)} but was required to be "
         f"{length}.")

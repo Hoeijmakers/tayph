@@ -182,7 +182,7 @@ def get_model(name,library='models/library',root='models',is_binary=False):
     else:
         raise FileNotFoundError(f'Model file {modelpath} from library {str(library)} does not '
         'exist.')
-    dimtest(modelarray,[2,0])
+    dimtest(modelarray,[2,0],varname=f'model {str(modelpath)}')
     return(modelarray[0,:],modelarray[1,:])
 
 

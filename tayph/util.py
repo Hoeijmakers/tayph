@@ -7,6 +7,7 @@ __all__ = [
     "check_path",
     "save_stack",
     "writefits",
+    "readfits",
     "read_binary_kitzmann",
     "read_wave_from_e2ds_header"
 ]
@@ -211,6 +212,22 @@ def writefits(filename,array):
     # dimtest(base,[2],'shape of array in writefits()')#Test that its 2-dimensional
     fits.writeto(filename,array,overwrite=True)
 
+
+def readfits(filename,i=0):
+    """
+    This is a replacement for fits.getdata, closing the file after reading to prevent too many open
+    file errors. Set i to an extension if you wish to return another extension than the first one.
+    """
+    import astropy.io.fits as fits
+    from tayph.vartests import typetest
+    from tayph.vartests import dimtest
+    import pathlib
+    import numpy as np
+    filename=pathlib.Path(filename,exists=True)
+    with fits.open(filename) as hdul:
+        D=hdul[i].data
+    del hdul
+    return(D)
 
 
 def read_binary_kitzmann(inpath,double=True):

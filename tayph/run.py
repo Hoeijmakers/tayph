@@ -323,8 +323,8 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             ut.check_path(wavepath,exists=True)
             ut.check_path(orderpath,exists=True)
             ut.check_path(sigmapath,exists=False)
-            wave_order = fits.getdata(wavepath)#2D or 1D?
-            order_i = fits.getdata(orderpath)
+            wave_order = ut.readfits(wavepath)#2D or 1D?
+            order_i = ut.readfits(orderpath)
 
             #Check dimensionality of wave axis and order. Either 2D or 1D.
             if wave_order.ndim == 2:
@@ -380,7 +380,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             #Try to get a sigma file. If it doesn't exist, we raise a warning. If it does, we test
             #its dimensions and append it.
             try:
-                sigma_i = fits.getdata(sigmapath)
+                sigma_i = ut.readfits(sigmapath)
                 dimtest(sigma_i,[n_exp,n_px],f'order {i} in run_instance().')
                 list_of_sigmas.append(sigma_i)
             except FileNotFoundError:
@@ -548,17 +548,31 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                     #No interpolation at all:
                     order_cor[j]=order[j]
                     sigma_cor[j]=sigma[j]
-            if do_telluric_correction:
-                lentest(list_of_wls[i]*gamma[j].value,len(T_order[j]),varname='list_of_wls[i]')
-                T_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j].value,T_order[j],
-                bounds_error=False,fill_value=1)(wl_cor)
-
-
+            if do_telluric_correction and make_mask == True:
+                # lentest(list_of_wls[i]*gamma[j].value,len(T_order[j]),varname='list_of_wls[i]')
+                # T_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j].value,T_order[j],
+                # bounds_error=False,fill_value=1)(wl_cor)
+                if list_of_wls[i].ndim==2:
+                    lentest(list_of_wls[i][j],len(T_order[j]),varname='list_of_wls[i]')
+                    if type(rv_cor) != int:
+                        T_cor[j] = interp.interp1d(list_of_wls[i][j]*gamma[j].value,T_order[j],
+                        bounds_error=False,fill_value=1)(wl_cor)
+                    else:
+                        T_cor[j] = interp.interp1d(list_of_wls[i][j],T_order[j],
+                        bounds_error=False,fill_value=1)(wl_cor)
+                else:
+                    lentest(list_of_wls[i],len(T_order[j]),varname='list_of_wls[i]')
+                    if type(rv_cor) != int:
+                        T_cor[j] = interp.interp1d(list_of_wls[i]*gamma[j].value,T_order[j],
+                        bounds_error=False,fill_value=1)(wl_cor)
+                    else:
+                        T_cor[j] = interp.interp1d(list_of_wls[i],T_order[j],
+                        bounds_error=False,fill_value=1)(wl_cor)
 
         list_of_orders_cor.append(order_cor)
         list_of_sigmas_cor.append(sigma_cor)
         list_of_wls_cor.append(wl_cor)
-        if do_telluric_correction:
+        if do_telluric_correction and make_mask == True:
             list_of_Ts_cor.append(T_cor)
         ut.statusbar(i,np.arange(len(list_of_wls)))
     # plt.plot(list_of_wls[60][3],list_of_orders[60][3]/list_of_sigmas[60][3],color='blue')
@@ -567,7 +581,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     list_of_orders = list_of_orders_cor
     list_of_sigmas = list_of_sigmas_cor
     list_of_wls = list_of_wls_cor
-    if do_telluric_correction:
+    if do_telluric_correction and make_mask == True:
         for i in range(len(list_of_Ts_cor)):
             list_of_Ts_1D.append(np.nanmean(list_of_Ts_cor[i],axis=0))
     #Now the spectra are telluric corrected and velocity corrected, and the wavelength axes have
@@ -781,10 +795,10 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                 'do_xcor=True to create these files.')
 
         #Read regardless of whether XCOR was performed or not. Less code to duplicate...
-        rv=fits.getdata(outpath/'RV.fits')
-        ccf = fits.getdata(outpath/'ccf.fits')
-        ccf_e = fits.getdata(outpath/'ccf_e.fits')
-        Tsums = fits.getdata(outpath/'Tsum.fits')
+        rv=ut.readfits(outpath/'RV.fits')
+        ccf = ut.readfits(outpath/'ccf.fits')
+        ccf_e = ut.readfits(outpath/'ccf_e.fits')
+        Tsums = ut.readfits(outpath/'Tsum.fits')
 
         ut.tprint('---Cleaning CCFs')
         ccf_n,ccf_ne,ccf_nn,ccf_nne= clean_ccf(rv,ccf,ccf_e,dp,intransit)
@@ -940,10 +954,10 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                             f'{str(outpath_i)}. Rerun with do_xcor=True to create these files.')
 
                     #Read regardless of whether XCOR was performed or not. Less code to duplicate...
-                    rv_i=fits.getdata(outpath_i/'RV.fits')
-                    ccf_i = fits.getdata(outpath_i/'ccf.fits')
-                    ccf_e_i = fits.getdata(outpath_i/'ccf_e.fits')
-                    Tsums_i = fits.getdata(outpath_i/'Tsum.fits')
+                    rv_i=ut.readfits(outpath_i/'RV.fits')
+                    ccf_i = ut.readfits(outpath_i/'ccf.fits')
+                    ccf_e_i = ut.readfits(outpath_i/'ccf_e.fits')
+                    Tsums_i = ut.readfits(outpath_i/'Tsum.fits')
 
 
                     ut.tprint('---Cleaning injected CCFs')
@@ -1788,8 +1802,8 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
     for i in order_numbers:
         wavepath = ut.check_path(dp/f'wave_{i}.fits',exists=True)
         orderpath= ut.check_path(dp/f'order_{i}.fits',exists=True)
-        wave_order = fits.getdata(wavepath)#2D or 1D?
-        order_i = fits.getdata(orderpath)
+        wave_order = ut.readfits(wavepath)#2D or 1D?
+        order_i = ut.readfits(orderpath)
         #Check dimensionality of wave axis and order. Either 2D or 1D.
         if wave_order.ndim == 2:
             if i == np.min(order_numbers):

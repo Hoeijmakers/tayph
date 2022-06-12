@@ -21,14 +21,17 @@ phoenix_model_temps = np.array(
      2300, 11200]
 )
 
+phoenix_model_loggs = np.arange(0.0, 6.0, 0.5)
+
 
 def get_url(T_eff, log_g):
     closest_grid_temperature = phoenix_model_temps[np.argmin(np.abs(phoenix_model_temps - T_eff))]
+    closest_grid_logg = phoenix_model_loggs[np.argmin(np.abs(phoenix_model_loggs - log_g))]
 
     url = ('ftp://phoenix.astro.physik.uni-goettingen.de/v2.0/HiResFITS/'
            'PHOENIX-ACES-AGSS-COND-2011/Z-0.0/lte{T_eff:05d}-{log_g:1.2f}-0.0.PHOENIX-'
            'ACES-AGSS-COND-2011-HiRes.fits').format(T_eff=closest_grid_temperature,
-                                                    log_g=log_g)
+                                                    log_g=closest_grid_logg)
     return url
 
 

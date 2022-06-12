@@ -13,7 +13,7 @@ __all__ = [
     "clean_block"
 ]
 
-
+import numpy as np
 
 def smooth(fx,w,mode='box',edge_degree=1):
     """
@@ -593,7 +593,7 @@ def derivative(x):
 
 
 
-def constant_velocity_wl_grid(wl,fx,oversampling=1.0):
+def constant_velocity_wl_grid(wl,fx,oversampling=1.0,minmax=[0,np.inf],assume_sorted=False,verbose=False):
     """This function will define a constant-velocity grid that is (optionally)
     sampled a number of times finer than the SMALLEST velocity difference that is
     currently in the grid.
@@ -636,6 +636,7 @@ def constant_velocity_wl_grid(wl,fx,oversampling=1.0):
     from scipy import interpolate
     import pdb
     import matplotlib.pyplot as plt
+    import tayph.util as ut
     typetest(oversampling,[int,float],'oversampling in constant_velocity_wl_grid()',)
     typetest(wl,[list,np.ndarray],'wl in constant_velocity_wl_grid()')
     typetest(fx,[list,np.ndarray],'fx in constant_velocity_wl_grid()')
@@ -651,26 +652,44 @@ def constant_velocity_wl_grid(wl,fx,oversampling=1.0):
 
     c=consts.c.to('km/s').value
 
-    dl=derivative(wl)
-    dv=dl/wl*c
-    a=np.min(dv)/oversampling
+
+    minwl = np.max([minmax[0],np.min(wl)])
+    maxwl = np.min([minmax[1],np.max(wl)])
+    if verbose: ut.tprint(f'Sub-selecting wavelengths to {minwl}-{maxwl}')
+    wl_sel = wl[(wl>=minwl)&(wl<=maxwl)]
+    fx_sel = fx[(wl>=minwl)&(wl<=maxwl)]
+    if verbose: ut.tprint(f'The length of the wl array is now {len(wl_sel)} (was {len(wl)})')
+    if verbose: ut.tprint('Computing derivative.')
+    dl=derivative(wl_sel)
+    dv=dl/wl_sel*c
+    a=np.min(np.abs(dv)/oversampling)
+    if verbose: ut.tprint(f'dv = {a*oversampling}')
 
     wl_new=0.0
     #The following while loop will define the new pixel grid.
     #It starts trying 100,000 points, and if that's not enough to cover the entire
     #range from min(wl) to max(wl), it will add 100,000 more; until it's enough.
-    n=len(wl)
-    while np.max(wl_new) < np.max(wl):
+
+    if verbose: ut.tprint(f'Building up new wavelength array until {maxwl}')
+    n=len(wl_sel)
+    while np.max(wl_new) < maxwl:
         x=np.arange(n, dtype=float) #fun.findgen(n)
-        wl_new=np.exp(a/c * x)*np.min(wl)
-        n+=len(wl)
-    wl_new[0]=np.min(wl)#Artificially set to zero to avoid making a small round
+        wl_new=np.exp(a/c * x)*minwl
+        n+=len(wl_sel)
+
+    wl_new[0]=minwl#Artificially set to zero to avoid making a small round
     #off error in that exponent.
 
     #Then at the end we crop the part that goes too far:
-    wl_new_cropped=wl_new[(wl_new <= np.max(wl))]
-    x_cropped=x[(wl_new <= np.max(wl))]
-    i_fx = interpolate.interp1d(wl,fx)
+    wl_new_cropped=wl_new[(wl_new < np.max(wl_sel))&(wl_new>np.min(wl_sel))]
+    x_cropped=x[(wl_new < maxwl)]
+    if verbose:
+        ut.tprint(f'Interpolating {len(wl_new_cropped)} values onto the selected '
+        f'wavelength array with length {len(wl_sel)}')
+        ut.tprint(f'Boundaries of new wavelength: {np.min(wl_new_cropped)}-{np.max(wl_new_cropped)}')
+        ut.tprint(f'Boundaries of selected wavelengths: {np.min(wl_sel)}-{np.max(wl_sel)}')
+
+    i_fx = interpolate.interp1d(wl_sel,fx_sel,assume_sorted=assume_sorted)
     fx_new_cropped =i_fx(wl_new_cropped)
     return(wl_new_cropped,fx_new_cropped,a)
 

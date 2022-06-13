@@ -42,7 +42,8 @@ __all__ = [
     "read_espresso",
     "read_uves",
     "read_spirou",
-    "read_gianob"
+    "read_gianob",
+    "read_fies"
 ]
 
 
@@ -509,7 +510,7 @@ def read_uves(inpath,filelist,mode):
             mjd=np.append(mjd,hdr['MJD-OBS'])
             norders=np.append(norders,norders_tmp)
             airmass=np.append(airmass,0.5*(hdr[Zstartkeyword]+hdr[Zendkeyword]))#This is an approximation where we take the mean airmass.
-            berv_i=sp.calculateberv(hdr['MJD-OBS'],hdr['HIERARCH ESO TEL GEOLAT'],hdr['HIERARCH ESO TEL GEOLON'],hdr['HIERARCH ESO TEL GEOELEV'],hdr['RA'],hdr['DEC'])
+            berv_i=sp.calculateberv(hdr['MJD-OBS'],[hdr['HIERARCH ESO TEL GEOLAT'],hdr['HIERARCH ESO TEL GEOLON'],hdr['HIERARCH ESO TEL GEOELEV']],hdr['RA'],hdr['DEC'],mode=mode)
             berv = np.append(berv,berv_i)
             hdr1d['HIERARCH ESO QC BERV']=berv_i#Append the berv here using the ESPRESSO berv keyword, so that it can be used in molecfit later.
             s1dhdr.append(hdr1d)
@@ -958,3 +959,95 @@ def read_hires_makee(inpath,filelist,construct_s1d=True,N_CCD=3):
     'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
     'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
     return(output)
+
+def read_fies(inpath,filelist,mode,read_s1d=True):
+    from astropy.time import Time
+    from astropy.coordinates import SkyCoord, EarthLocation
+    from astropy import units as u
+    from tayph.system_parameters import calculateberv
+
+    catkeyword = 'IMAGECAT'
+    #bervkeyword = 'HIERARCH TNG DRS BERV'
+    Zstartkeyword = 'AIRMASS'
+    Zendkeyword = 'AIRMASS'  # These are the same because FIES doesnt have start and end keywords.
+
+    output = "Read FIES File"
+
+    # The following variables define lists in which all the necessary data will be stored.
+    framename = []
+    header = []
+    s1dhdr = []
+    obstype = []
+    texp = np.array([])
+    date = []
+    mjd = np.array([])
+    s1dmjd = np.array([])
+    npx = np.array([])
+    norders = np.array([])
+    e2ds = []
+    blaze = []
+    s1d = []
+    wave1d = []
+    airmass = np.array([])
+    berv = np.array([])
+    wave = []
+
+    hdul = fits.open("/Users/nicholasborsato/mysandbox/mysandbox/1paper/read_fies/FIES-N1/FIDi180396_step011_merge.fits")
+    hdr = hdul[0].header
+
+    for i in range(len(filelist)):
+        if filelist[i].endswith('10_wave.fits'):
+            print(f'------{filelist[i]}', end="\r")
+            hdul = fits.open(inpath / filelist[i])
+            data = copy.deepcopy(hdul[0].data)
+            #print(hdul.info())
+            hdr = hdul[0].header
+            hdul.close()
+            del hdul[0].data
+            if hdr[catkeyword] == 'SCIENCE':
+                framename.append(filelist[i])
+                header.append(hdr)
+                obstype.append(hdr[catkeyword])
+                texp = np.append(texp, hdr['EXPTIME'])
+                date.append(hdr['DATE-OBS'])
+                t = Time(hdr['DATE-OBS'], format='isot', scale='utc')
+                mjd = np.append(mjd, t.mjd)#FIES Header doesn't provide mjd
+                npx = np.append(npx, hdr['NAXIS1'])
+                norders = np.append(norders, hdr['NAXIS2'])
+                e2ds.append(data[0]/data[2]**2)#Using bandID1
+                berv_i = sp.calculateberv(Time(hdr['DATE-OBS']),
+                                          [hdr['OBSGEO-X'], hdr['OBSGEO-Y'], hdr['OBSGEO-Z']],
+                                          hdr['RA'],
+                                          hdr['DEC'],
+                                          "FIES")
+                berv = np.append(berv, berv_i)
+                airmass = np.append(airmass, 0.5 * (hdr[Zstartkeyword] + hdr[Zendkeyword]))  # This is an approximation where we take the mean airmass.
+                wavedata = ut.read_wave_from_e2ds_header(hdr, mode=mode)/10   # convert to nm.
+                wave.append(wavedata)
+
+                if read_s1d:
+                    s1d_path = inpath / Path(str(filelist[i]).replace('10_wave.fits', '11_merge.fits'))
+                    hdul = fits.open(s1d_path)
+                    data_1d = copy.deepcopy(hdul[0].data)
+                    hdr1d = hdul[0].header
+                    hdul.close()
+                    del hdul
+                    s1d.append(data_1d)
+
+                    s1dhdr.append(hdr1d)
+                    t = Time(hdr['DATE-OBS'], format='isot', scale='utc')
+                    s1dmjd = np.append(s1dmjd, t.mjd)
+
+                    berv1d = sp.calculateberv(Time(hdr['DATE-OBS']),
+                                              [hdr['OBSGEO-X'], hdr['OBSGEO-Y'], hdr['OBSGEO-Z']],
+                                              hdr['RA'],
+                                              hdr['DEC'],
+                                              "FIES")
+                    gamma = (1.0 - (berv1d * u.km / u.s / const.c).decompose().value)  # Doppler factor BERV.
+                    gamma = 1
+                    wave1d.append(np.linspace(hdr1d['CRVAL1'],hdr1d['CRVAL1'] + hdr1d['CDELT1']*len(data_1d),len(data_1d))*gamma)
+
+    output = {'wave': wave, 'e2ds': e2ds, 'header': header, 'wave1d': wave1d, 's1d': s1d, 's1dhdr': s1dhdr,
+              'mjd': mjd, 'date': date, 'texp': texp, 'obstype': obstype, 'framename': framename, 'npx': npx,
+              'norders': norders, 'berv': berv, 'airmass': airmass, 's1dmjd': s1dmjd}
+    return (output)

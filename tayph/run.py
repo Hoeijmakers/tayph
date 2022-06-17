@@ -1224,7 +1224,7 @@ config=False,save_figure=True,skysub=False):
     from tayph.ccf import xcor
     import tayph.masking as masking
     import tayph.models as models
-    from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes
+    from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes,read_fies
     from tayph.read import read_spirou, read_gianob, read_hires_makee
     from astropy.io import fits
     import astropy.constants as const
@@ -1254,13 +1254,13 @@ config=False,save_figure=True,skysub=False):
     typetest(mode,str,'mode in read_e2ds()')
 
     if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue',
-        'CARMENES-VIS','CARMENES-NIR','SPIROU','GIANO-B','HIRES-MAKEE']:
+        'CARMENES-VIS','CARMENES-NIR','SPIROU','GIANO-B','HIRES-MAKEE','FIES']:
         raise ValueError("in read_e2ds: instrument needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
-            "CARMENES-VIS, CARMENES-NIR, SPIROU, GIANO-B, HIRES-MAKEE or ESPRESSO.")
+            "CARMENES-VIS, CARMENES-NIR, SPIROU, GIANO-B, HIRES-MAKEE, FIES or ESPRESSO.")
 
 
 
-    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B','HIRES-MAKEE']:
+    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B','HIRES-MAKEE','FIES']:
         read_s1d = True
     else:
         read_s1d = False
@@ -1332,6 +1332,8 @@ config=False,save_figure=True,skysub=False):
         DATA = read_gianob(inpath, filelist, read_s1d=read_s1d)
     elif mode == 'HIRES-MAKEE':
         DATA = read_hires_makee(inpath, filelist, construct_s1d=read_s1d)
+    elif mode == 'FIES':
+        DATA = read_fies(inpath,filelist,mode)
     else:
         raise ValueError(f'Error in read_e2ds: {mode} is not a valid instrument.')
 

@@ -228,11 +228,6 @@ class mask_maker(object):
         self.Nyticks = Nyticks
         self.nsigma = nsigma
 
-
-        self.xrange = [0,self.npx-1]
-        self.yrange=[0,self.nexp-1]
-        self.x_axis= np.arange(self.npx, dtype=int) #fun.findgen(self.npx).astype(int)
-        self.y_axis = np.arange(self.nexp, dtype=int) #fun.findgen(self.nexp).astype(int)
         self.x2,self.y2,self.z,self.wl_sel,self.y_axis_sel,self.xticks,self.yticks,void1,void2= plotting.plotting_scales_2D(self.x_axis,self.y_axis,self.residual,self.xrange,self.yrange,Nxticks=self.Nxticks,Nyticks=self.Nyticks,nsigma=self.nsigma)
         self.fig,self.ax = plt.subplots(3,1,sharex=True,figsize=(14,6))#Init the figure and 3 axes.
         plt.subplots_adjust(left=0.05)#Make them more tight, we need all the space we can get.
@@ -383,6 +378,11 @@ class mask_maker(object):
         #Measure the shape of the current order
         self.nexp = np.shape(self.order)[0]
         self.npx = np.shape(self.order)[1]
+
+        self.xrange = [0,self.npx-1]
+        self.yrange=[0,self.nexp-1]
+        self.x_axis= np.arange(self.npx, dtype=int) #fun.findgen(self.npx).astype(int)
+        self.y_axis = np.arange(self.nexp, dtype=int) #fun.findgen(self.nexp).astype(int)
 
         #Compute the meanspec and the residuals, ignoring runtime warnings related to NaNs:
         with warnings.catch_warnings():

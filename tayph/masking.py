@@ -139,7 +139,7 @@ def interpolate_over_NaNs(list_of_orders,cutoff=0.2,quiet=False,parallel=False):
 class mask_maker(object):
     #This is my third home-made class: A GUI for masking pixels in the spectrum.
     def __init__(self,list_of_wls,list_of_orders,list_of_saved_selected_columns,Nxticks,Nyticks,
-    nsigma=3.0,tellurics=None):
+    saved_telluric_settings=None,nsigma=3.0,tellurics=None):
         """
         We initialize with a figure object, three axis objects (in a list)
         the wls, the orders, the masks already made; and we do the first plot.
@@ -172,7 +172,7 @@ class mask_maker(object):
         postest(Nxticks,varname='Nxticks in mask_maker init')
         postest(Nyticks,varname='Nyticks in mask_maker init')
         postest(nsigma,varname='Nsigma in mask_maker init')
-
+        t_settings = saved_telluric_settings
         self.list_of_wls = list_of_wls
         self.list_of_orders = list_of_orders
         self.list_of_selected_columns = list(list_of_saved_selected_columns)
@@ -182,19 +182,31 @@ class mask_maker(object):
         #was empty or not, and whether the list of columns has the same length as the list of
         #orders.
 
-
+        self.N=0
         self.list_of_1D_telluric_spectra = tellurics
-        self.list_of_selected_tellurics = [[]] * len(list_of_orders) #Empty list of
-        #lists. Much easier than self.list_of_selected_columns below.
-        #This is reset each time mask maker is run, though.
-        self.list_of_tcuts = [0] * len(list_of_orders) #This sets the tcut value to 0 in each
+        if not t_settings:
+            self.list_of_tcuts = [0] * len(list_of_orders) #This sets the tcut value to 0 in each
         #order.
-        self.list_of_tmargins = [0] * len(list_of_orders)
+            self.list_of_tmargins = [0] * len(list_of_orders)
+            self.tmargin = 0
+        else:
+            if len(t_settings[0])!=self.N_orders or len(t_settings[1])!=self.N_orders:
+                self.list_of_tcuts = [0] * len(list_of_orders)
+                self.list_of_tmargins = [0] * len(list_of_orders)
+                self.tmargin = 0
+            else:
+                self.list_of_tcuts = t_settings[0]
+                self.list_of_tmargins = t_settings[1]
+                self.tmargin = self.list_of_tmargins[self.N]*1
         self.T_slider = None #Initialise this variable so that it can be used when set_order
         #is called.
         self.M_slider = None
-        self.tmargin = 0
 
+        self.list_of_selected_tellurics=[]
+        for i in range(self.N_orders):
+            self.list_of_selected_tellurics.append([])#Make a list of empty lists.
+                    #This will contain all columns masked by the user, on top of the things
+                    #that are already masked by the program.
 
 
         if len(self.list_of_selected_columns) == 0:
@@ -211,9 +223,7 @@ class mask_maker(object):
 
 
         #All checks are now complete. Lets prepare to do the masking.
-        # self.N = min([56,self.N_orders-1])#We start on order 56, or the last order if order 56
-        #doesn't exist.
-        self.N=0
+
         #Set the current active order to order , and calculate the meanspec
         #and residuals to be plotted, which are saved in self.
         self.set_order(self.N)
@@ -764,7 +774,7 @@ class mask_maker(object):
 
 
 def manual_masking(list_of_wls,list_of_orders,list_of_masks,Nxticks = 20,Nyticks = 10,saved = [],
-    tellurics=None):
+    saved_telluric_settings = None, tellurics=None):
     import numpy as np
     import matplotlib.pyplot as plt
     import pdb
@@ -804,8 +814,8 @@ def manual_masking(list_of_wls,list_of_orders,list_of_masks,Nxticks = 20,Nyticks
 
     print('------Entered manual masking mode')
 
-    M = mask_maker(list_of_wls,list_of_orders,saved,Nxticks=Nxticks,Nyticks=Nyticks,nsigma=3.0,
-    tellurics=tellurics)
+    M = mask_maker(list_of_wls,list_of_orders,saved,Nxticks,Nyticks,
+    saved_telluric_settings=saved_telluric_settings,nsigma=3.0,tellurics=tellurics)
     #Mask callback.
     #This initializes all the parameters of the plot. Which order it is plotting, what
     #dimensions these have, the actual data arrays to plot; etc. Initialises on order 56.
@@ -904,12 +914,13 @@ def manual_masking(list_of_wls,list_of_orders,list_of_masks,Nxticks = 20,Nyticks
     #When pressing "save", the figure is closed, the suspesion caused by plt.show() is
     #lifted and we continue to exit this GUI function, as its job has been done:
     #return all the columns that were selected by the user.
-    return(M.list_of_selected_columns,M.list_of_selected_tellurics)
+    return(M.list_of_selected_columns,M.list_of_selected_tellurics,[M.list_of_tcuts,
+    M.list_of_tmargins])
 
 
 #The following functions deal with saving and loading the clipped and selected pixels
 #and columns to/from file.
-def load_columns_from_file(dp,maskname,mode='strict'):
+def load_columns_from_file(dp,maskname,mode='strict',masktype='columns'):
     """
     This loads the list of lists of columns back into memory after having been
     saved by a call of write_columns_to_file() below.
@@ -922,21 +933,27 @@ def load_columns_from_file(dp,maskname,mode='strict'):
     ut.check_path(dp)
     typetest(maskname,str,'maskname in load_columns_from_file()')
     typetest(mode,str,'mode in load_columns_from_file()')
-    outpath=Path(dp)/(maskname+'_columns.pkl')
+    if masktype not in ['columns','t_settings']:
+        raise Exception(f"Error: masktype should be columns, t_cuts or t_margins ({masktype}).")
+    outpath=Path(dp)/(maskname+'_'+masktype+'.pkl')
+
 
     if os.path.isfile(outpath) ==  False:
          if mode == 'strict':
              raise Exception('FileNotFoundError in reading columns from file: Column file named '
              f'{maskname} do not exist at {dp}.')
          else:
-             print('---No previously saved manual mask exists. User will start a new mask.')
+             if masktype == 'columns':
+                 print('---No previously saved manual mask exists. User will start a new mask.')
+             else:
+                 print('---No previously saved telluric mask exists. User will start a new mask.')
              return([])
     else:
         print(f'------Loading previously saved manual mask {str(outpath)}.')
         pickle_in = open(outpath,"rb")
         return(pickle.load(pickle_in))
 
-def write_columns_to_file(dp,maskname,list_of_selected_columns):
+def write_columns_to_file(dp,maskname,list_of_selected_columns,masktype='columns'):
     """
     This dumps the list of list of columns that are manually selected by the
     user to a pkl file for loading at a later time. This is done to allow the user
@@ -949,7 +966,9 @@ def write_columns_to_file(dp,maskname,list_of_selected_columns):
     ut.check_path(dp)
     typetest(maskname,str,'maskname in write_columns_to_file()')
     typetest(list_of_selected_columns,list,'list_of_selected_columns in write_columns_to_file()')
-    outpath=Path(dp)/(maskname+'_columns.pkl')
+    if masktype not in ['columns','t_settings']:
+        raise Exception(f'Error: masktype should be equal to columns, t_cuts or t_margins ({masktype}).')
+    outpath=Path(dp)/(maskname+'_'+masktype+'.pkl')
     print(f'---Saving list of masked columns to {str(outpath)}')
     with open(outpath, 'wb') as f: pickle.dump(list_of_selected_columns, f)
 
@@ -1211,10 +1230,17 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False,l
 
 
         previous_list_of_masked_columns = load_columns_from_file(dp,maskname,mode='relaxed')
-        list_of_masked_columns,list_of_masked_tellurics = manual_masking(list_of_wls,list_of_orders,
-        list_of_masks,saved = previous_list_of_masked_columns,tellurics = list_of_Ts)
+        if list_of_Ts:
+            previous_t_settings= load_columns_from_file(dp,maskname,mode='relaxed',
+            masktype='t_settings')
+        list_of_masked_columns,list_of_masked_tellurics,t_settings = manual_masking(list_of_wls,
+        list_of_orders,list_of_masks,
+        saved = previous_list_of_masked_columns,tellurics = list_of_Ts,
+        saved_telluric_settings = previous_t_settings )
         print('------Successfully concluded manual mask.')
         write_columns_to_file(dp,maskname,list_of_masked_columns)
+        if list_of_Ts:
+            write_columns_to_file(dp,maskname,t_settings,masktype='t_settings')
         print('------Building manual mask from selected columns')
         for i in range(N):
             order = list_of_orders[i]

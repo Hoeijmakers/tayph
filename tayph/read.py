@@ -992,9 +992,6 @@ def read_fies(inpath,filelist,mode,read_s1d=True):
     berv = np.array([])
     wave = []
 
-    hdul = fits.open("/Users/nicholasborsato/mysandbox/mysandbox/1paper/read_fies/FIES-N1/FIDi180396_step011_merge.fits")
-    hdr = hdul[0].header
-
     for i in range(len(filelist)):
         if filelist[i].endswith('10_wave.fits'):
             print(f'------{filelist[i]}', end="\r")

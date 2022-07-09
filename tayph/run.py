@@ -936,7 +936,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                     outpath_i = outpaths[i]/modelname
                     if do_xcor:
                         ut.tprint(f'------Writing {modelname}-injected CCF of {T_names[i]} '
-                        f'to {str(outpath)}.')
+                        f'to {str(outpath_i)}.')
                         if not os.path.exists(outpath_i):
                             ut.tprint("---------That path didn't exist, I made it now.")
                             os.makedirs(outpath_i)

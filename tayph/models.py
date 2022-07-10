@@ -233,9 +233,8 @@ intransit=True):
     if intransit:
         mask=(transit-1.0)/(np.min(transit-1.0))
     else:#Emission
-        mask=transit*0.0+1.0*(1+np.cos(sp.phase(dp)*2*np.pi-np.pi))/2
+        mask=(1+np.cos(sp.phase(dp)*2*np.pi-np.pi))/2
 
-    pdb.set_trace()
 
 
 

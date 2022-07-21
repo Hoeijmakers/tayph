@@ -83,7 +83,7 @@ def start():
 
 
 
-def end(start,id='',silent=False):
+def end(start,id='',silent=False,quiet=False):
     """
     Short-hand for ending a timing measurement and printing the elapsed time.
 
@@ -107,7 +107,7 @@ def end(start,id='',silent=False):
     typetest(id,str,'id/descriptor in utils.end()')
     import time
     end=time.time()
-    if not silent:
+    if silent+quiet == 0:
         print('Elapsed %s: %s' % ('on timer '+id,end-start))
     return end-start
 

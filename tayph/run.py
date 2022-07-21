@@ -1225,7 +1225,7 @@ config=False,save_figure=True,skysub=False):
     import tayph.masking as masking
     import tayph.models as models
     from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes,read_fies
-    from tayph.read import read_spirou, read_gianob, read_hires_makee
+    from tayph.read import read_spirou, read_gianob, read_hires_makee, read_nirps
     from astropy.io import fits
     import astropy.constants as const
     import astropy.units as u
@@ -1254,13 +1254,14 @@ config=False,save_figure=True,skysub=False):
     typetest(mode,str,'mode in read_e2ds()')
 
     if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue',
-        'CARMENES-VIS','CARMENES-NIR','SPIROU','GIANO-B','HIRES-MAKEE','FIES']:
-        raise ValueError("in read_e2ds: instrument needs to be set to HARPS, HARPSN, UVES-red, UVES-blue "
-            "CARMENES-VIS, CARMENES-NIR, SPIROU, GIANO-B, HIRES-MAKEE, FIES or ESPRESSO.")
+        'CARMENES-VIS','CARMENES-NIR','SPIROU','GIANO-B','HIRES-MAKEE','FIES','NIRPS']:
+        raise ValueError("in read_e2ds: instrument needs to be set to HARPS, HARPSN, UVES-red, "
+            "UVES-blue CARMENES-VIS, CARMENES-NIR, SPIROU, GIANO-B, HIRES-MAKEE, FIES, "
+            "NIRPS or ESPRESSO.")
 
 
 
-    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B','HIRES-MAKEE','FIES']:
+    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B','HIRES-MAKEE','FIES','NIRPS']:
         read_s1d = True
     else:
         read_s1d = False
@@ -1334,6 +1335,8 @@ config=False,save_figure=True,skysub=False):
         DATA = read_hires_makee(inpath, filelist, construct_s1d=read_s1d)
     elif mode == 'FIES':
         DATA = read_fies(inpath,filelist,mode)
+    elif mode == 'NIRPS':
+        DATA = read_nirps(inpath,filelist,read_s1d=read_s1d,skysub=skysub)
     else:
         raise ValueError(f'Error in read_e2ds: {mode} is not a valid instrument.')
 
@@ -1560,8 +1563,11 @@ config=False,save_figure=True,skysub=False):
             'air\tTrue']
         if mode in ['UVES-red','UVES-blue']:
             keywords+=['resolution\t','long\t-70.4039','lat\t-24.6272','elev\t2635.0','air\tTrue']
-        elif mode=='HARPS':
+        elif mode =='HARPS':
             keywords+=['resolution\t115000','long\t-70.7380','lat\t-29.2563','elev\t2387.2',
+            'air\tTrue']
+        elif mode =='NIRPS':
+            keywords+=['resolution\t80000','long\t-70.7380','lat\t-29.2563','elev\t2387.2',
             'air\tTrue']
         elif mode in ['HARPSN','HARPS-N']:
             keywords+=['resolution\t115000','long\t-17.8850','lat\t28.7573','elev\t2396.0',

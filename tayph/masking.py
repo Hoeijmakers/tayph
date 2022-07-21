@@ -1233,6 +1233,8 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False,l
         if list_of_Ts:
             previous_t_settings= load_columns_from_file(dp,maskname,mode='relaxed',
             masktype='t_settings')
+        else:
+            previous_t_settings = None
         list_of_masked_columns,list_of_masked_tellurics,t_settings = manual_masking(list_of_wls,
         list_of_orders,list_of_masks,
         saved = previous_list_of_masked_columns,tellurics = list_of_Ts,

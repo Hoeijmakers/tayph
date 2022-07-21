@@ -535,7 +535,7 @@ def read_uves(inpath,filelist,mode):
 
 
 
-def read_espresso(inpath,filelist,read_s1d=True,skysub=True):
+def read_espresso(inpath,filelist,read_s1d=True,skysub=False):
     #The following variables define lists in which all the necessary data will be stored.
     framename=[]
     header=[]
@@ -639,6 +639,119 @@ def read_espresso(inpath,filelist,read_s1d=True,skysub=True):
         'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
         'norders':norders,'berv':berv,'airmass':airmass}
     return(output)
+
+def read_nirps(inpath,filelist,read_s1d=True,skysub=True):
+    #The following variables define lists in which all the necessary data will be stored.
+    framename=[]
+    header=[]
+    s1dhdr=[]
+    obstype=[]
+    texp=np.array([])
+    date=[]
+    mjd=np.array([])
+    s1dmjd=np.array([])
+    npx=np.array([])
+    norders=np.array([])
+    e2ds=[]
+    s1d=[]
+    wave1d=[]
+    airmass=np.array([])
+    berv=np.array([])
+    wave=[]
+    catkeyword = 'EXTNAME'
+    bervkeyword = 'HIERARCH ESO QC BERV'
+    airmass_start = 'HIERARCH ESO TEL AIRM START'
+    airmass_end = 'HIERARCH ESO TEL AIRM END'
+
+
+    type_suffix = 'S2D_BLAZE_A.fits'
+
+    for i in range(len(filelist)):
+        if filelist[i].endswith(type_suffix):
+            hdul = fits.open(inpath/filelist[i])
+            if skysub:
+                hdul2 = fits.open(str(inpath/filelist[i]).replace('BLAZE_A.fits','BLAZE_B.fits'))
+                data = copy.deepcopy(hdul[1].data-hdul2[1].data)
+                del hdul2
+            else:
+                data = copy.deepcopy(hdul[1].data)
+            hdr = hdul[0].header
+            hdr2 = hdul[1].header
+            wavedata=copy.deepcopy(hdul[5].data)
+            hdul.close()
+            del hdul
+
+            if hdr2[catkeyword] == 'SCIDATA':
+                # print('science keyword found')
+                print(f'------{filelist[i]}', end="\r")
+                framename.append(filelist[i])
+                header.append(hdr)
+                obstype.append('SCIENCE')
+                texp=np.append(texp,hdr['EXPTIME'])
+                date.append(hdr['DATE-OBS'])
+                mjd=np.append(mjd,hdr['MJD-OBS'])
+                npx=np.append(npx,hdr2['NAXIS1'])
+                norders=np.append(norders,hdr2['NAXIS2'])
+                e2ds.append(data)
+                berv=np.append(berv,hdr[bervkeyword])#in km.s.
+                telescope = hdr['TELESCOP'][-1]
+                airmass = np.append(airmass,0.5*(hdr[airmass_start]+hdr[airmass_end]))
+                wave.append(wavedata/10.0)#*(1.0-(hdr[bervkeyword]*u.km/u.s/const.c).decompose().value))
+                #Ok.! So unlike HARPS, ESPRESSO wavelengths are actually BERV corrected in the S2Ds.
+                #WHY!!!?. WELL SO BE IT. IN ORDER TO HAVE E2DSes THAT ARE ON THE SAME GRID, AS REQUIRED, WE UNDO THE BERV CORRECTION HERE.
+                #WHEN COMPARING WAVE[0] WITH WAVE[1], YOU SHOULD SEE THAT THE DIFFERENCE IS NILL.
+                #THATS WHY LATER WE CAN JUST USE WAVE[0] AS THE REPRESENTATIVE GRID FOR ALL.
+                #BUT THAT IS SILLY. JUST SAVE THE WAVELENGTHS!
+
+                if read_s1d:
+                    if skysub:
+                        s1d_path=inpath/Path(str(filelist[i]).replace('_'+type_suffix,
+                        '_S1D_SKYSUB_A.fits'))
+                    else:
+                        s1d_path=inpath/Path(str(filelist[i]).replace('_'+type_suffix,
+                        '_S1D_A.fits'))
+                    #Need the blazed files. Not the S2D_A's by themselves.
+                    ut.check_path(s1d_path,exists=True)#Crash if the S1D doesn't exist.
+                    hdul = fits.open(s1d_path)
+                    data_table = copy.deepcopy(hdul[1].data)
+                    hdr1d = hdul[0].header
+                    hdul.close()
+                    del hdul
+                    s1d.append(data_table.field(2))
+
+                    berv1d = hdr1d[bervkeyword]
+                    if berv1d != hdr[bervkeyword]:
+                        wrn_msg = ('WARNING in read_espresso(): BERV correction of S1D file is not'
+                        f'equal to that of the S2D file. {berv1d} vs {hdr[bervkeyword]}')
+                        ut.tprint(wrn_msg)
+                    gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)
+                    wave1d.append(data_table.field(1)*gamma)#This is in angstroms.
+                    #We need to check to which UT ESPRESSO was connected, so that we can read
+                    #the weather information (which is UT-specific) and parse them into the
+                    #header using UT-agnostic keywords that are in the ESPRESSO.par file.
+
+                    hdr1d['TELALT']     = hdr1d[f'ESO TEL ALT']
+                    hdr1d['RHUM']       = hdr1d[f'ESO TEL AMBI RHUM']
+                    hdr1d['PRESSURE']   = (hdr1d[f'ESO TEL AMBI PRES START']+
+                                            hdr1d[f'ESO TEL AMBI PRES END'])/2.0
+                    hdr1d['AMBITEMP']   = hdr1d[f'ESO TEL AMBI TEMP']
+                    hdr1d['M1TEMP']     = hdr1d[f'ESO TEL AMBI TEMP']#THIS IS SET EQUAL TO AMBIENT
+                    #BECAUSE M1 TEMP IS NOT IN THE FITS HEADER.
+                    s1dhdr.append(hdr1d)
+                    s1dmjd=np.append(s1dmjd,hdr1d['MJD-OBS'])
+    if read_s1d:
+        output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
+        'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+        'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
+    else:
+        output = {'wave':wave,'e2ds':e2ds,'header':header,
+        'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+        'norders':norders,'berv':berv,'airmass':airmass}
+    return(output)
+
+
+
+
 
 
 

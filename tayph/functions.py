@@ -17,7 +17,8 @@ __all__ = [
     'gaussfit',
     'sigma_clip',
     'local_v_star',
-    'polysinfit'
+    'polysinfit',
+    'sysrem'
 ]
 
 
@@ -176,7 +177,7 @@ def rotation_broadened_line(RV,*args):
 #     return(H@G / G0 * A + np.poly1d(c)(RV))
 
 
-def fit_rotation_broadened_line(RV,CCF,degree=1,startparams=[]):
+def fit_rotation_broadened_line(RV,CCF,degree=1,startparams=[],fixparams=[]):
     """
     This fits a rotation broadened profile following Gray (2005), with a polynomial for the
     continuum. The line profile is fit by a Voigt with a sigma (to approximate some level
@@ -199,6 +200,7 @@ def fit_rotation_broadened_line(RV,CCF,degree=1,startparams=[]):
     import pdb
     from astropy.modeling.models import Voigt1D
 
+
     if len(startparams)==0:
         A_start = np.min(CCF)-np.max(CCF) #Assumes feature in negative direction
         vsys_start = RV[np.argmin(CCF)]
@@ -211,12 +213,21 @@ def fit_rotation_broadened_line(RV,CCF,degree=1,startparams=[]):
         startparams = [A_start,vsys_start,vsini_start,E_start,sigma_start,gamma_start]+p_start
         # else:
         #     startparams = [A_start,vsys_start,vsini_start,E_start,sigma_start]+p_start
-
+        if len(fixparams) > 0:
+            raise Exception('Fix params should not be provided if no startparams are provided.')
     elif len(startparams) < 6:
         raise Exception(f"Error: Start parameters has length less than 6 ({len(startparams)})."
         "Define startparams as A,vsys,vsini,E,sigma,offset and one or more higher degree terms.")
-
-
+    else:
+        p_start = startparams[6:]#Make this for use in setting bounds below.
+        if len(fixparams) >0 and len(fixparams) != len(startparams):
+            raise Exception("Fix params is set, but should have the same number of "
+            "elements as startparms.")
+        if len(fixparams)>0:
+            for fp in fixparams:
+                if fp not in [0,1]:
+                    raise Exception("fixparams should be set to a list containing either 0 or 1")
+    # pdb.set_trace()
     #https://stackoverflow.com/questions/4092528/how-to-clamp-an-integer-to-some-range
 
     vz_grid = RV-RV[:,np.newaxis]#Broadcasting trick here to do the convolution below.
@@ -284,10 +295,15 @@ def fit_rotation_broadened_line(RV,CCF,degree=1,startparams=[]):
     #     return(diff)
 
     # if voigt:
+
+    bounds = ([-np.inf,np.min(RV),0,0,0,0]+[i*0-np.inf for i in p_start],
+    [0,np.max(RV),np.max(RV)-np.min(RV),1,np.inf,np.inf]+[i*0+np.inf for i in p_start])
+
+    # if len(fixparams) > 0:
+
+
     result = scipy.optimize.least_squares(eval_rotation_broadened_line,startparams,
-    args = (RV,CCF,vz_grid),bounds=([-np.inf,np.min(RV),0,0,0,0]+[i*0-np.inf for i in p_start],
-    [0,np.max(RV),np.max(RV)-np.min(RV),1,np.inf,np.inf]+
-    [i*0+np.inf for i in p_start]),method='trf')
+    args = (RV,CCF,vz_grid),bounds=bounds,method='trf')
     # else:
     #     result = scipy.optimize.least_squares(eval_rotation_broadened_line_gauss,startparams,
     #     args = (RV,CCF,vz_grid),bounds=([-np.inf,np.min(RV),0,0,0]+[i*0-np.inf for i in p_start],
@@ -1037,3 +1053,106 @@ def polysinfit(x,y,polydeg,lmfit=True,polyprimer=True,return_primer=False,stepsi
             return(out_res,startparams)
         else:
             return(out_res)
+
+
+
+
+def sysrem(data,sigma,N,init=0,v=False,c_limit=1e-3,a_limit=1e-4,return_steps=False):
+    """This runs Sysrem on a 2D frame of spectra; i.e. a time series of spectra or of a spectral order or of a cross-correlation function.
+    These spectra need to be normalised before input; and need to be provided with an equivalent 2D array that describes the
+    1-sigma error on each spectral point.
+
+    Input:
+        data:   A 2D array of spectral flux values. The x-dimension corresponds to the wavelength/velocity axis.
+                The y-dimension corresponds to time, orbital phase or simply the exposure number.
+                This array must be normalised such that all columns have mean = 1.0 and all rows also have mean = 1.0.
+        sigma:  A 2D array equivalent to data, carrying the 1-sigma errors (with normalisation propagated).
+        N:      int, the number of sysrem passes applied.
+        init:   list, dimension corresponding to the height (number of spectra in the time-series) of data.
+                This can be used to prime sysrem, e.g. assuming correlation with airmass. If set to 0, this is ignored
+                and no time-correlation is assumed (default).
+        v:      bool, verbose output to terminal.
+        c_limit:float, the relative convergence limit on c.
+        a_limit:float, the relative convergence limit on a.
+
+    Output:
+    Depending on whether return_steps is set, the routine will either output the corrected data, or a list of all the correction steps.
+    If N is set to zero, the data itself is automatically returned.
+        img:    A 2D array corresponding to the input array data, with sysrem applied N times.
+
+        steps:  list. A list of copies of data with length equal to N+1, from each of which is subtracted a subsequent sysrem pass. The last element in this
+                list contains the final output of sysrem."""
+    import pdb
+    import numpy as np
+    import copy
+
+    img = copy.deepcopy(data-np.nanmean(data))
+    rms = copy.deepcopy(sigma)
+    rms[rms<0]=np.nanmax(rms)
+    rms[(np.isfinite(rms) == False)]=np.nanmax(rms)#Make sure there are no zero or NAN error values
+
+    nexp,npx=np.shape(img)
+
+    steps = [img]
+    sq_rms = rms**2
+
+    if N == 0:
+        if v: print('N was set to zero. Returning data.')
+        return(data)
+
+    for t in range(N):
+        a=findgen(nexp)*0.0+1.0
+        c=findgen(npx)*0.0
+        #If the weight keyword is set (i.e. to airmass),
+        if type(init) == list:
+            a=init*1.0
+        k=1#Just a counter to track the number of steps until convergence.
+        a0=a_limit*2#Greater than demanded, so we always start.
+        c0=c_limit*2
+
+        #Preparing vectorization of sysrem:
+        invrms = 1.0/sq_rms
+        imgrel = img/sq_rms
+
+        c = (a@imgrel)/((a**2)@invrms)#Initialize c. This matrix multiplication is equivalent to:
+        # for i in range(npx):
+        #     c[i]=np.sum(imgrel[:,i]*a)/np.sum(a**2/sq_rms[:,i])
+
+
+###########BEGIN SYSREM#########################
+        if v: print('Running sysrem iteration %s'%t)
+        while ((np.sum(np.abs(c0-c))/np.sum(np.abs(c0)) >= c_limit) or (np.sum(np.abs(a0-a))/np.sum(np.abs(a0)) >= a_limit)): #UNTIL CONVERGES
+            c0=copy.deepcopy(c)
+            a0=copy.deepcopy(a)
+            #First I will code it as a double for-loop. Then I will try to vectorise it with numpy.
+
+            a=(imgrel@c)/(invrms@(c**2))#CALCULATE NEW a FOR NEXT CORRELATING THING
+            c = (a@imgrel)/((a**2)@invrms)
+
+            #THIS IS EQUIVALENT TO THE FOLLOWING (uncomment to check by hand if you don't trust my word):
+            # for j in range(nexp):
+            #     a[j]=np.sum(imgrel[j,:]*c)/np.sum(c**2/sq_rms[j,:])
+            # for i in range(npx):
+            #     c[i]=np.sum(imgrel[:,i]*a)/np.sum(a**2/sq_rms[:,i])
+
+            #I clocked the execution time to be a factor of 70 shorter this way.
+            #BRING IT ON!
+            #(thanks to Matteo for the advice of using the @ operator)
+
+            #Can this be made faster?
+            # cor =img*0.0
+            # for i in range(nexp):
+            #     cor[i]=c*a[i]
+            #The following is much slower:
+            #  cor=fun.rebinreform(c,nexp)*a[:,None]
+            # And this is the answer: 30% faster than the forloop.
+            # Nuts! The @ operator literally made this 113 times faster....!
+            cor=np.outer(a,c)
+            k=k+1
+        if v: print("---Number of steps: %s,  c: %s (%s),  a: %s (%s)"%(k,np.sum(np.abs(c0-c))/np.sum(np.abs(c0)),c_limit,np.sum(np.abs(a0-a))/np.sum(np.abs(a0)),a_limit))
+        img=img-cor
+        steps.append(img)
+    if return_steps:
+        return(steps)
+    else:
+        return(img)

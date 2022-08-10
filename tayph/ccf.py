@@ -157,7 +157,6 @@ parallel=False):
     stack_of_wls = np.concatenate(list_of_wls)#the data in memory again... Can be 3 to 4 GB in
     #case of ESPRESSO. Issue 93 deals with this.
 
-
     if list_of_errors is not None:
         stack_of_errors2 = np.hstack(list_of_errors)**2#Stack them horizontally and square.
         #Check that the number of NaNs is the same in the orders as in the errors on the orders;

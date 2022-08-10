@@ -674,25 +674,53 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 #Apply the mask that was previously created and saved to file.
     if apply_mask == True:
-        print('---Applying mask to spectra and uncertainty arrays')
+        ut.tprint('---Applying mask to spectra and uncertainty arrays')
         list_of_orders = masking.apply_mask_from_file(dp,maskname,list_of_orders)
         list_of_sigmas = masking.apply_mask_from_file(dp,maskname,list_of_sigmas)
+
+
+#Skipping orders:
+    if len(skip_orders) > 0:
+        ut.tprint(f'---Removing orders {skip_orders}')
+        list_of_wls_not_skipped = []
+        list_of_orders_not_skipped = []
+        list_of_sigmas_not_skipped = []
+        for i in range(len(list_of_orders)):
+            if i not in skip_orders:
+                list_of_wls_not_skipped.append(list_of_wls[i])
+                list_of_orders_not_skipped.append(list_of_orders[i])
+                list_of_sigmas_not_skipped.append(list_of_sigmas[i])
+        n_orders -= len(skip_orders)
+        del list_of_orders
+        del list_of_sigmas
+        del list_of_wls
+        list_of_wls = list_of_wls_not_skipped
+        list_of_orders = list_of_orders_not_skipped
+        list_of_sigmas = list_of_sigmas_not_skipped
+
+
 #Interpolate over all isolated NaNs and set bad columns to NaN (so that they are ignored in the CCF)
     if do_xcor == True:
-        print('---Healing NaNs')
+        ut.tprint('---Healing NaNs')
         list_of_orders = masking.interpolate_over_NaNs(list_of_orders,parallel=parallel)
         list_of_sigmas = masking.interpolate_over_NaNs(list_of_sigmas,quiet=True,parallel=parallel)
 
 
-        #This is the point from which model injection will also start.
-        #List_of_orders and list_of_wls are taken to inject the models into below,
-        #after first the data is correlated.
+
+
+
+
+
+
+    #This is the point from which model injection will also start.
+    #List_of_orders and list_of_wls are taken to inject the models into below,
+    #after first the data is correlated.
 
 
     #Normalize the orders to their average flux in order to effectively apply a broad-band colour
     #correction (colour is typically a function of airmass and seeing).
     if do_colour_correction == True:
-        print('---Normalizing orders to common flux level')
+        ut.tprint('---Normalizing orders to common flux level')
         # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',
         #alpha=0.4)
         list_of_orders_normalised,list_of_sigmas_normalised,meanfluxes = (
@@ -713,7 +741,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         # sys.exit()
 
 
-    pdb.set_trace()
+
     if len(list_of_orders_normalised) != n_orders:
         raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
             'was before. Something went wrong during masking or colour correction.')
@@ -877,7 +905,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
         #High-pass filtering
         if f_w > 0.0:
-            ut.tprint('---Performing high-pass filter on the CCF')
+            ut.tprint(f'---Performing high-pass filter on the CCF with width {f_w}')
             ccf_clean_filtered,wiggles = filter_ccf(rv,ccf_clean,v_width = f_w)#THIS IS ALSO AN
             #ADDITIVE CORRECTION, SO CCF_NNE IS STILL VALID.
         else:

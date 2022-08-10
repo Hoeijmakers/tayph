@@ -226,6 +226,9 @@ class mask_maker(object):
 
         #Set the current active order to order , and calculate the meanspec
         #and residuals to be plotted, which are saved in self.
+        self.order = self.list_of_orders[0]#This is set to give self.order a content. To be
+        #overwritten immediately if self.N is different from 0.
+        self.npx_previous = np.shape(self.order)[1]
         self.set_order(self.N)
 
 
@@ -380,7 +383,7 @@ class mask_maker(object):
         import copy
         from tayph.vartests import typetest
         typetest(i,int,'i in mask_maker.set_order()',)
-
+        self.npx_previous = np.shape(self.order)[1]#Saving this for update_plots.
         self.wl = self.list_of_wls[i]
         self.order = self.list_of_orders[i]
         if self.list_of_1D_telluric_spectra:
@@ -397,7 +400,7 @@ class mask_maker(object):
         #Compute the meanspec and the residuals, ignoring runtime warnings related to NaNs:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
-            self.meanspec = np.nanmean(self.list_of_orders[i],axis=0)
+            self.meanspec = np.nanmean(self.order,axis=0)
             self.residual = self.order / self.meanspec
         self.img_max = np.nanmean(self.meanspec[fun.selmax(self.meanspec,0.02,s=0.02)])*1.3
         self.vmin = np.nanmedian(self.residual)-3.0*np.nanstd(self.residual)
@@ -697,8 +700,10 @@ class mask_maker(object):
         import copy
         import pdb
         import tayph.plotting as plotting
-
-        if self.npx != len(self.x_axis):
+        print('OHAI 1')
+        if self.npx_previous != len(self.x_axis):
+            print('OHAI AGAIN')
+            print(self.npx,self.npx_previous,len(self.x_axis))
             print('--------- Redrawing to account for order width mismatch')
             array1 = copy.deepcopy(self.order)
             array2 = copy.deepcopy(self.residual)
@@ -726,6 +731,7 @@ class mask_maker(object):
                 self.img4=self.ax[2].plot(self.x_axis,self.telluric1d*0.9*self.img_max,color='cornflowerblue')#This autoscales with the set_ylim below
                 self.img5=self.ax[2].plot(self.x_axis,self.telluric1d*0.0+0.9*self.img_max*self.tcut,color='cornflowerblue',alpha=0.7)
         else:
+            print('OHAI?')
             array1 = copy.deepcopy(self.order.ravel())
             array2 = copy.deepcopy(self.residual.ravel())
             array1[np.isnan(array1)] = np.inf#The colobar doesn't eat NaNs, so now set them to inf just for the plot.

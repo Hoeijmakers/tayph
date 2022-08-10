@@ -78,34 +78,37 @@ def start_run(configfile,parallel=True,xcor_parallel=False,dp=''):
     a loop).
     """
     import tayph.system_parameters as sp
+    import tayph.util as ut
+    import numpy as np
+    import sys
     cf = configfile
 
 
 
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print('')
-    print(' = = = = = = = = = = = = = = = = =')
-    print(' = = = = WELCOME TO TAYPH! = = = =')
-    print(' = = = = = = = = = = = = = = = = =')
-    print('')
-    print(f'    Running {cf}')
-    print('')
-    print(' = = = = = = = = = = = = = = = = =')
-    print('')
-    print('')
-    print('')
+    ut.tprint('')
+    ut.tprint('')
+    ut.tprint('')
+    ut.tprint('')
+    ut.tprint('')
+    ut.tprint('')
+    ut.tprint('')
+    ut.tprint('')
+    ut.tprint('')
+    ut.tprint('')
+    ut.tprint('')
+    ut.tprint(' = = = = = = = = = = = = = = = = =')
+    ut.tprint(' = = = = WELCOME TO TAYPH! = = = =')
+    ut.tprint(' = = = = = = = = = = = = = = = = =')
+    ut.tprint('')
+    ut.tprint(f'    Running {cf}')
+    ut.tprint('')
+    ut.tprint(' = = = = = = = = = = = = = = = = =')
+    ut.tprint('')
+    ut.tprint('')
+    ut.tprint('')
 
-    print('---Start')
-    print(f'---Load parameters from {cf}')
+    ut.tprint('---Start')
+    ut.tprint(f'---Load parameters from {cf}')
     modellist = sp.paramget('model',cf,full_path=True).split(',')
     templatelist = sp.paramget('template',cf,full_path=True).split(',')
 
@@ -114,7 +117,6 @@ def start_run(configfile,parallel=True,xcor_parallel=False,dp=''):
             'maskname':sp.paramget('maskname',cf,full_path=True),
             'RVrange':sp.paramget('RVrange',cf,full_path=True),
             'drv':sp.paramget('drv',cf,full_path=True),
-            'transit':sp.paramget('transit',cf,full_path=True),
             'f_w':sp.paramget('f_w',cf,full_path=True),
             'do_colour_correction':sp.paramget('do_colour_correction',cf,full_path=True),
             'do_telluric_correction':sp.paramget('do_telluric_correction',cf,full_path=True),
@@ -134,8 +136,51 @@ def start_run(configfile,parallel=True,xcor_parallel=False,dp=''):
             'template_library':sp.paramget('template_library',cf,full_path=True),
             'model_library':sp.paramget('model_library',cf,full_path=True),
     }
-    if len(dp) > 0:
+    #Optional keywords:
+    try:
+        transitkeyword = sp.paramget('transit',cf,full_path=True)
+    except:
+        transitkeyword = None
+        ut.tprint("------Optional keyword 'transit' (True/False) not set. This will be defaulted "
+        "to True in tayph.run_instance(). Set to False if this is not in-transit data (warnings "
+        "or errors will come up later if this is the case).")
+    if transitkeyword:
+        params['transit'] = transitkeyword
 
+    order_skip_num = []
+    try:
+        order_skiplist = sp.paramget('skip_orders',cf,full_path=True,force_string = True).split(',')
+    except:
+        ut.tprint("------Optional keyword 'skip_orders' not set. If you want to skip ranges of "
+        "orders, you can do so by setting this keyword as e.g. 0,1,2,5,10,15-20,22,23 etc.")
+        order_skiplist=None
+    if order_skiplist:
+        for O in order_skiplist:
+            try:
+                order_num = int(O)
+                order_skip_num.append(order_num)
+            except:#This is a dash-separated range:
+                order_span = O.split('-')
+                if len(order_span) == 2:
+                    try:
+                        first_order = int(order_span[0])
+                        final_order = int(order_span[1])
+                    except:
+                        raise Exception('ERROR in parsing order skip list. Should be formatted '
+                        f'as 0,1,2,5,10,15-20,22,23. Encountered {O}')
+                    if first_order >=final_order or first_order <0:
+                        raise Exception('ERROR in parsing order skip list. Should be formatted '
+                        f'as 0,1,2,5,10,15-20,22,23. Encountered {O}')
+                    order_range = np.arange(first_order,final_order+1)
+                    for OO in order_range:
+                        order_skip_num.append(OO)
+                else:
+                    raise Exception('ERROR in parsing order skip list. Should be formatted as '
+                    f'0,1,2,5,10,15-20,22,23. Encountered {O}')
+        params['skip_orders'] = [*set(order_skip_num)]
+        ut.tprint("------The following orders are set for skipping during this run "
+        f"{','.join(order_skiplist)}")
+    if len(dp) > 0:
         params['dp'] = dp
     run_instance(params,parallel=parallel,xcor_parallel=xcor_parallel)
 
@@ -180,6 +225,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     #Read all the parameters.
     modellist = p['modellist']
     templatelist = p['templatelist']
+
     model_library = p['model_library']
     template_library = p['template_library']
     shadowname = p['shadowname']
@@ -190,6 +236,10 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         intransit = p['transit']
     except:
         intransit=True
+    try:
+        skip_orders = p['skip_orders']
+    except:
+        skip_orders = []
     f_w = p['f_w']
     do_colour_correction=p['do_colour_correction']
     do_telluric_correction=p['do_telluric_correction']
@@ -212,6 +262,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     typetest(templatelist,[str,list],'templatelist in run_instance()')
     typetest(model_library,str,'model_library in run_instance()')
     typetest(template_library,str,'template_library in run_instance()')
+    typetest(skip_orders,list,'skip_orders in run_instance()')
     ut.check_path(model_library,exists=True)
     ut.check_path(template_library,exists=True)
     if type(modellist) == str:
@@ -661,6 +712,8 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         # plt.show()
         # sys.exit()
 
+
+    pdb.set_trace()
     if len(list_of_orders_normalised) != n_orders:
         raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
             'was before. Something went wrong during masking or colour correction.')

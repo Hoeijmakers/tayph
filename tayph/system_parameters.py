@@ -32,7 +32,7 @@ def check_dp(dp):
     return(dp)
 
 
-def paramget(keyword,dp,full_path=False):
+def paramget(keyword,dp,full_path=False,force_string = False):
     """This code queries a planet system parameter from a config file located in the folder
     specified by the path dp; or run configuration parameters from a file speciefied by the full
     path dp, if full_path is set to True.
@@ -81,13 +81,16 @@ def paramget(keyword,dp,full_path=False):
     for i in range(0,n_lines):
         line=x[i].split()
         if len(line) > 1:
-            try:
-                value=float(line[1])
-            except ValueError:
+            if force_string:
+                value=(line[1])
+            else:
                 try:
-                    value=bool(distutils.util.strtobool(line[1]))
+                    value=float(line[1])
                 except ValueError:
-                    value=(line[1])
+                    try:
+                        value=bool(distutils.util.strtobool(line[1]))
+                    except ValueError:
+                        value=(line[1])
             keywords[line[0]] = value
     try:
         return(keywords[keyword])

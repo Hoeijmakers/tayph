@@ -124,12 +124,12 @@ parallel=False):
     if len(list_of_wls) != len(list_of_orders):
         raise ValueError(f'In xcor(): List of wls and list of orders have different length '
         f'({len(list_of_wls)} & {len(list_of_orders)}).')
-    if parallel == 0:
-        NT = 1
-    elif parallel == True:
-        NT = len(list_of_fxm)
-    else:
-        NT = int(parallel)
+    NT = len(list_of_fxm)
+
+    if parallel == True:
+        NC = NT*1
+    if int(parallel) > 1:
+        NC = int(parallel)
     lentest(list_of_wlm,NT,'list_of_wlm in ccf.xcor()')
     typetest(drv,[int,float],'drv in ccf.xcor')
     typetest(RVrange,float,'RVrange in ccf.xcor()',)
@@ -264,7 +264,7 @@ parallel=False):
         return(CCF,CCF_E,T_sums)
 
     if parallel:#This here takes a lot of memory.
-        list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*Parallel(n_jobs=NT)(delayed(do_xcor)(i)
+        list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*Parallel(n_jobs=NC)(delayed(do_xcor)(i)
         for i in range(NT)))
     else:
         list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*[do_xcor(i) for i in range(NT)])

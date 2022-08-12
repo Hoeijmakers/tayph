@@ -124,7 +124,12 @@ parallel=False):
     if len(list_of_wls) != len(list_of_orders):
         raise ValueError(f'In xcor(): List of wls and list of orders have different length '
         f'({len(list_of_wls)} & {len(list_of_orders)}).')
-    NT = len(list_of_fxm)
+    if parallel == 0:
+        NT = 1
+    elif parallel == True:
+        NT = len(list_of_fxm)
+    else:
+        NT = int(parallel)
     lentest(list_of_wlm,NT,'list_of_wlm in ccf.xcor()')
     typetest(drv,[int,float],'drv in ccf.xcor')
     typetest(RVrange,float,'RVrange in ccf.xcor()',)

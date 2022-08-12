@@ -38,7 +38,7 @@ def make_project_folder(pwd='.'):
 
 
 
-def start_run(configfile,parallel=True,xcor_parallel=False,dp=''):
+def start_run(configfile,parallel=True,xcor_parallel=False,dp='',debug=False):
     """
     This is the main command-line initializer of the cross-correlation routine provided by Tayph.
     It parses a configuration file located at configfile which should contain predefined keywords.
@@ -76,6 +76,9 @@ def start_run(configfile,parallel=True,xcor_parallel=False,dp=''):
     Set the dp keyword to an alternative datapath to override the datapath in the runfile. This is
     to execute the same runfile on multiple datasets (e.g. nights) in a straightforward way (i.e.)
     a loop).
+
+    Set the debug to run the cascade in a stepwise manner, calling pdb.set_trace() after each step
+    to allow on the fly inspection of variables and errors.
     """
     import tayph.system_parameters as sp
     import tayph.util as ut
@@ -107,7 +110,13 @@ def start_run(configfile,parallel=True,xcor_parallel=False,dp=''):
     ut.tprint('')
     ut.tprint('')
 
-    ut.tprint('---Start')
+    if not debug:
+        ut.tprint('---Start')
+    else:
+        ut.tprint('[STARTING TAYPH IN DEBUG MODE]')
+        ut.tprint('The code will be halted between major steps using pdb, allowing you to '
+        'inspect the values of parameters to enable advanced debugging.')
+
     ut.tprint(f'---Load parameters from {cf}')
     modellist = sp.paramget('model',cf,full_path=True).split(',')
     templatelist = sp.paramget('template',cf,full_path=True).split(',')
@@ -135,6 +144,7 @@ def start_run(configfile,parallel=True,xcor_parallel=False,dp=''):
             # 'invert_template':sp.paramget('invert_template',cf,full_path=True),
             'template_library':sp.paramget('template_library',cf,full_path=True),
             'model_library':sp.paramget('model_library',cf,full_path=True),
+            'debug':debug
     }
     #Optional keywords:
     try:
@@ -254,6 +264,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     do_keplerian_correction=p['do_keplerian_correction']
     make_doppler_model=p['make_doppler_model']
     skip_doppler_model=p['skip_doppler_model']
+    debug = p['debug']
     resolution = sp.paramget('resolution',dp)
     air = sp.paramget('air',dp)#Are wavelengths in air or not?
 
@@ -300,6 +311,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     typetest(skip_doppler_model,bool,   'skip_doppler_model in run_instance()')
     typetest(air,bool,'air in run_instance()')
     typetest(intransit,bool,'intransit in run_instance()')
+    typetest(debug,bool,'debug in run_instance()')
 
 
 
@@ -323,7 +335,6 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         skip_doppler_model = True
 
 
-
     ut.tprint(f'---Initiating output folder tree in {Path("output")/dp}.')
     libraryname=str(template_library).split('/')[-1]
     if str(dp).split('/')[0] == 'data':
@@ -336,6 +347,12 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         f'dataset as {dataname}')
 
 
+
+    if debug:
+        prfx = '[DEBUG] '
+        ut.tprint(prfx+'Testing of input variables and output data structure complete. The '
+        f'next step is reading the data into lists from {dp}.')
+        pdb.set_trace()
 
     list_of_wls=[]#This will store all the data.
     list_of_orders=[]#All of it needs to be loaded into your memory, more than once.
@@ -464,6 +481,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
 
+
     #Track the minimum and maximum wavelengths of the data. This is done here and not when
     #reading the data because at the end of each loop it is determined whether or not to do
     #airtovac, and it is appended immediately, so I split the following off:
@@ -506,7 +524,13 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                 f'vs {np.round(min_wl,2)}--{np.round(max_wl,2)} respectively). The model will be '
                 'padded with ones in the missing region upon injection.')
 
-
+    if debug:
+        prfx = '[DEBUG] '
+        ut.tprint(prfx+'The data is read and these tests have passed. This means that the data'
+        f'files have the right shape, and that the models and templates cover the right '
+        'wavelengths. The next step is reading the telluric model files and dividing them '
+        'out of the data.')
+        pdb.set_trace()
 #Apply telluric correction file or not.
     # plt.plot(list_of_wls[60],list_of_orders[60][10],color='red')
     # plt.plot(list_of_wls[60],list_of_orders[60][10]+list_of_sigmas[60][10],color='red',alpha=0.5)
@@ -531,7 +555,10 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     # pdb.set_trace()
 
 
-
+    if debug:
+        ut.tprint(prfx+'Telluric correction has passed. The next step is to do velocity'
+        'corrections.')
+        pdb.set_trace()
 
 #Do velocity correction of wl-solution. Explicitly after telluric correction
 #but before masking. Because the cross-correlation relies on columns being masked.
@@ -643,10 +670,25 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         raise RuntimeError('n_orders is no longer equal to the length of list_of_orders, though it '
         'was before. Something went wrong during telluric correction or velocity correction.')
 
+
+
+    if debug:
+        ut.tprint(prfx+'The velocities have been corrected, taking into account the shape of '
+        'wavelength grid (1D or 2D).')
+
+
+
+
+
+
     #Compute / create a mask and save it to file (or not)
     if make_mask == True and len(list_of_orders) > 0:
+        if debug:
+            ut.tprint('Telluric spectra have been traced to be passed to the mask making routine,'
+            'routing. Mask-making is the next step, with colour correction if set '
+            f'({do_colour_correction}).')
+            pdb.set_trace()
         if do_colour_correction == True:
-
             list_of_orders_mask = ops.normalize_orders(list_of_orders,list_of_orders,colourdeg)[0]
             #I dont want outliers to affect the colour correction later on, so colour correction
             #can't be done before masking. At the same time, masking shouldn't suffer from colour
@@ -670,10 +712,11 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                 '(apply_mask == False)')
 
 
-
-
 #Apply the mask that was previously created and saved to file.
     if apply_mask == True:
+        if debug:
+            ut.tprint(prfx+'The next step is application of the mask.')
+            pdb.set_trace()
         ut.tprint('---Applying mask to spectra and uncertainty arrays')
         list_of_orders = masking.apply_mask_from_file(dp,maskname,list_of_orders)
         list_of_sigmas = masking.apply_mask_from_file(dp,maskname,list_of_sigmas)
@@ -681,26 +724,36 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 #Skipping orders:
     if len(skip_orders) > 0:
+        if debug:
+            ut.tprint(prfx+'The next step is removal of orders set my the skip_orders keyword.')
+            pdb.set_trace()
         ut.tprint(f'---Removing orders {skip_orders}')
         list_of_wls_not_skipped = []
         list_of_orders_not_skipped = []
         list_of_sigmas_not_skipped = []
         for i in range(len(list_of_orders)):
             if i not in skip_orders:
-                list_of_wls_not_skipped.append(list_of_wls[i])
-                list_of_orders_not_skipped.append(list_of_orders[i])
-                list_of_sigmas_not_skipped.append(list_of_sigmas[i])
+                list_of_wls_not_skipped.append(copy.deepcopy(list_of_wls[i]))
+                list_of_orders_not_skipped.append(copy.deepcopy(list_of_orders[i]))
+                list_of_sigmas_not_skipped.append(copy.deepcopy(list_of_sigmas[i]))
         n_orders -= len(skip_orders)
         del list_of_orders
         del list_of_sigmas
         del list_of_wls
-        list_of_wls = list_of_wls_not_skipped
-        list_of_orders = list_of_orders_not_skipped
-        list_of_sigmas = list_of_sigmas_not_skipped
+        list_of_wls = copy.deepcopy(list_of_wls_not_skipped)
+        list_of_orders = copy.deepcopy(list_of_orders_not_skipped)
+        list_of_sigmas = copy.deepcopy(list_of_sigmas_not_skipped)
+        del list_of_wls_not_skipped
+        del list_of_orders_not_skipped
+        del list_of_sigmas_not_skipped
+
 
 
 #Interpolate over all isolated NaNs and set bad columns to NaN (so that they are ignored in the CCF)
     if do_xcor == True:
+        if debug:
+            ut.tprint(prfx+'The next step is healing of isolated NaN values by interpolation.')
+            pdb.set_trace()
         ut.tprint('---Healing NaNs')
         list_of_orders = masking.interpolate_over_NaNs(list_of_orders,parallel=parallel)
         list_of_sigmas = masking.interpolate_over_NaNs(list_of_sigmas,quiet=True,parallel=parallel)
@@ -720,6 +773,10 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     #Normalize the orders to their average flux in order to effectively apply a broad-band colour
     #correction (colour is typically a function of airmass and seeing).
     if do_colour_correction == True:
+        if debug:
+            ut.tprint(prfx+'The next step is colour correction. The variables list_of_orders and '
+            'list_of_sigmas will be deleted after this step..')
+            pdb.set_trace()
         ut.tprint('---Normalizing orders to common flux level')
         # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',
         #alpha=0.4)
@@ -734,6 +791,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         meanfluxes_norm = np.ones(len(list_of_orders[0]))
         list_of_orders_normalised = list_of_orders
         list_of_sigmas_normalised = list_of_sigmas
+        if debug:
+            ut.tprint(prfx+'Colour correction was skipped. The variables list_of_orders and '
+            'list_of_sigmas have been renamed to ..._normalised.')
         #fun.findgen(len(list_of_orders[0]))*0.0+1.0#All unity.
         # plt.plot(list_of_wls[60],list_of_orders_normalised[60][10]/list_of_sigmas[60][10],
         # color='red',alpha=0.4)
@@ -756,7 +816,10 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         #These will be saved in lists so that they can be used twice if necessary: once for the
         #data and once for the injected models.
     if do_xcor == True or plot_xcor == True:
-
+        if debug:
+            ut.tprint(prfx+'The next step is construction of templates, and recognition of '
+            'templates and binary masks.')
+            pdb.set_trace()
         def construct_template(templatename,verbose=False):#For use in parallelised iterator.
             wlt,T,is_binary=models.build_template(templatename,binsize=0.5,maxfrac=0.01,resolution=resolution,
                 template_library=template_library,c_subtract=c_subtract,verbose=verbose)
@@ -797,6 +860,11 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
     if do_xcor:#Perform the cross-correlation on the entire list of orders and the entire list of
     #templates, in parallel or sequentially.
+        if debug:
+            ut.tprint(prfx+'The next step is cross-correlation. The variables '
+            'list_of_orders_normalised and list_of_sigmas_normalised will be deleted after this '
+            'step.')
+            pdb.set_trace()
         if xcor_parallel:
             ut.tprint(f'---Performing cross-correlation with {len(list_of_templates)} '
             'templates in parallel.')
@@ -860,6 +928,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
     #Save CCFs to disk, read them back in and perform cleaning steps.
+    if debug:
+        ut.tprint(prfx+'Cross-correlation complete. The next step is writing output and cleaning.')
+        pdb.set_trace()
     ut.tprint('---Writing CCFs to file and peforming cleaning steps.')
     for i in range(len(T_names)):
         outpath = outpaths[i]
@@ -885,11 +956,17 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         ccf_n,ccf_ne,ccf_nn,ccf_nne= clean_ccf(rv,ccf,ccf_e,dp,intransit)
 
         if make_doppler_model == True:
+            if debug:
+                ut.tprint(prfx+'The next step is construction of the doppler shadow.')
+                pdb.set_trace()
             shadow.construct_doppler_model(rv,ccf_nn,dp,shadowname,xrange=[-200,200],Nxticks=20.0,
             Nyticks=10.0)
             make_doppler_model = False # This sets it to False after it's been run once, i.e. for
             #the first template.
         if skip_doppler_model == False:
+            if debug:
+                ut.tprint(prfx+'The next step is application of the doppler shadow.')
+                pdb.set_trace()
             ut.tprint(f'---Reading doppler shadow model from {shadowname}')
             doppler_model,dsmask = shadow.read_shadow(dp,shadowname,rv,ccf)#This returns both the
             #model evaluated on the rv,ccf grid, as well as the mask that blocks the planet trace.
@@ -905,6 +982,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
         #High-pass filtering
         if f_w > 0.0:
+            if debug:
+                ut.tprint(prfx+'The next step is high-pass filtering.')
+                pdb.set_trace()
             ut.tprint(f'---Performing high-pass filter on the CCF with width {f_w}')
             ccf_clean_filtered,wiggles = filter_ccf(rv,ccf_clean,v_width = f_w)#THIS IS ALSO AN
             #ADDITIVE CORRECTION, SO CCF_NNE IS STILL VALID.
@@ -932,6 +1012,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         ut.writefits(outpath/'KpVsys_e.fits',KpVsys_e)
         ut.writefits(outpath/'Kp.fits',Kp)
 
+    if debug==True and inject_model==False:
+        ut.tprint('Halting at the end to give access to final variables.')
+        pdb.set_trace()
 
     # print('DONE')
     # print(f'Time spent in serial xcor: {txcor}s')
@@ -943,6 +1026,11 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
     #Now repeat it all for the model injection.
     if inject_model == True and do_xcor == True:
+        if debug:
+            ut.tprint(prfx+'The next step is model injection. The whole cascade is repeated for.'
+            'each model. If you have set multipe models, you will be passed to pdb for each of '
+            'them')
+            pdb.set_trace()
         for modelname in modellist:
             if do_xcor == True:
                 print('---Injecting model '+modelname)
@@ -950,8 +1038,13 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                 model_library=model_library,intransit=intransit)#Start with the unnormalised orders
                 #from before. Normalize the orders to their average flux in order to effectively
                 #apply a broad-band colour correction (colour is a function of airmass and seeing).
-
+                if debug:
+                    ut.tprint(prfx+'Model injection complete.')
                 if do_colour_correction == True:
+                    if debug:
+                        ut.tprint(prfx+'The next step is colour correction. The variables '
+                        'list_of_orders and list_of_sigmas will be deleted after this step..')
+                        pdb.set_trace()
                     print('------Normalizing injected orders to common flux level')
                     list_of_orders_injected,list_of_sigmas_injected,meanfluxes_injected = (
                     ops.normalize_orders(list_of_orders_injected,list_of_sigmas,colourdeg))
@@ -965,7 +1058,11 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                 else:
                     ut.tprint(f'---Performing cross-correlation with {len(list_of_templates)} '
                     'templates in sequence.')
-
+                if debug:
+                    ut.tprint(prfx+'The next step is cross-correlation. The variables '
+                    'list_of_orders_normalised and list_of_sigmas_normalised will be deleted after '
+                    'this step.')
+                    pdb.set_trace()
                 #First we do all the spectral templates (case 1):
                 if len(wlTs_S) > 0:
                     t1 = ut.start()
@@ -1013,6 +1110,10 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
                 #Save CCFs to disk, read them back in and perform cleaning steps.
                 ut.tprint('---Writing CCFs to file and peforming cleaning steps.')
+                if debug:
+                    ut.tprint(prfx+'Cross-correlation complete. The next step is writing output '
+                    'and cleaning.')
+                    pdb.set_trace()
                 for i in range(len(T_names)):
                     outpath_i = outpaths[i]/modelname
                     if do_xcor:
@@ -1050,6 +1151,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                         # doppler_model,maskHW = shadow.read_shadow(dp,shadowname,rv,ccf)#This does not
                         #need to be repeated because it was already done during the correlation with
                         #the data.
+                        if debug:
+                            ut.tprint(prfx+'The next step application of the doppler-shadow.')
+                            pdb.set_trace()
                         ccf_clean_i,matched_ds_model_i = shadow.match_shadow(rv_i,ccf_nn_i,dsmask,dp,
                         doppler_model)
                     else:
@@ -1060,6 +1164,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
                     #High-pass filtering
                     if f_w > 0.0:
+                        if debug:
+                            ut.tprint(prfx+'The next step is high-pass filtering.')
+                            pdb.set_trace()
                         ccf_clean_i_filtered,wiggles_i = filter_ccf(rv_i,ccf_clean_i,v_width = f_w)
                     else:
                         ut.tprint('---Skipping high-pass filter')
@@ -1082,7 +1189,9 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                     ut.writefits(outpath_i/'KpVsys_e_i.fits',KpVsys_e_i)
                     ut.writefits(outpath_i/'Kp.fits',Kp)
 
-
+                    if debug:
+                        ut.tprint('Halting at the end to give access to final variables.')
+                        pdb.set_trace()
                     print('')
                     # if plot_xcor == True:
                     #     print('---Plotting KpVsys with '+modelname+' injected.')

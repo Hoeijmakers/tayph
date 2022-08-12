@@ -659,8 +659,8 @@ class mask_maker(object):
             self.N = len(self.list_of_orders)-1
 
         self.set_order(self.N)
-        self.mask_slider.set_val(self.N)#Update the slider value.
         self.update_plots()#Redraw everything.
+        self.mask_slider.set_val(self.N)#Update the slider value.
 
     def next(self,event):
         """
@@ -671,8 +671,8 @@ class mask_maker(object):
         if self.N > len(self.list_of_orders)-1:
             self.N = 0
         self.set_order(self.N)
-        self.mask_slider.set_val(self.N)
         self.update_plots()
+        self.mask_slider.set_val(self.N)
 
     def cancel(self,event):
         """
@@ -700,10 +700,8 @@ class mask_maker(object):
         import copy
         import pdb
         import tayph.plotting as plotting
-        print('OHAI 1')
         if self.npx_previous != len(self.x_axis):
-            print('OHAI AGAIN')
-            print(self.npx,self.npx_previous,len(self.x_axis))
+            # print(self.npx,self.npx_previous,len(self.x_axis))
             print('--------- Redrawing to account for order width mismatch')
             array1 = copy.deepcopy(self.order)
             array2 = copy.deepcopy(self.residual)
@@ -731,12 +729,11 @@ class mask_maker(object):
                 self.img4=self.ax[2].plot(self.x_axis,self.telluric1d*0.9*self.img_max,color='cornflowerblue')#This autoscales with the set_ylim below
                 self.img5=self.ax[2].plot(self.x_axis,self.telluric1d*0.0+0.9*self.img_max*self.tcut,color='cornflowerblue',alpha=0.7)
         else:
-            print('OHAI?')
+            # print('No change',self.npx,self.npx_previous,len(self.x_axis))
             array1 = copy.deepcopy(self.order.ravel())
             array2 = copy.deepcopy(self.residual.ravel())
             array1[np.isnan(array1)] = np.inf#The colobar doesn't eat NaNs, so now set them to inf just for the plot.
             array2[np.isnan(array2)] = np.inf#And here too.
-
             self.img1.set_array(array1)
             self.img1.set_clim(vmin=0,vmax=self.img_max)
             self.img2.set_array(array2)
@@ -745,7 +742,6 @@ class mask_maker(object):
             if self.list_of_1D_telluric_spectra:
                 self.img4[0].set_ydata(self.telluric1d*0.9*self.img_max)
                 self.img5[0].set_ydata(self.telluric1d*0.0+0.9*self.img_max*self.tcut)
-
         self.ax[0].set_title(f'Spectral order {self.N}  ({round(np.min(self.wl),1)} - {round(np.max(self.wl),1)} nm)')
         self.ax[2].set_ylim(0,self.img_max)
         self.draw_masked_areas()

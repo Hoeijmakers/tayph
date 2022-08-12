@@ -154,7 +154,7 @@ def start_run(configfile,parallel=True,xcor_parallel=False,dp='',debug=False):
         ut.tprint("------Optional keyword 'transit' (True/False) not set. This will be defaulted "
         "to True in tayph.run_instance(). Set to False if this is not in-transit data (warnings "
         "or errors will come up later if this is the case).")
-    if transitkeyword:
+    if transitkeyword == True or transitkeyword == False:
         params['transit'] = transitkeyword
 
     order_skip_num = []

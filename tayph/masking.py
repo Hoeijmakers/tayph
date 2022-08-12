@@ -1255,8 +1255,13 @@ def mask_orders(list_of_wls,list_of_orders,dp,maskname,w,c_thresh,manual=False,l
             for j in list_of_masked_columns[i]:
                 list_of_masks_manual[i][:,int(j)] = np.nan
             for j in list_of_masked_tellurics[i]:
-                list_of_masks_telluric[i][:,int(j)] = np.nan #These are like list_of_orders but with
-                #NaNs in place. Such that they can be multiplied into list_of_orders.
+                try:
+                    list_of_masks_telluric[i][:,int(j)] = np.nan #These are like list_of_orders but
+                    #with NaNs in place. Such that they can be multiplied into list_of_orders.
+                except:
+                    pass#A try-except loop is here because int(j) can go just over the edge due to
+                    #that margin. Solve that here.
+
 
     #We write 1 or 2 mask files here. The list of manual masks
     #and list_of_masks (auto) are either filled, or either is an emtpy list if

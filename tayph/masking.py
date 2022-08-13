@@ -184,12 +184,21 @@ class mask_maker(object):
 
         self.N=0
         self.list_of_1D_telluric_spectra = tellurics
+
+        self.list_of_selected_tellurics=[]
+        for i in range(self.N_orders):
+            self.list_of_selected_tellurics.append([])#Make a list of empty lists.
+                    #This will contain all columns masked by the user, on top of the things
+                    #that are already masked by the program.
+
         if not t_settings:
+
             self.list_of_tcuts = [0] * len(list_of_orders) #This sets the tcut value to 0 in each
         #order.
             self.list_of_tmargins = [0] * len(list_of_orders)
             self.tmargin = 0
         else:
+            print('------Restoring previously saved telluric selection settings')
             if len(t_settings[0])!=self.N_orders or len(t_settings[1])!=self.N_orders:
                 self.list_of_tcuts = [0] * len(list_of_orders)
                 self.list_of_tmargins = [0] * len(list_of_orders)
@@ -198,15 +207,42 @@ class mask_maker(object):
                 self.list_of_tcuts = t_settings[0]
                 self.list_of_tmargins = t_settings[1]
                 self.tmargin = self.list_of_tmargins[self.N]*1
+            for no in range(self.N_orders):
+                tcut = self.list_of_tcuts[no]
+                tmar = self.list_of_tmargins[no]
+                x_axis= np.arange(np.shape(list_of_orders[no])[1], dtype=int)
+
+                if tcut > 0:#If t_cut>0 we will select tellurics:
+                    sel = x_axis[self.list_of_1D_telluric_spectra[no] < tcut]
+
+                    if int(tmar) == 0:#If the margin is 0, we just add that selection.
+                        for i in sel:
+                            self.list_of_selected_tellurics[no].append(i)
+                    else:
+                        for i in sel:
+                            for j in range(i-int(tmar),i+int(tmar)):
+                                self.list_of_selected_tellurics[no].append(j)
+                        self.list_of_selected_tellurics[no]=list(set(
+                        self.list_of_selected_tellurics[no]))
+        #THIS LOOPS OVER ALL ORDERS IN WHICH THE THINGS IN
+        #SELECT_TELLURIC_REGIONS ARE REPEATED. SO THAT WHEN THIS INITS, THE
+        #TELLURIC REGIONS ACTUALLY GET LOADED EVEN IF THE USER DOESNT ACTIVATE THOSE ORDERS.
+        #THE WORKING OF THIS CAN BE CHECKED BY DELETING THE MASK_TELLURIC.PKL FILE BUT NOT THE
+        #T_SETTINGS FILE, RUNNING THE CODE WITH MAKE-MASK, HITTING SAVE WITHOUT VISITING ORDERS WITH
+        # TELLURICS, AND THEN AND THEN TESTING THE CONTENT OF THE TEL MASK FILE AS E.G.:
+        #import numpy as np
+        #import pickle
+        #inpath_tel = 'data/WASP-121/night2/generic_mask_telluric.pkl'
+        #list_of_masks_tel = pickle.load(open(inpath_tel,"rb"))
+        #for i in list_of_masks_tel: print(np.sum(~np.isfinite(i)))
+
+
         self.T_slider = None #Initialise this variable so that it can be used when set_order
         #is called.
         self.M_slider = None
 
-        self.list_of_selected_tellurics=[]
-        for i in range(self.N_orders):
-            self.list_of_selected_tellurics.append([])#Make a list of empty lists.
-                    #This will contain all columns masked by the user, on top of the things
-                    #that are already masked by the program.
+
+
 
 
         if len(self.list_of_selected_columns) == 0:
@@ -369,6 +405,8 @@ class mask_maker(object):
                 #at the end, finish the last block:
                 max = columns[-1]
                 plot_span(min,max,color='cornflowerblue')
+
+
 
 
 

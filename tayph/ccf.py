@@ -158,6 +158,7 @@ parallel=False):
 
 
 #===STACK THE ORDERS IN MASSIVE CONCATENATIONS===
+    ut.tprint('------Stacking orders, wavelengths and errors')
     stack_of_orders = np.hstack(list_of_orders)#This is very memory intensive, essentially copying
     stack_of_wls = np.concatenate(list_of_wls)#the data in memory again... Can be 3 to 4 GB in
     #case of ESPRESSO. Issue 93 deals with this.
@@ -176,6 +177,7 @@ parallel=False):
 #===HERE IS THE JUICY BIT===
 #===FIRST, FIND AND MARK NANS===
     #We check whether there are isolated NaNs:
+    ut.tprint('------Selecting all columns that are NaN')
     n_nans = np.sum(np.isnan(stack_of_orders),axis=0)#This is the total number of NaNs in each
     #column. Whenever the number of NaNs equals the length of a column, we ignore them:
     n_nans[n_nans==len(stack_of_orders)]=0
@@ -189,6 +191,8 @@ parallel=False):
 
     #So we checked that all NaNs were in whole columns. These columns have the following indices:
     nan_columns =  np.isnan(stack_of_orders[0])
+    ut.tprint(f'------{np.sum(nan_columns)} columns identified to be ignored during CCF.')
+
     #We set all of them to arbitrarily high values, but set the template to zero in those locations
     #(see below). The reason this is OK is because at no time does the template see these values.
     #The fact that the template shifts doesn't matter: If a line appears or disappears by shifting
@@ -264,9 +268,11 @@ parallel=False):
         return(CCF,CCF_E,T_sums)
 
     if parallel:#This here takes a lot of memory.
+        ut.tprint(f'------Starting parallel CCF with {NT} templates on {NC} cores')
         list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*Parallel(n_jobs=NC)(delayed(do_xcor)(i)
         for i in range(NT)))
     else:
+        ut.tprint(f'------Starting CCF on {NT} templates in sequence')
         list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*[do_xcor(i) for i in range(NT)])
 
     if list_of_errors != None:

@@ -269,7 +269,7 @@ parallel=False):
 
     if parallel:#This here takes a lot of memory.
         ut.tprint(f'------Starting parallel CCF with {NT} templates on {NC} cores')
-        list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*Parallel(n_jobs=NC)(delayed(do_xcor)(i)
+        list_of_CCFs, list_of_CCF_Es, list_of_T_sums = zip(*Parallel(n_jobs=NC,verbose=2*NT)(delayed(do_xcor)(i)
         for i in range(NT)))
     else:
         ut.tprint(f'------Starting CCF on {NT} templates in sequence')

@@ -224,7 +224,7 @@ parallel=False):
         dimtest(wlm,[len(fxm)],'wlm in ccf.xcor()')
 
         #A wild 2D thing has appeared! It's super effective!
-        T = scipy.interpolate.interp1d(wlm,fxm, bounds_error=False, fill_value=0)(shifted_wls)
+        T = scipy.interpolate.interp1d(wlm,fxm, bounds_error=False, fill_value=0)(shifted_wls).T
 
         #... it's also massive in memory: A copy of the data's wavelength axis for EACH velocity
         #step. For the KELT-9 demo data, that's 2.7MB, times 600 velocity steps = 1.6 GB. For
@@ -239,14 +239,16 @@ parallel=False):
         #exposures, so that this casting only inflates memory by once the size of the data (which
         #is small compared to the amount of memory already being used).
 
-        T[:,nan_columns] = 0.0#All NaNs are assumed to be in all-NaN columns. If that is not true,
+        T[nan_columns] = 0.0#All NaNs are assumed to be in all-NaN columns. If that is not true,
         #the below nantest will fail.
-        T_sums = np.sum(T,axis = 1)
-        CCF = stack_of_orders @ T.T/T_sums#Here it the entire cross-correlation. Over all orders and
+        T_sums = np.sum(T,axis = 0)
+        T/=T_sums
+        CCF = stack_of_orders @ T#.T/T_sums#Here it the entire cross-correlation. Over all orders and
         #velocity steps. No forloops.
         CCF_E = CCF*0.0
         #If the errors were provided, we do the same to those:
-        if list_of_errors is not None: CCF_E = np.sqrt(stack_of_errors2 @ (T.T/T_sums)**2)#This has been
+        #if list_of_errors is not None: CCF_E = np.sqrt(stack_of_errors2 @ (T.T/T_sums)**2)#This has been
+        if list_of_errors is not None: CCF_E = np.sqrt(stack_of_errors2 @ T**2)#This has been
         del(T)
         #mathematically proven: E^2 = e^2 * T^2
 

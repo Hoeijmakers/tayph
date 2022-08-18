@@ -365,7 +365,7 @@ def phase(dp):
     phase=((diff.jd) % P)/P
     return phase
 
-def transit(dp):
+def transit(dp,p=None):
     """This code uses Ians astro python routines for the approximate Mandel &
     Agol transit lightcurve to produce the predicted transit lightcurve for the
     planet described by the configfile located at dp/config.
@@ -398,7 +398,8 @@ def transit(dp):
     import numpy as np
     import pdb
     dp=ut.check_path(dp)
-    p=phase(dp)
+    if not p:
+        p=phase(dp)
     a_Rstar=paramget('aRstar',dp)
     Rp_Rstar=paramget('RpRstar',dp)
     i=paramget('inclination',dp)

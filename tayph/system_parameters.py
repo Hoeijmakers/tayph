@@ -163,7 +163,7 @@ def airmass(dp):
 
     d=ascii.read(ut.check_path(dp/'obs_times',exists=True),comment="#")
     try:
-        airm = d['col6']#Needs to be in col 5.
+        airm = d['col5']#Needs to be in col 5.
     except:
         raise Exception(f'Runtime error in sp.airmass(): col6 could not be indexed. '
         f'Check the integrity of your obst_times file located at {dp}.')
@@ -183,7 +183,7 @@ def SNR(dp):
 
     d=ascii.read(ut.check_path(dp/'obs_times',exists=True),comment="#")
     try:
-        snr = d['col8']#Needs to be in col 5.
+        snr = d['col7']#Needs to be in col 5.
     except:
         raise Exception(f'Runtime error in sp.SNR(): col8 could not be indexed. '
         f'Check the integrity of your obst_times file located at {dp}.')

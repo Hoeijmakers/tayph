@@ -165,9 +165,29 @@ def airmass(dp):
     try:
         airm = d['col6']#Needs to be in col 5.
     except:
-        raise Exception(f'Runtime error in sp.berv(): col6 could not be indexed. Check the integrity of your obst_times file located at {dp}.')
+        raise Exception(f'Runtime error in sp.airmass(): col6 could not be indexed. '
+        f'Check the integrity of your obst_times file located at {dp}.')
     return airm.data
 
+
+def SNR(dp):
+    """This retrieves the SNR tabulated in the obs_times table.
+    Example: snr=sp.SNR('data/Kelt-9/night1/')
+    The output is an array with length N, corresponding to N exposures. These values
+    are / should be taken from the FITS header. Currently only active for ESPRESSO, at 550 nm.
+    """
+    from astropy.io import ascii
+    from pathlib import Path
+    import tayph.util as ut
+    dp=ut.check_path(dp,exists=True)#Path object
+
+    d=ascii.read(ut.check_path(dp/'obs_times',exists=True),comment="#")
+    try:
+        snr = d['col8']#Needs to be in col 5.
+    except:
+        raise Exception(f'Runtime error in sp.SNR(): col8 could not be indexed. '
+        f'Check the integrity of your obst_times file located at {dp}.')
+    return snr.data
 
 
 def v_orb(dp):

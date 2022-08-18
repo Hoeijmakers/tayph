@@ -553,12 +553,14 @@ def read_espresso(inpath,filelist,read_s1d=True,skysub=False):
     airmass=np.array([])
     berv=np.array([])
     wave=[]
+    SNR = []
     catkeyword = 'EXTNAME'
     bervkeyword = 'HIERARCH ESO QC BERV'
     airmass_keyword1 = 'HIERARCH ESO TEL'
     airmass_keyword2 = ' AIRM '
     airmass_keyword3_start = 'START'
     airmass_keyword3_end = 'END'
+    snr_keyword = 'HIERARCH ESO QC ORDER102 SNR' #SNR in order 102, at 550nm.
 
     if skysub:
         type_suffix = 'S2D_SKYSUB_A.fits'
@@ -596,7 +598,7 @@ def read_espresso(inpath,filelist,read_s1d=True,skysub=False):
                 #WHEN COMPARING WAVE[0] WITH WAVE[1], YOU SHOULD SEE THAT THE DIFFERENCE IS NILL.
                 #THATS WHY LATER WE CAN JUST USE WAVE[0] AS THE REPRESENTATIVE GRID FOR ALL.
                 #BUT THAT IS SILLY. JUST SAVE THE WAVELENGTHS!
-
+                SNR.append(hdr[snr_keyword])
                 if read_s1d:
                     s1d_path=inpath/Path(str(filelist[i]).replace('_'+type_suffix,'_S1D_A.fits'))
                     #Need the blazed files. Not the S2D_A's by themselves.
@@ -633,11 +635,11 @@ def read_espresso(inpath,filelist,read_s1d=True,skysub=False):
     if read_s1d:
         output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
         'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
-        'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
+        'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd,'snr550':SNR}
     else:
         output = {'wave':wave,'e2ds':e2ds,'header':header,
         'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
-        'norders':norders,'berv':berv,'airmass':airmass}
+        'norders':norders,'berv':berv,'airmass':airmass,'snr550':SNR}
     return(output)
 
 def read_nirps(inpath,filelist,read_s1d=True,skysub=True):
@@ -669,15 +671,21 @@ def read_nirps(inpath,filelist,read_s1d=True,skysub=True):
     for i in range(len(filelist)):
         if filelist[i].endswith(type_suffix):
             hdul = fits.open(inpath/filelist[i])
+            wavedata=copy.deepcopy(hdul[5].data)
             if skysub:
                 hdul2 = fits.open(str(inpath/filelist[i]).replace('BLAZE_A.fits','BLAZE_B.fits'))
-                data = copy.deepcopy(hdul[1].data-hdul2[1].data)
+                if np.sum(wavedata-hdul2[5].data) != 0:
+                    raise Exception("Error in read_nirs: The wavelengths of two blaze files "
+                    f"are not identical ({str(inpath/filelist[i])}). Sky subtraction cannot "
+                    "proceed.")
+                data = copy.deepcopy(hdul[1].data-hdul2[1].data)#This way of doing sky subtraction
+                #is valid because the two blaze files have the same wavelength axis.
                 del hdul2
             else:
                 data = copy.deepcopy(hdul[1].data)
             hdr = hdul[0].header
             hdr2 = hdul[1].header
-            wavedata=copy.deepcopy(hdul[5].data)
+
             hdul.close()
             del hdul
 
@@ -707,9 +715,16 @@ def read_nirps(inpath,filelist,read_s1d=True,skysub=True):
                     if skysub:
                         s1d_path=inpath/Path(str(filelist[i]).replace('_'+type_suffix,
                         '_S1D_SKYSUB_A.fits'))
+                        ut.check_path(s1d_path,exists=True)#Crash if the S1D doesn't exist.
                     else:
                         s1d_path=inpath/Path(str(filelist[i]).replace('_'+type_suffix,
                         '_S1D_A.fits'))
+                        try:
+                            ut.check_path(s1d_path,exists=True)#Crash if the S1D doesn't exist.
+                        except:
+                            print('---Warning: S1D file not found. Trying Skysub instead.')
+                            s1d_path=inpath/Path(str(filelist[i]).replace('_'+type_suffix,
+                        '_S1D_SKYSUB_A.fits'))
                     #Need the blazed files. Not the S2D_A's by themselves.
                     ut.check_path(s1d_path,exists=True)#Crash if the S1D doesn't exist.
                     hdul = fits.open(s1d_path)

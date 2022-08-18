@@ -1550,6 +1550,8 @@ config=False,save_figure=True,skysub=False):
     texp = DATA['texp']#The exposure time of each exposure in seconds.
     date = DATA['date']#The date of observation in yyyymmddThhmmss.s format.
     obstype = DATA['obstype']#Observation type, should be SCIENCE.
+    if mode == 'ESPRESSO':
+        SNR = DATA['snr550']
     if read_s1d:
         wave1d  = DATA['wave1d']#List of 1D stitched wavelengths.
         s1d     = DATA['s1d']#List of 1D stiched spectra.
@@ -1678,8 +1680,11 @@ config=False,save_figure=True,skysub=False):
     #Now we loop over all exposures and collect the i-th order from each exposure,
     #put these into a new matrix and save them to FITS images:
     f=open(outpath/'obs_times','w',newline='\n')
+
     headerline = 'MJD \t DATE \t EXPTIME \t MEAN AIRMASS \t BERV (km/s) \t FILE NAME'
 
+    if mode == 'ESPRESSO':
+        headerline+=' \t SNR550'
 
     n_1d = 0 #The number of orders for which the wavelength axes are all the same.
     #This should be equal to norders. If it is not, we will trigger a warning.
@@ -1695,9 +1700,14 @@ config=False,save_figure=True,skysub=False):
             wave_order[j,:] = wave_exposure[i,:]
             #Now I also need to write it to file.
             if i ==0:#Only do it the first time, not for every order.
-                line = (str(mjd[sorting[j]])+'\t'+date[sorting[j]]+'\t'+str(texp[sorting[j]])+'\t'+
-                str(np.round(airmass[sorting[j]],3))+'\t'+str(np.round(berv[sorting[j]],5))+'\t'
-                +framename[sorting[j]]+'\n')
+                if mode == 'ESPRESSO':
+                    line = (str(mjd[sorting[j]])+'\t'+date[sorting[j]]+'\t'+str(texp[sorting[j]])+'\t'+
+                    str(np.round(airmass[sorting[j]],3))+'\t'+str(np.round(berv[sorting[j]],5))+'\t'
+                    +framename[sorting[j]]+'\t'+str(np.round(SNR[sorting[j]],3))+'\n')
+                else:
+                    line = (str(mjd[sorting[j]])+'\t'+date[sorting[j]]+'\t'+str(texp[sorting[j]])+'\t'+
+                    str(np.round(airmass[sorting[j]],3))+'\t'+str(np.round(berv[sorting[j]],5))+'\t'
+                    +framename[sorting[j]]+'\n')
                 f.write(line)
 
 

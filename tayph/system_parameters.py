@@ -328,7 +328,7 @@ def phase(dp):
 
     As of 20-08-2022, this function returns the phase at the *middle* of the observation as it is
     supposed to, by adding half of the exposure time to each timestamp. This is relied on by
-    functions such as inject_model, transit and construct_kpvsys.
+    functions such as inject_model, transit and construct_kpvsys, as per isssue #113.
     """
     from tayph.vartests import typetest
     import numpy as np

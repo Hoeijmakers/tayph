@@ -309,7 +309,7 @@ def calculateberv(date,earth_coordinates,ra,dec,mode=False):
 
 
 
-def phase(dp,start=False):
+def phase(dp,start=False,end=False):
     """
     Calculates the orbital phase of the planet in the data
     sequence provided using the parameters in dp/config and the timings in
@@ -359,6 +359,11 @@ def phase(dp,start=False):
     typetest(Tc,float,'Tc in sp.phase()')
     typetest(RA,str,'RA in sp.phase()')
     typetest(DEC,str,'DEC in sp.phase()')
+    typetest(start,bool,'start in sp.phase()')
+    typetest(end,bool,'end in sp.phase()')
+
+    if start == True and end == True:
+        raise Exception("Error in sp.phase(): start and end can't both be true.")
 
     ip_peg = coord.SkyCoord(RA,DEC,unit=(u.hourangle, u.deg), frame='icrs')
     ltt_bary = t.light_travel_time(ip_peg)
@@ -369,10 +374,15 @@ def phase(dp,start=False):
         Tc_n=Time(Tc-100.0*n*P,format='jd',scale='tdb')#This is to make sure that the Transit central time PRECEDES the observations (by tens or hundreds or thousands of years). Otherwise, the phase could pick up a minus sign somewhere and be flipped. I wish to avoid that.
         n+=1
     BJD = t.tdb + ltt_bary
+
     if start == True:
         diff = BJD-Tc_n
+    elif end == True:
+        diff = BJD+texp(dp)/3600.0/24.0/2-Tc_n
     else:
         diff = BJD+0.5*texp(dp)/3600.0/24.0/2-Tc_n#This adds half the exposure time to the timestamp, because MJD_OBS is measured at the start of the frame.
+
+
     phase=((diff.jd) % P)/P
     return phase
 

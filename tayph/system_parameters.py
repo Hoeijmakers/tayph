@@ -325,6 +325,10 @@ def phase(dp):
 
     More importantly: The transit center time needs to be provided in config
     in BJD.
+
+    As of 20-08-2022, this function returns the phase at the *middle* of the observation as it is
+    supposed to, by adding half of the exposure time to each timestamp. This is relied on by
+    functions such as inject_model, transit and construct_kpvsys.
     """
     from tayph.vartests import typetest
     import numpy as np
@@ -332,6 +336,7 @@ def phase(dp):
     from astropy.time import Time
     from astropy import units as u, coordinates as coord
     import tayph.util as ut
+    import pdb
     dp=check_dp(dp)#Path object
     d=ascii.read(dp/'obs_times',comment="#")#,names=['mjd','time','exptime','airmass'])
     #Not using the named columns because I may not know for sure how many columns
@@ -361,7 +366,7 @@ def phase(dp):
         Tc_n=Time(Tc-100.0*n*P,format='jd',scale='tdb')#This is to make sure that the Transit central time PRECEDES the observations (by tens or hundreds or thousands of years). Otherwise, the phase could pick up a minus sign somewhere and be flipped. I wish to avoid that.
         n+=1
     BJD = t.tdb + ltt_bary
-    diff = BJD-Tc_n
+    diff = BJD+0.5*texp(dp)/3600.0/24.0/2-Tc_n#This adds half the exposure time to the timestamp, because MJD_OBS is measured at the start of the frame.
     phase=((diff.jd) % P)/P
     return phase
 

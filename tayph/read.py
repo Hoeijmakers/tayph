@@ -43,7 +43,8 @@ __all__ = [
     "read_uves",
     "read_spirou",
     "read_gianob",
-    "read_fies"
+    "read_fies",
+    "read_foces"
 ]
 
 
@@ -1175,4 +1176,103 @@ def read_fies(inpath,filelist,mode,read_s1d=True):
     output = {'wave': wave, 'e2ds': e2ds, 'header': header, 'wave1d': wave1d, 's1d': s1d, 's1dhdr': s1dhdr,
               'mjd': mjd, 'date': date, 'texp': texp, 'obstype': obstype, 'framename': framename, 'npx': npx,
               'norders': norders, 'berv': berv, 'airmass': airmass, 's1dmjd': s1dmjd}
+    return (output)
+
+def read_foces(inpath,filelist,mode,construct_s1d=True):
+    ####Need to do adapt this for telluric correction####
+    from astropy.time import Time
+    from astropy.coordinates import SkyCoord, EarthLocation
+    from astropy import units as u
+    from tayph.system_parameters import calculateberv
+    import warnings
+    warnings.filterwarnings("ignore")
+
+    number_orders_foces = 84 #I had to manually measure this
+
+    # The following variables define lists in which all the necessary data will be stored.
+    framename = []
+    header = []
+    s1dhdr = []
+    obstype = []
+    texp = np.array([])
+    date = []
+    mjd = np.array([])
+    s1dmjd = np.array([])
+    npx = np.array([])
+    norders = np.array([])
+    e2ds = []
+    blaze = []
+    s1d = []
+    wave1d = []
+    airmass = np.array([])
+    berv = np.array([])
+    wave = []
+
+    for i in range(len(filelist)):
+        if filelist[i].endswith('SCI0_ods.fits'):
+            #print(f'------{filelist[i]}', end="\r")
+            hdul = fits.open(inpath / filelist[i])
+            data = copy.deepcopy(hdul[1].data)
+            # print(hdul.info())
+            hdr = hdul[0].header
+            hdr1 = hdul[1].header
+            hdul.close()
+            del hdul[0].data
+            framename.append(filelist[i])
+            header.append(hdr)
+            obstype.append("SCIENCE")
+            texp = np.append(texp, hdr['EXPOSURE'])
+            date.append(hdr['DATE-OBS'])
+            t = Time(hdr['DATE-OBS'], format='isot', scale='utc')
+            mjd = np.append(mjd, t.mjd)  # FOCES Header doesn't provide mjd
+            npx = np.append(npx, len(data[0][4]))
+            norders = np.append(norders, number_orders_foces)
+
+            collected_orders = []
+            collected_waves = []
+            collected_blaze = []
+            collected_errors = []
+            for j in range(0,number_orders_foces):
+                #plt.plot(np.array(data[j][4]),np.array(data[j][12]))
+                collected_orders.append(np.array(data[j][5]))
+                collected_waves.append(np.array(data[j][4]))
+                collected_errors.append(np.array(data[j][6]))
+                collected_blaze.append(np.array(data[j][12]))
+            #plt.show()
+            collected_errors = 1 / np.sqrt(collected_errors)
+
+            e2ds.append(np.array(collected_orders))
+
+            berv_i = sp.calculateberv(mjd, [47.70364, 12.01206,1838],hdr['PERA2000'], hdr['PEDE2000'],mode=mode)
+            berv = np.append(berv, berv_i)
+            airmass = np.append(airmass, 1) #foces doesn't provide an airmass measurement, need to find a work around
+
+            gamma = (1.0 - (berv_i * u.km / u.s / const.c).decompose().value)
+            gamma = 1
+            wave.append(np.array(collected_waves*gamma)/10)
+
+            if construct_s1d:
+                print("---Stitching 2D Eschelle Spectra Together.",end="\r")
+                wave_1ds, data_1d = spec_stich_n_norm(np.array(collected_orders), np.array(collected_waves),
+                                                     np.array(collected_blaze), np.array(collected_errors))
+
+                s1d.append(data_1d)
+
+                hdr1d = copy.deepcopy(hdr)
+                #hdr1d['UTC'] = (float(hdr1d['MJD-OBS']) % 1.0) * 86400.0
+                s1dhdr.append(hdr1d)
+                s1dmjd = np.append(s1dmjd, t.mjd)
+
+                wave1d.append(wave_1ds/10)
+
+
+    if construct_s1d:
+        output = {'wave': wave, 'e2ds': e2ds, 'header': header, 'wave1d': wave1d, 's1d': s1d, 's1dhdr': s1dhdr,
+                  'mjd': mjd, 'date': date, 'texp': texp, 'obstype': obstype, 'framename': framename, 'npx': npx,
+                  'norders': norders, 'berv': berv, 'airmass': airmass, 's1dmjd': s1dmjd}
+    else:
+        output = {'wave': wave, 'e2ds': e2ds, 'header': header,
+                  'mjd': mjd, 'date': date, 'texp': texp, 'obstype': obstype, 'framename': framename, 'npx': npx,
+                  'norders': norders, 'berv': berv, 'airmass': airmass}
+
     return (output)

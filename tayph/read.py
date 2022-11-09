@@ -1263,7 +1263,7 @@ def read_foces(inpath,filelist,mode,construct_s1d=True):
                 s1dhdr.append(hdr1d)
                 s1dmjd = np.append(s1dmjd, t.mjd)
 
-                wave1d.append(wave_1ds/10)
+                wave1d.append(wave_1ds)
 
 
     if construct_s1d:

@@ -78,14 +78,17 @@ def ladfit(x,y,t=None):
     it returns the linear coefficients a,b from y=ax+b.
     x and y need to be one-dimensional arrays.
 
-    LADRegression accepts multi-dimensional arrays but that is for doing multivariate linear regression,
-    not independent regression for different datasets y defined on the same grid x.
-    So I could not get this to work for a multidimensional Y array without looping.
+    LADRegression accepts multi-dimensional arrays but that is for doing multivariate
+    linear regression, not independent regression for different datasets y defined on
+    the same grid x. So I could not get this to work for a multidimensional Y array
+    without looping.
 
     The algoritm returns the model coefficients [a,b], either with 2 or mx2 elements.
     This behavior is made to match np.polyfit.
 
-    Doing a linear fit with ladfit(x,y) is cognate with np.polyfit(x,y,1).
+    Doing a linear fit with ladfit(x,y.T) is cognate with np.polyfit(x,y,1).
+    The extra transpose is there so that ladfit works intuitively on an n x m frame for which the
+    x axis is horizontal (e.g. a spectral order).
 
 
     Set the parameter t to a threshold number of sigma values that are considered outliers.
@@ -94,8 +97,7 @@ def ladfit(x,y,t=None):
     shape as y, filled with 1.0s for values that are good, and 0.0s for outliers. This can be used
     as an outlier mask.
 
-
-    If you want to rip this function out of tayph for your own purposes, all you need to remove is
+    If you want to rip this out of tayph for your own purposes, all you need to remove is
     the test functions.
 
     Parameters
@@ -116,14 +118,11 @@ def ladfit(x,y,t=None):
     >>> b = [0.0,0.0]
     >>> x = np.linspace(0,5,9)
     >>> Y = np.array([a[0]*x+b[0],a[1]*x+b[1]]).T
-    >>> fit = ladfit(x,Y)
+    >>> fit=ladfit(x,Y)
     >>> prediction = fun.eval_poly(x,fit)
     >>> plt.plot(x,Y,'.',color='black')
     >>> plt.plot(x,prediction)
     >>> plt.show()
-    >>>
-    >>> #And with outlier rejection:
-    >>> fit,mask = ladfit(x,Y,t=4.0)
     """
     import numpy as np
     from sklego.linear_model import LADRegression
@@ -144,7 +143,7 @@ def ladfit(x,y,t=None):
         import astropy.stats as stats #Need #stats.mad_std
         mask = y * 0.0 + 1.0 #Emtpy array to store outliers. Agnostic as to shape of y.
     if np.ndim(y) > 1:
-        yT = y.T
+        yT = y
         a,b = [],[]
         for i in range(len(yT)):
             l = LADRegression().fit(x.T,yT[i])
@@ -155,7 +154,7 @@ def ladfit(x,y,t=None):
                 l = LADRegression().fit(x.T[~outliers],yT[i][~outliers])
                 ai,bi = l.coef_[0],l.intercept_
                 print(np.sum(outliers))
-                mask[outliers,i] = 0.0
+                mask[i,outliers] = 0.0
             a.append(ai)
             b.append(bi)
         if t:

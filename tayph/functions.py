@@ -1,4 +1,6 @@
 __all__ = [
+    'eval_poly',
+    'ladfit',
     'box',
     'voigt',
     'rotation_broadened_line',
@@ -20,6 +22,124 @@ __all__ = [
     'polysinfit',
     'sysrem'
 ]
+
+
+def eval_poly(x,f):
+    """This evaluates a polynomial using fitting coefficients f that were found via np.polyfit(x,y).
+    Normally you could use numpy.polynomial.polynomial.Polynomlial(fit)(x) for this, but not if fit
+    is a 2D array found by using np.polyfit(x,Y) with Y 2D. To deal with this eval_poly evaluates a
+    sequence of polynomials for a sequence of fits, on x.  If you want to rip this out of tayph for
+    your own purposes, all you need to remove is the test functions.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        A 1D array with x values.
+
+    f : np.ndarray
+        A 1D or 2D array containing polynomial coefficients.
+
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> import matplotlib.pyplot as plt
+    >>> a = [1.0,2.0]
+    >>> b = [0.0,0.0]
+    >>> x = np.linspace(0,5,9)
+    >>> Y = np.array([a[0]*x+b[0],a[1]*x+b[1]]).T
+    >>> fit = np.polyfit(x,Y)
+    >>> prediction = eval_poly(x,fit)
+    >>> plt.plot(x,Y,'.',color='black')
+    >>> plt.plot(x,prediction)
+    >>> plt.show()
+    """
+    import numpy as np
+
+    #Test functions:
+    from tayph.vartests import typetest,dimtest
+    typetest(x,np.ndarray)
+    typetest(f,np.ndarray)
+    dimtest(x,[0])
+    #End test functions.
+
+    if np.ndim(f) not in [1,2]:
+        raise Exception("f in eval_poly should be 1D or 2D.")
+
+    out = 0
+    powers = np.arange(len(f))[::-1]
+    X = np.repeat(x[:,None],len(f),axis=1)
+    return((X**powers @ f))
+
+
+def ladfit(x,y):
+    """
+    This is a wrapper for LAD regression with sklego, implemented in a way such that
+    it returns the linear coefficients a,b from y=ax+b.
+    x and y need to be one-dimensional arrays.
+
+    LADRegression accepts multi-dimensional arrays but that is for doing multivariate linear
+    regression, not independent regression for different datasets y defined on the same grid x.
+    So I could not get this to work for a multidimensional Y array without looping.
+
+    The algoritm returns the model coefficients [a,b], either with 2 or mx2 elements.
+    This behavior is made to match np.polyfit.
+
+    Doing a linear fit with ladfit(x,y) is cognate with np.polyfit(x,y,1).
+    If you want to rip this out of tayph for your own purposes, all you need to remove is the test
+    functions.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        A 1D array with x values.
+
+    y : np.ndarray
+        A 1D or 2D array containing dependent variable.
+
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> import matplotlib.pyplot as plt
+    >>> import tayph.functions as fun
+    >>> a = [1.0,2.0]
+    >>> b = [0.0,0.0]
+    >>> x = np.linspace(0,5,9)
+    >>> Y = np.array([a[0]*x+b[0],a[1]*x+b[1]]).T
+    >>> fit=ladfit(x,Y)
+    >>> prediction = fun.eval_poly(x,fit)
+    >>> plt.plot(x,Y,'.',color='black')
+    >>> plt.plot(x,prediction)
+    >>> plt.show()
+    """
+    import numpy as np
+    from sklego.linear_model import LADRegression
+
+    #Test functions:
+    from tayph.vartests import typetest,dimtest
+    typetest(x,np.ndarray)
+    typetest(y,np.ndarray)
+    dimtest(x,[0])
+    #End test functions.
+
+    x = x.reshape(1,-1)
+    if np.ndim(y) not in [1,2]:
+        raise Exception("y in ladfit should be 1D or 2D.")
+
+
+    if np.ndim(y) > 1:
+        a,b = [],[]
+        for yi in y.T:
+            l = LADRegression().fit(x.T,yi)
+            a.append(l.coef_[0])
+            b.append(l.intercept_)
+        return(np.array([a,b]))
+    else:
+        l = LADRegression().fit(x.T,y)
+        a = l.coef_[0]
+        b = l.intercept_
+        return([a,b])
 
 
 def box(x,A,c,w):

@@ -181,6 +181,7 @@ def dimtest(var,sizes,varname='var'):
 
     sizes : list, tuple, np.ndarray
         A list of dimensions (integers) to check var against.
+        Set a dimension to zero to be agnostic about its length.
 
     varname : str, optional
         Name or description of the variable to assist in debugging.
@@ -192,6 +193,8 @@ def dimtest(var,sizes,varname='var'):
     >>> b=np.array(a)
     >>> dimtest(a,[2,3])
     >>> dimtest(a,np.shape(a))
+    >>> dimtest(a,[2,0]) #If you don't know the size of the second dimension.
+    >>> dimtest(a,[0,0]) #If you only want to test that it's 2D.
     """
     import numpy as np
     typetest(sizes,[list,tuple,np.ndarray])

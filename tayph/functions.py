@@ -72,22 +72,31 @@ def eval_poly(x,f):
     return((X**powers @ f))
 
 
-def ladfit(x,y):
+def ladfit(x,y,t=None):
     """
     This is a wrapper for LAD regression with sklego, implemented in a way such that
     it returns the linear coefficients a,b from y=ax+b.
     x and y need to be one-dimensional arrays.
 
-    LADRegression accepts multi-dimensional arrays but that is for doing multivariate linear
-    regression, not independent regression for different datasets y defined on the same grid x.
+    LADRegression accepts multi-dimensional arrays but that is for doing multivariate linear regression,
+    not independent regression for different datasets y defined on the same grid x.
     So I could not get this to work for a multidimensional Y array without looping.
 
     The algoritm returns the model coefficients [a,b], either with 2 or mx2 elements.
     This behavior is made to match np.polyfit.
 
     Doing a linear fit with ladfit(x,y) is cognate with np.polyfit(x,y,1).
-    If you want to rip this out of tayph for your own purposes, all you need to remove is the test
-    functions.
+
+
+    Set the parameter t to a threshold number of sigma values that are considered outliers.
+    The algorithm will do an initial fit, flag residuals that are t*sigma away from 0.0 as outliers,
+    mask these, and do the fit again. Doing this will return a second variable that has the same
+    shape as y, filled with 1.0s for values that are good, and 0.0s for outliers. This can be used
+    as an outlier mask.
+
+
+    If you want to rip this function out of tayph for your own purposes, all you need to remove is
+    the test functions.
 
     Parameters
     ----------
@@ -107,15 +116,18 @@ def ladfit(x,y):
     >>> b = [0.0,0.0]
     >>> x = np.linspace(0,5,9)
     >>> Y = np.array([a[0]*x+b[0],a[1]*x+b[1]]).T
-    >>> fit=ladfit(x,Y)
+    >>> fit = ladfit(x,Y)
     >>> prediction = fun.eval_poly(x,fit)
     >>> plt.plot(x,Y,'.',color='black')
     >>> plt.plot(x,prediction)
     >>> plt.show()
+    >>>
+    >>> #And with outlier rejection:
+    >>> fit,mask = ladfit(x,Y,t=4.0)
     """
     import numpy as np
     from sklego.linear_model import LADRegression
-
+    import astropy.stats as stats
     #Test functions:
     from tayph.vartests import typetest,dimtest
     typetest(x,np.ndarray)
@@ -124,22 +136,44 @@ def ladfit(x,y):
     #End test functions.
 
     x = x.reshape(1,-1)
+
     if np.ndim(y) not in [1,2]:
         raise Exception("y in ladfit should be 1D or 2D.")
 
-
+    if t:
+        import astropy.stats as stats #Need #stats.mad_std
+        mask = y * 0.0 + 1.0 #Emtpy array to store outliers. Agnostic as to shape of y.
     if np.ndim(y) > 1:
+        yT = y.T
         a,b = [],[]
-        for yi in y.T:
-            l = LADRegression().fit(x.T,yi)
-            a.append(l.coef_[0])
-            b.append(l.intercept_)
-        return(np.array([a,b]))
+        for i in range(len(yT)):
+            l = LADRegression().fit(x.T,yT[i])
+            ai,bi = l.coef_[0],l.intercept_
+            if t:#Do an iteration
+                res = yT[i]-ai*x[0]-bi
+                outliers = np.abs(res) > t * stats.mad_std(res,ignore_nan=True)
+                l = LADRegression().fit(x.T[~outliers],yT[i][~outliers])
+                ai,bi = l.coef_[0],l.intercept_
+                print(np.sum(outliers))
+                mask[outliers,i] = 0.0
+            a.append(ai)
+            b.append(bi)
+        if t:
+            return(np.array([a,b]),mask)
+        else:
+            return(np.array([a,b]))
     else:
         l = LADRegression().fit(x.T,y)
-        a = l.coef_[0]
-        b = l.intercept_
-        return([a,b])
+        a,b = l.coef_[0],l.intercept_
+        if t:#Do an iteration
+            res = y-a*x[0]-b
+            outliers = np.abs(res) > t * stats.mad_std(res,ignore_nan=True)
+            l = LADRegression().fit(x.T[~outliers],y[~outliers])
+            a,b = l.coef_[0],l.intercept_
+            mask[outliers] = 0.0
+            return(np.array([a,b]),mask)
+        else:
+            return(np.array([a,b]))
 
 
 def box(x,A,c,w):

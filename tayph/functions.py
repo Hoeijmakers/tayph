@@ -68,7 +68,7 @@ def eval_poly(x,f):
 
     out = 0
     powers = np.arange(len(f))[::-1]
-    X = np.repeat(x[:,None],len(f),axis=1)
+    X = np.repeat(x[:,None].astype(float),len(f),axis=1)
     return((X**powers @ f))
 
 

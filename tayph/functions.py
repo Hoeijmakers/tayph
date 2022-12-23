@@ -153,7 +153,6 @@ def ladfit(x,y,t=None):
                 outliers = np.abs(res) > t * stats.mad_std(res,ignore_nan=True)
                 l = LADRegression().fit(x.T[~outliers],yT[i][~outliers])
                 ai,bi = l.coef_[0],l.intercept_
-                print(np.sum(outliers))
                 mask[i,outliers] = 0.0
             a.append(ai)
             b.append(bi)

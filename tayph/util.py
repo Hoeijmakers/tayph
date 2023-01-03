@@ -67,11 +67,10 @@ def statusbar(i,x):
         Either the total number of iterations (int/float) or
         the array through which is looped.
     """
-    if x > 1:
-        if type(x) == int or type(x) == float:
-            print('  '+f"{i/(float(x)-1)*100:.1f} %", end="\r")
-        else:
-            print('  '+f"{i/(len(x)-1)*100:.1f} %", end="\r")#Statusbar.
+    if (type(x) == int or type(x) == float) and x > 1:
+        print('  '+f"{i/(float(x)-1)*100:.1f} %", end="\r")
+    elif len(x)>1:
+        print('  '+f"{i/(len(x)-1)*100:.1f} %", end="\r")#Statusbar.
 
 
 

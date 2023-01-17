@@ -236,7 +236,7 @@ def box(x,A,c,w):
     l_mindist=l_dist[l_px]
     y[0:l_px]=0.0
     if l_px != 0 and l_px != len(x)-1:#This only works if we are not at an edge.
-        dpx=abs(x[l_px]-x[l_px-np.int(np.sign(l_mindist))])
+        dpx=abs(x[l_px]-x[l_px-int(np.sign(l_mindist))])
     elif l_px == 0:
         dpx=abs(x[l_px+1]-x[0])
     else:

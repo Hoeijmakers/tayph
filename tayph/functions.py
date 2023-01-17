@@ -209,7 +209,7 @@ def box(x,A,c,w):
     r_mindist=r_dist[r_px]
     y[0:r_px]=1.0
     if r_px != 0 and r_px != len(x)-1:#This only works if we are not at an edge.
-        dpx=abs(x[r_px]-x[r_px-np.int(np.sign(r_mindist))])#Distance to the
+        dpx=abs(x[r_px]-x[r_px-int(np.sign(r_mindist))])#Distance to the
         #previous or next pixel, depending on whether the edge falls to the left
         #(posive mindist) or right (negative mindist) of the pixel center.
 

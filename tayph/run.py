@@ -149,13 +149,17 @@ def start_run(configfile,parallel=True,xcor_parallel=False,dp='',debug=False):
     #Optional keywords:
     try:
         transitkeyword = sp.paramget('transit',cf,full_path=True)
+        sinusoidkeyword = sp.paramget('sinusoid',cf,full_path=True)
     except:
         transitkeyword = None
+        sinusoidkeyword = False
         ut.tprint("------Optional keyword 'transit' (True/False) not set. This will be defaulted "
         "to True in tayph.run_instance(). Set to False if this is not in-transit data (warnings "
         "or errors will come up later if this is the case).")
     if transitkeyword == True or transitkeyword == False:
         params['transit'] = transitkeyword
+    if sinusoidkeyword == True or sinusoidkeyword==False:
+        params['sinusoid'] == sinusoidkeyword
 
     order_skip_num = []
     try:
@@ -244,8 +248,10 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     drv = p['drv']
     try:#Lazy way of giving this a default and creating backward compatibility with old-style config files.
         intransit = p['transit']
+        sinusoid = p['sinusoid']
     except:
         intransit=True
+        sinusoid=False
     try:
         skip_orders = p['skip_orders']
     except:
@@ -267,6 +273,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     debug = p['debug']
     resolution = sp.paramget('resolution',dp)
     air = sp.paramget('air',dp)#Are wavelengths in air or not?
+    
 
     #All the checks
     typetest(modellist,[str,list],'modellist in run_instance()')
@@ -312,6 +319,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     typetest(air,bool,'air in run_instance()')
     typetest(intransit,bool,'intransit in run_instance()')
     typetest(debug,bool,'debug in run_instance()')
+    typetest(sinusoid,bool,'sinusoid in run_instance()')
 
 
 
@@ -689,7 +697,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             f'({do_colour_correction}).')
             pdb.set_trace()
         if do_colour_correction == True:
-            list_of_orders_mask = ops.normalize_orders(list_of_orders,list_of_orders,colourdeg)[0]
+            list_of_orders_mask = ops.normalize_orders(list_of_orders,list_of_orders,colourdeg,sinusoid)[0]
             #I dont want outliers to affect the colour correction later on, so colour correction
             #can't be done before masking. At the same time, masking shouldn't suffer from colour
             #variations either. So this needs to be done twice.
@@ -781,7 +789,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',
         #alpha=0.4)
         list_of_orders_normalised,list_of_sigmas_normalised,meanfluxes = (
-        ops.normalize_orders(list_of_orders,list_of_sigmas,colourdeg))#I tested that this works
+        ops.normalize_orders(list_of_orders,list_of_sigmas,colourdeg,sinusoid))#I tested that this works
         #because it doesn't alter the SNR.
         meanfluxes_norm = meanfluxes/np.nanmean(meanfluxes)
         if inject_model == False:#Conserve memory, as these won't be used anymore.
@@ -1047,7 +1055,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                         pdb.set_trace()
                     print('------Normalizing injected orders to common flux level')
                     list_of_orders_injected,list_of_sigmas_injected,meanfluxes_injected = (
-                    ops.normalize_orders(list_of_orders_injected,list_of_sigmas,colourdeg))
+                    ops.normalize_orders(list_of_orders_injected,list_of_sigmas,colourdeg,sinusoid))
                     meanfluxes_norm_injected = meanfluxes_injected/np.mean(meanfluxes_injected)
                 else:
                     meanfluxes_norm_injected = np.ones(len(list_of_orders_injected[0])) #fun.findgen(len(list_of_orders_injected[0]))*0.0+1.0

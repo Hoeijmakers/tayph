@@ -159,7 +159,7 @@ def start_run(configfile,parallel=True,xcor_parallel=False,dp='',debug=False):
     if transitkeyword == True or transitkeyword == False:
         params['transit'] = transitkeyword
     if sinusoidkeyword == True or sinusoidkeyword==False:
-        params['sinusoid'] == sinusoidkeyword
+        params['sinusoid'] = sinusoidkeyword
 
     order_skip_num = []
     try:

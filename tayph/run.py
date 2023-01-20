@@ -697,7 +697,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
             f'({do_colour_correction}).')
             pdb.set_trace()
         if do_colour_correction == True:
-            list_of_orders_mask = ops.normalize_orders(list_of_orders,list_of_orders,colourdeg,sinusoid)[0]
+            list_of_orders_mask = ops.normalize_orders(list_of_orders,list_of_orders,colourdeg,sinusoid=sinusoid)[0]
             #I dont want outliers to affect the colour correction later on, so colour correction
             #can't be done before masking. At the same time, masking shouldn't suffer from colour
             #variations either. So this needs to be done twice.
@@ -789,7 +789,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
         # plt.plot(list_of_wls[60],list_of_orders[60][10]/list_of_sigmas[60][10],color='blue',
         #alpha=0.4)
         list_of_orders_normalised,list_of_sigmas_normalised,meanfluxes = (
-        ops.normalize_orders(list_of_orders,list_of_sigmas,colourdeg,sinusoid))#I tested that this works
+        ops.normalize_orders(list_of_orders,list_of_sigmas,colourdeg,sinusoid=sinusoid))#I tested that this works
         #because it doesn't alter the SNR.
         meanfluxes_norm = meanfluxes/np.nanmean(meanfluxes)
         if inject_model == False:#Conserve memory, as these won't be used anymore.
@@ -1055,7 +1055,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
                         pdb.set_trace()
                     print('------Normalizing injected orders to common flux level')
                     list_of_orders_injected,list_of_sigmas_injected,meanfluxes_injected = (
-                    ops.normalize_orders(list_of_orders_injected,list_of_sigmas,colourdeg,sinusoid))
+                    ops.normalize_orders(list_of_orders_injected,list_of_sigmas,colourdeg,sinusoid=sinusoid))
                     meanfluxes_norm_injected = meanfluxes_injected/np.mean(meanfluxes_injected)
                 else:
                     meanfluxes_norm_injected = np.ones(len(list_of_orders_injected[0])) #fun.findgen(len(list_of_orders_injected[0]))*0.0+1.0

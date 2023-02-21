@@ -374,7 +374,9 @@ def phase(dp,start=False,end=False):
     while Tc_n.jd >= min(jd):
         Tc_n=Time(Tc-100.0*n*P,format='jd',scale='tdb')#This is to make sure that the Transit central time PRECEDES the observations (by tens or hundreds or thousands of years). Otherwise, the phase could pick up a minus sign somewhere and be flipped. I wish to avoid that.
         n+=1
+    print('ohai')
     BJD = t.tdb + TimeDelta(ltt_bary,format="jd")
+    print('ohai')
 
     if start == True:
         diff = BJD-Tc_n

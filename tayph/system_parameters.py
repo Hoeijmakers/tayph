@@ -376,7 +376,7 @@ def phase(dp,start=False,end=False):
         n+=1
 
     BJD = t.tdb + TimeDelta(ltt_bary,format="jd")
-    print('ohai')
+    
     if start == True:
         diff = BJD-Tc_n
     elif end == True:
@@ -384,7 +384,6 @@ def phase(dp,start=False,end=False):
     else:
         diff = BJD+TimeDelta(0.5*texp(dp)/3600.0/24.0/2,format='jd')-Tc_n#This adds half the exposure time to the timestamp, because MJD_OBS is measured at the start of the frame.
 
-    print('ohai')
     phase=((diff.jd) % P)/P
     return phase
 

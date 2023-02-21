@@ -11,7 +11,8 @@ __all__ = [
     "RV_star",
     "transit",
     "RV",
-    "dRV"
+    "dRV",
+    "SNR"
 ]
 
 def check_dp(dp):

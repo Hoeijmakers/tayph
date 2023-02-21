@@ -261,8 +261,8 @@ parallel=False):
         except:
             ut.tprint('ERROR in XCOR(): NaNs were detected in the CCF. This does not happen '
             'because the data has NaNs, because xcor() checks for this. Instead, this can happen '
-            'if the template and the data do not overlap, maybe because of a wavelength-unit'
-            'mismatch? When using Tayph under normal circumstances, this error should never be'
+            'if the template and the data do not overlap, maybe because of a wavelength-unit '
+            'mismatch? When using Tayph under normal circumstances, this error should never be '
             'triggered, as abundant checks are performed when XCOR() is run in the normal '
             'Tayph workflow. Are you doing development, or using xcor() in a stand-alone '
             'setting? PDB-ing you out of here so that you can plot the input of xcor() and debug.')

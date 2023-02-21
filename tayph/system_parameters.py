@@ -367,7 +367,8 @@ def phase(dp,start=False,end=False):
         raise Exception("Error in sp.phase(): start and end can't both be true.")
 
     ip_peg = coord.SkyCoord(RA,DEC,unit=(u.hourangle, u.deg), frame='icrs')
-    ltt_bary = t.light_travel_time(ip_peg)*u.d
+    print(t.light_travel_time(ip_peg))
+    ltt_bary = t.light_travel_time(ip_peg)
 
     n=0.0
     Tc_n=Time(Tc,format='jd',scale='tdb')

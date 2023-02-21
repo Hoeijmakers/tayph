@@ -149,13 +149,20 @@ def start_run(configfile,parallel=True,xcor_parallel=False,dp='',debug=False):
     #Optional keywords:
     try:
         transitkeyword = sp.paramget('transit',cf,full_path=True)
-        sinusoidkeyword = sp.paramget('sinusoid',cf,full_path=True)
     except:
         transitkeyword = None
-        sinusoidkeyword = False
         ut.tprint("------Optional keyword 'transit' (True/False) not set. This will be defaulted "
         "to True in tayph.run_instance(). Set to False if this is not in-transit data (warnings "
         "or errors will come up later if this is the case).")
+        
+    try:
+        sinusoidkeyword = sp.paramget('sinusoid',cf,full_path=True)
+    except:
+        sinusoidkeyword = False
+        ut.tprint("------Optional keyword 'sinusoid' (True/False) not set. This will be defaulted "
+        "to False in tayph.run_instance(). Set to True if this is not in-transit data (warnings "
+        "or errors will come up later if this is the case).")
+
     if transitkeyword == True or transitkeyword == False:
         params['transit'] = transitkeyword
     if sinusoidkeyword == True or sinusoidkeyword==False:
@@ -273,7 +280,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
     debug = p['debug']
     resolution = sp.paramget('resolution',dp)
     air = sp.paramget('air',dp)#Are wavelengths in air or not?
-    
+
 
     #All the checks
     typetest(modellist,[str,list],'modellist in run_instance()')

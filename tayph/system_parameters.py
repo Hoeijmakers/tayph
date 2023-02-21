@@ -337,7 +337,7 @@ def phase(dp,start=False,end=False):
     from tayph.vartests import typetest
     import numpy as np
     from astropy.io import ascii
-    from astropy.time import Time
+    from astropy.time import Time, TimeDelta
     from astropy import units as u, coordinates as coord
     import tayph.util as ut
     import pdb
@@ -367,7 +367,6 @@ def phase(dp,start=False,end=False):
         raise Exception("Error in sp.phase(): start and end can't both be true.")
 
     ip_peg = coord.SkyCoord(RA,DEC,unit=(u.hourangle, u.deg), frame='icrs')
-    print(t.light_travel_time(ip_peg))
     ltt_bary = t.light_travel_time(ip_peg)
 
     n=0.0
@@ -375,7 +374,7 @@ def phase(dp,start=False,end=False):
     while Tc_n.jd >= min(jd):
         Tc_n=Time(Tc-100.0*n*P,format='jd',scale='tdb')#This is to make sure that the Transit central time PRECEDES the observations (by tens or hundreds or thousands of years). Otherwise, the phase could pick up a minus sign somewhere and be flipped. I wish to avoid that.
         n+=1
-    BJD = t.tdb + ltt_bary
+    BJD = t.tdb + TimeDelta(ltt_bary,format="jd")
 
     if start == True:
         diff = BJD-Tc_n

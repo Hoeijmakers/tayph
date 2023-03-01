@@ -299,11 +299,15 @@ def calculateberv(date,earth_coordinates,ra,dec,mode=False):
         sc = SkyCoord(ra=ra * u.deg,
                       dec=dec * u.deg)
 
-    elif mode in ['UVES-red', 'UVES-blue',"FOCES"]:
+    elif mode in ['UVES-red', 'UVES-blue',"FOCES","HIRES-MAKEE"]:
         observatory = EarthLocation.from_geodetic(lat=earth_coordinates[0]*u.deg,
                                                   lon=earth_coordinates[1]*u.deg,
                                                   height=earth_coordinates[2]*u.m)
         sc = SkyCoord(f'{ra} {dec}', unit=(u.hourangle, u.deg))
+
+        if mode == "HIRES-MAKEE":
+            timeval = Time(date,format='isot', scale='utc')
+            date = timeval.mjd
 
     barycorr = sc.radial_velocity_correction(obstime=Time(date,format='mjd'), location=observatory).to(u.km/u.s)
     return(barycorr.value)

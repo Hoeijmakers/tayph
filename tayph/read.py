@@ -44,6 +44,7 @@ __all__ = [
     "read_spirou",
     "read_gianob",
     "read_fies",
+    "read_hires_makee",
     "read_foces"
 ]
 
@@ -987,6 +988,8 @@ def read_hires_makee(inpath,filelist,construct_s1d=True,N_CCD=3):
     5) There exists no merged, stitched 1D spectrum, so one is constructed crudely by concatenating
     the individual spectral orders (which are fairly flat, so that is nice.)"""
 
+    from tayph.system_parameters import calculateberv
+
     #The following variables define lists in which all the necessary data will be stored.
     framename=[]
     header=[]
@@ -1043,7 +1046,11 @@ def read_hires_makee(inpath,filelist,construct_s1d=True,N_CCD=3):
                 norders=np.append(norders,int(hdr1['NAXIS2'])+int(hdr2['NAXIS2'])+
                 int(hdr3['NAXIS2']))
 
-                berv=np.append(berv,float(hdr1[bervkeyword]))
+                berv_i= calculateberv(hdr1["DATE"],[hdr1['LATITUDE'],hdr1['LONGITUD'],4145],hdr1["RA2000"],
+                hdr1["DEC2000"],"HIRES-MAKEE")
+                #print(yest)
+
+                berv=np.append(berv,berv_i)
                 airmass=np.append(airmass,float(hdr1['AIRMASS']))
                 merged_e2ds = np.vstack((data1,data2,data3))
                 e2ds.append(merged_e2ds)#Stack them all in a massive E2DS matrix.
@@ -1054,7 +1061,7 @@ def read_hires_makee(inpath,filelist,construct_s1d=True,N_CCD=3):
                 wavedata3=ops.vactoair(ut.read_wave_from_makee_header(hdr3)/10.0)
 
                 merged_wave = np.vstack((wavedata1,wavedata2,wavedata3))
-                gamma = (1.0-(hdr1[bervkeyword]*u.km/u.s/const.c).decompose().value)#BERV.
+                gamma = (1.0-(berv_i*u.km/u.s/const.c).decompose().value)#BERV.
                 wave.append(merged_wave*gamma)#Remove BERV.
 
 
@@ -1082,7 +1089,7 @@ def read_hires_makee(inpath,filelist,construct_s1d=True,N_CCD=3):
                     hdr1d['UTC'] = (float(hdr1d['MJD'])%1.0)*86400.0
                     s1dhdr.append(hdr1d)
                     s1dmjd=np.append(s1dmjd,float(hdr1d['MJD']))
-                    berv1d = hdr1d[bervkeyword]
+                    berv1d = berv_i
                     wave1d.append(concatenated_wave*gamma*10)#Need to convert back to angstroms...
     output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
     'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,

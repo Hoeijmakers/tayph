@@ -1009,7 +1009,7 @@ def read_hires_makee(inpath,filelist,construct_s1d=True,N_CCD=3):
     wave=[]
 
     catkeyword = 'OBSTYPE'
-    bervkeyword = 'HELIOVEL'
+    #bervkeyword = 'HELIOVEL'
     thfilekeyword = 'ARCSPFIL'
 
     # wavefile_used = []

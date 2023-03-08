@@ -206,13 +206,13 @@ class DraggableColorbar(object):
         self.cbar_name = cbar_name
     def connect(self):
         """connect to all the events we need"""
-        self.cidpress = self.cbar.patch.figure.canvas.mpl_connect(
+        self.cidpress = self.cbar.outline.figure.canvas.mpl_connect(
             'button_press_event', self.on_press)
-        self.cidrelease = self.cbar.patch.figure.canvas.mpl_connect(
+        self.cidrelease = self.cbar.outline.figure.canvas.mpl_connect(
             'button_release_event', self.on_release)
-        self.cidmotion = self.cbar.patch.figure.canvas.mpl_connect(
+        self.cidmotion = self.cbar.outline.figure.canvas.mpl_connect(
             'motion_notify_event', self.on_motion)
-        self.keypress = self.cbar.patch.figure.canvas.mpl_connect(
+        self.keypress = self.cbar.outline.figure.canvas.mpl_connect(
             'key_press_event', self.key_press)
 
     def on_press(self, event):
@@ -234,7 +234,7 @@ class DraggableColorbar(object):
         self.cbar.draw_all()
         self.mappable.set_cmap(cmap)
         self.mappable.get_axes().set_title(cmap)
-        self.cbar.patch.figure.canvas.draw()
+        self.cbar.outline.figure.canvas.draw()
 
     def on_motion(self, event):
         'on motion we will move the rect if the mouse is over us'
@@ -255,20 +255,20 @@ class DraggableColorbar(object):
             self.cbar.norm.vmax += (perc*scale)*np.sign(dy)
         self.cbar.draw_all()
         self.mappable.set_norm(self.cbar.norm)
-        self.cbar.patch.figure.canvas.draw()
+        self.cbar.outline.figure.canvas.draw()
 
 
     def on_release(self, event):
         """on release we reset the press data"""
         self.press = None
         self.mappable.set_norm(self.cbar.norm)
-        self.cbar.patch.figure.canvas.draw()
+        self.cbar.outline.figure.canvas.draw()
 
     def disconnect(self):
         """disconnect all the stored connection ids"""
-        self.cbar.patch.figure.canvas.mpl_disconnect(self.cidpress)
-        self.cbar.patch.figure.canvas.mpl_disconnect(self.cidrelease)
-        self.cbar.patch.figure.canvas.mpl_disconnect(self.cidmotion)
+        self.cbar.outline.figure.canvas.mpl_disconnect(self.cidpress)
+        self.cbar.outline.figure.canvas.mpl_disconnect(self.cidrelease)
+        self.cbar.outline.figure.canvas.mpl_disconnect(self.cidmotion)
 
 
 
@@ -288,13 +288,13 @@ class DraggableColorbar_fits(object):
 
     def connect(self):
         """connect to all the events we need"""
-        self.cidpress = self.cbar.patch.figure.canvas.mpl_connect(
+        self.cidpress = self.cbar.outline.figure.canvas.mpl_connect(
             'button_press_event', self.on_press)
-        self.cidrelease = self.cbar.patch.figure.canvas.mpl_connect(
+        self.cidrelease = self.cbar.outline.figure.canvas.mpl_connect(
             'button_release_event', self.on_release)
-        self.cidmotion = self.cbar.patch.figure.canvas.mpl_connect(
+        self.cidmotion = self.cbar.outline.figure.canvas.mpl_connect(
             'motion_notify_event', self.on_motion)
-        self.keypress = self.cbar.patch.figure.canvas.mpl_connect(
+        self.keypress = self.cbar.outline.figure.canvas.mpl_connect(
             'key_press_event', self.key_press)
 
     def on_press(self, event):
@@ -316,7 +316,7 @@ class DraggableColorbar_fits(object):
         self.cbar.draw_all()
         self.mappable.set_cmap(cmap)
         self.mappable.get_axes().set_title(cmap)
-        self.cbar.patch.figure.canvas.draw()
+        self.cbar.outline.figure.canvas.draw()
 
     def on_motion(self, event):
         'on motion we will move the rect if the mouse is over us'
@@ -345,7 +345,7 @@ class DraggableColorbar_fits(object):
                 subplot.set_norm(self.cbar.norm)
         else:
             self.mappable.set_norm(self.cbar.norm)
-        self.cbar.patch.figure.canvas.draw()
+        self.cbar.outline.figure.canvas.draw()
 
 
     def on_release(self, event):
@@ -356,10 +356,10 @@ class DraggableColorbar_fits(object):
                 subplot.set_norm(self.cbar.norm)
         else:
             self.mappable.set_norm(self.cbar.norm)
-        self.cbar.patch.figure.canvas.draw()
+        self.cbar.outline.figure.canvas.draw()
 
     def disconnect(self):
         """disconnect all the stored connection ids"""
-        self.cbar.patch.figure.canvas.mpl_disconnect(self.cidpress)
-        self.cbar.patch.figure.canvas.mpl_disconnect(self.cidrelease)
-        self.cbar.patch.figure.canvas.mpl_disconnect(self.cidmotion)
+        self.cbar.outline.figure.canvas.mpl_disconnect(self.cidpress)
+        self.cbar.outline.figure.canvas.mpl_disconnect(self.cidrelease)
+        self.cbar.outline.figure.canvas.mpl_disconnect(self.cidmotion)

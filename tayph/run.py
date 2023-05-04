@@ -1303,7 +1303,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
 def read_e2ds(inpath,outname,read_s1d=True,instrument='HARPS',star='solar',
-config=False,save_figure=True,skysub=False):
+config=False,save_figure=True,skysub=False,rawpath=None):
     """This is the workhorse for reading in a time-series of archival 2D echelle
     spectra from a couple of instrument pipelines that produce a standard output,
     and formatting these into the order-wise FITS format that Tayph uses. These
@@ -1367,6 +1367,8 @@ config=False,save_figure=True,skysub=False):
     star keyword to 'solar', 'hot' or 'cool' respectively. Set the save_figure keyword to save the
     plot of the spectra and the CCF to the data folder as a PDF.
 
+    By setting rawpath some of the readers can access the RAW pre-pipeline fits file. This is
+    necessary for pipelines that does not preserve necessary headers, like CRIRES pycrires
 
 
 
@@ -1430,7 +1432,7 @@ config=False,save_figure=True,skysub=False):
     import tayph.masking as masking
     import tayph.models as models
     from tayph.read import read_harpslike, read_espresso, read_uves, read_carmenes,read_fies,read_foces
-    from tayph.read import read_spirou, read_gianob, read_hires_makee, read_nirps
+    from tayph.read import read_spirou, read_gianob, read_crires, read_hires_makee, read_nirps
     from astropy.io import fits
     import astropy.constants as const
     import astropy.units as u
@@ -1459,14 +1461,14 @@ config=False,save_figure=True,skysub=False):
     typetest(mode,str,'mode in read_e2ds()')
 
     if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue',
-        'CARMENES-VIS','CARMENES-NIR','SPIROU','GIANO-B','HIRES-MAKEE','FIES','NIRPS','FOCES']:
+        'CARMENES-VIS','CARMENES-NIR','SPIROU','GIANO-B','CRIRES','HIRES-MAKEE','FIES','NIRPS','FOCES']:
         raise ValueError("in read_e2ds: instrument needs to be set to HARPS, HARPSN, UVES-red, "
-            "UVES-blue CARMENES-VIS, CARMENES-NIR, SPIROU, GIANO-B, HIRES-MAKEE, FIES, "
+            "UVES-blue CARMENES-VIS, CARMENES-NIR, SPIROU, GIANO-B, CRIRES, HIRES-MAKEE, FIES, "
             "NIRPS or ESPRESSO.")
 
 
 
-    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B','HIRES-MAKEE','FIES','NIRPS','FOCES']:
+    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B','CRIRES','HIRES-MAKEE','FIES','NIRPS','FOCES']:
         read_s1d = True
     else:
         read_s1d = False
@@ -1536,6 +1538,8 @@ config=False,save_figure=True,skysub=False):
         DATA = read_spirou(inpath, filelist, read_s1d=read_s1d)
     elif mode == 'GIANO-B':
         DATA = read_gianob(inpath, filelist, read_s1d=read_s1d)
+    elif mode == 'CRIRES':
+        DATA = read_crires(inpath, filelist, rawpath, read_s1d=read_s1d)
     elif mode == 'HIRES-MAKEE':
         DATA = read_hires_makee(inpath, filelist, construct_s1d=read_s1d)
     elif mode == 'FIES':
@@ -2998,7 +3002,7 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
     #     'the Tayph runfile of this dataset, do_berv_correction should be set to True and air '
     #     'in the config file of this dataset should be set to True.')]
     #
-    # if instrument in ['GIANO-B','CARMENES-VIS']:
+    # if instrument in ['CRIRES','CARMENES-VIS']:
     #     explanation=[('No explanation provided yet.')]
     #
     # if instrument in ['HIRES-MAKEE']:

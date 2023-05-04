@@ -43,6 +43,7 @@ __all__ = [
     "read_uves",
     "read_spirou",
     "read_gianob",
+    "read_crires",
     "read_fies",
     "read_hires_makee",
     "read_foces"
@@ -967,6 +968,171 @@ def read_gianob(inpath,filelist,read_s1d=True):
         'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
         'norders':norders,'berv':berv,'airmass':airmass}
     return(output)
+
+
+
+def read_crires(inpath,filelist,rawpath,read_s1d=True):
+    import os
+    import glob
+    import copy
+    from pathlib import Path
+    import pathlib
+    import numpy as np
+    from astropy.time import Time
+    from astropy import units as u
+    from astropy.coordinates import SkyCoord, EarthLocation
+
+    # The following variables define lists in which all the necessary data will be stored.
+    framename = []
+    header = []
+    obstype = []
+    texp = np.array([])
+    date = []
+    mjd = np.array([])
+    s1dmjd = np.array([])
+    airmass = np.array([])
+    berv = np.array([])
+
+    npx = np.array([])
+    norders = np.array([])
+    out_wave = []
+    out_e2ds = []
+    out_wave1d = []
+    out_s1d = []
+
+    rawfiles_infileidx = {}
+    rawfiles_mjdobs = {}
+    for i in range(len(filelist)):
+        if filelist[i].startswith('cr2res_obs_nodding_extractedA') or filelist[i].startswith('cr2res_obs_nodding_extractedB'):
+            reducedfile = inpath / filelist[i]
+            if reducedfile.is_file():
+                hdu = fits.open(reducedfile)
+                rawfile = hdu[0].header['HIERARCH ESO PRO REC1 RAW1 NAME']
+                if filelist[i].startswith('cr2res_obs_nodding_extractedB'):
+                    rawfile = hdu[0].header['HIERARCH ESO PRO REC1 RAW2 NAME']
+                rawfiles_infileidx[rawfile] = i
+                hdu.close()
+                hdu = fits.open(rawpath / rawfile)
+                mjdobs = hdu[0].header['MJD-OBS']
+                rawfiles_mjdobs[rawfile] = mjdobs
+                hdu.close()
+    rawfiles_sorted = dict(sorted(rawfiles_mjdobs.items(), key=lambda item: item[1])).keys()
+
+    expno = -1
+    for rawfile in rawfiles_sorted:
+        expno=expno+1
+        print("exposure no: " + str(expno))
+        print(rawfile)
+
+        # Read in headers from the RAW file as the headers in the extracted files are not for the individual nodding frames
+        hdu = fits.open(rawpath / rawfile)
+        hdrraw = hdu[0].header
+        hdu.close()
+
+        airmass_calc = 0.5 * (float(hdrraw['HIERARCH ESO TEL AIRM START']) + float(hdrraw['HIERARCH ESO TEL AIRM END']))
+        observatory = EarthLocation.from_geodetic(lat=hdrraw['HIERARCH ESO TEL GEOLAT'] * u.deg,
+                                                  lon=hdrraw['HIERARCH ESO TEL GEOLON'] * u.deg,
+                                                  height=hdrraw['HIERARCH ESO TEL GEOELEV'] * u.m)
+        sc = SkyCoord(ra=hdrraw['RA'] * u.deg,
+                      dec=hdrraw['DEC'] * u.deg)
+        barycorr = sc.radial_velocity_correction(obstime=Time(hdrraw['MJD-OBS'], format='mjd'),
+                                                 location=observatory).to(u.km / u.s)
+        hdrraw['HIERARCH ESO QC BERV'] = barycorr.value
+        hdrraw['HIERARCH ESO QC AIRMASS'] = airmass_calc
+
+        print(filelist[rawfiles_infileidx[rawfile]])
+        framename.append(filelist[rawfiles_infileidx[rawfile]])
+        header.append(hdrraw)
+        obstype.append('SCIENCE')
+        texp = np.append(texp, hdrraw['EXPTIME'])
+        date.append(hdrraw['DATE-OBS'])
+        mjd = np.append(mjd, hdrraw['MJD-OBS'])
+        s1dmjd = np.append(s1dmjd, hdrraw['MJD-OBS'])
+        berv = np.append(berv, barycorr.value)  # in km.s.
+        airmass = np.append(airmass, airmass_calc)
+
+        # Read in the detector data
+        hdu = fits.open(inpath / filelist[rawfiles_infileidx[rawfile]])
+        chip1data = copy.deepcopy(hdu[1].data)
+        chip2data = copy.deepcopy(hdu[2].data)
+        chip3data = copy.deepcopy(hdu[3].data)
+        hdu.close()
+        del hdu[1].data
+        del hdu[2].data
+        del hdu[3].data
+
+        npx = np.append(npx, 2048)
+        if (len(chip1data)!=2048 or len(chip2data)!=2048 or len(chip3data)!=2048):
+            raise("one of the crires chips were unexpectedly not 2048 pixels...")
+        if (len(chip1data[0])%3!=0 or len(chip2data[0])%3!=0 or len(chip3data[0])%3!=0):
+            raise("one of the crires chips did not have wave, flux and err for all orders (multiplet of 3)")
+        chip1orders = int(len(chip1data[0])/3)
+        chip2orders = int(len(chip2data[0])/3)
+        chip3orders = int(len(chip3data[0])/3)
+        norders = np.append(norders, chip1orders+chip2orders+chip3orders)
+
+        # mapping starting wavelenghts to sort
+        chiplookup = {}
+        chiplookup_end = {}
+        for idx in range(chip1orders):
+            chiplookup["1_"+str(idx)] = chip1data[0][idx*3+2]
+            chiplookup_end["1_" + str(idx)] = chip1data[2047][idx * 3 + 2]
+        for idx in range(chip3orders):
+            chiplookup["2_" + str(idx)] = chip2data[0][idx * 3 + 2]
+            chiplookup_end["2_" + str(idx)] = chip2data[2047][idx * 3 + 2]
+        for idx in range(chip3orders):
+            chiplookup["3_" + str(idx)] = chip3data[0][idx * 3 + 2]
+            chiplookup_end["3_" + str(idx)] = chip3data[2047][idx * 3 + 2]
+        chiplookup_sorted = dict(sorted(chiplookup.items(), key=lambda item: item[1])).keys()
+
+        # disentangle tuples...
+        fluxes = []
+        errs = []
+        waves = []
+        for chiplk in chiplookup_sorted:
+            (chipid,orderid_str) = chiplk.split("_")
+            orderid = int(orderid_str)
+            loopflux = []
+            looperrs = []
+            loopwave = []
+            if chipid == '1':
+                for pixelidx in range(2048):
+                    loopflux.append(chip1data[pixelidx][orderid * 3])
+                    looperrs.append(chip1data[pixelidx][orderid * 3 + 1])
+                    loopwave.append(ops.vactoair(chip1data[pixelidx][orderid * 3 + 2]))
+            elif chipid == '2':
+                for pixelidx in range(2048):
+                    loopflux.append(chip2data[pixelidx][orderid * 3])
+                    looperrs.append(chip2data[pixelidx][orderid * 3 + 1])
+                    loopwave.append(ops.vactoair(chip2data[pixelidx][orderid * 3 + 2]))
+            elif chipid == '3':
+                for pixelidx in range(2048):
+                    loopflux.append(chip3data[pixelidx][orderid * 3])
+                    looperrs.append(chip3data[pixelidx][orderid * 3 + 1])
+                    loopwave.append(ops.vactoair(chip3data[pixelidx][orderid * 3 + 2]))
+            fluxes.append(np.array(loopflux))
+            errs.append(np.array(looperrs))
+            waves.append(np.array(loopwave))
+
+        wavedata1d = []
+        fluxdata1d = []
+        for orderid in range(len(waves)):
+            for wave in waves[orderid]:
+                wavedata1d.append(wave)
+            for flux in fluxes[orderid]:
+                fluxdata1d.append(flux)
+
+        out_wave.append(np.array(waves))
+        out_e2ds.append(np.array(fluxes))
+        out_wave1d.append(np.array(wavedata1d))
+        out_s1d.append(np.array(fluxdata1d))
+
+    output = {'wave': out_wave, 'e2ds': out_e2ds, 'header': header,
+              'wave1d': out_wave1d, 's1d': out_s1d, 's1dhdr': header,
+              'mjd': mjd, 'date': date, 'texp': texp, 'obstype': obstype, 'framename': framename, 's1dmjd': s1dmjd,
+              'npx': npx, 'norders': norders, 'berv': berv, 'airmass': airmass}
+    return (output)
+
 
 
 

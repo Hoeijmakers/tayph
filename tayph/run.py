@@ -154,7 +154,7 @@ def start_run(configfile,parallel=True,xcor_parallel=False,dp='',debug=False):
         ut.tprint("------Optional keyword 'transit' (True/False) not set. This will be defaulted "
         "to True in tayph.run_instance(). Set to False if this is not in-transit data (warnings "
         "or errors will come up later if this is the case).")
-        
+
     try:
         sinusoidkeyword = sp.paramget('sinusoid',cf,full_path=True)
     except:
@@ -1539,7 +1539,7 @@ config=False,save_figure=True,skysub=False,rawpath=None):
     elif mode == 'GIANO-B':
         DATA = read_gianob(inpath, filelist, read_s1d=read_s1d)
     elif mode == 'CRIRES':
-        DATA = read_crires(inpath, filelist, rawpath, read_s1d=read_s1d)
+        DATA = read_crires(inpath, filelist, rawpath=rawpath, read_s1d=read_s1d)
     elif mode == 'HIRES-MAKEE':
         DATA = read_hires_makee(inpath, filelist, construct_s1d=read_s1d)
     elif mode == 'FIES':

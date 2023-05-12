@@ -971,7 +971,7 @@ def read_gianob(inpath,filelist,read_s1d=True):
 
 
 
-def read_crires(inpath,filelist,rawpath,read_s1d=True):
+def read_crires(inpath,filelist,rawpath=None,read_s1d=True):
     import os
     import glob
     import copy
@@ -983,6 +983,12 @@ def read_crires(inpath,filelist,rawpath,read_s1d=True):
     from astropy.coordinates import SkyCoord, EarthLocation
 
     # The following variables define lists in which all the necessary data will be stored.
+
+    if not rawpath:
+        rawpath = ut.check_path(inpath/'../../raw/',exists=True) #This is the default when reading
+        #pycrires data from the ..../products/obs_nodding folder. Set rawpath explicitly if reading
+        #from a different folder structure.
+
     framename = []
     header = []
     obstype = []

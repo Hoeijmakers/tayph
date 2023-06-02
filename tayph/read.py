@@ -1136,7 +1136,7 @@ def read_crires(inpath,filelist,rawpath=None,read_s1d=True,nod='both'):
 
         out_wave.append(np.array(waves))
         out_e2ds.append(np.array(fluxes))
-        out_wave1d.append(np.array(wavedata1d))
+        out_wave1d.append(np.array(wavedata1d)*10)#This needs to be angstroms for archaic reasons.
         out_s1d.append(np.array(fluxdata1d))
 
     output = {'wave': out_wave, 'e2ds': out_e2ds, 'header': header,

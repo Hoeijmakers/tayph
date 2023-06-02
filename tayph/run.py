@@ -1336,7 +1336,7 @@ config=False,save_figure=True,skysub=False,rawpath=None):
     for the Molecfit telluric correction software. If installed properly, the
     user can call this script with the read_s1d keyword to extract 1D spectra from
     the time-series. The tayph.run.molecfit function can then be used to
-    let Molecfit loop ver the entire timeseries. To enable this functionality,
+    let Molecfit loop over the entire timeseries. To enable this functionality,
     the current script needs to read the full-width, 1D spectra that are output
     by the instrument pipelines. These are saved along with the 2D data.
     Tayph.run.molecfit can then be called separately on the output data-folder
@@ -1367,9 +1367,6 @@ config=False,save_figure=True,skysub=False,rawpath=None):
     star keyword to 'solar', 'hot' or 'cool' respectively. Set the save_figure keyword to save the
     plot of the spectra and the CCF to the data folder as a PDF.
 
-    By setting rawpath some of the readers can access the RAW pre-pipeline fits file. This is
-    necessary for pipelines that does not preserve necessary headers, like CRIRES pycrires
-
 
 
     About the different spectrographs:
@@ -1398,13 +1395,37 @@ config=False,save_figure=True,skysub=False,rawpath=None):
     The blue and red arms are regarded as two different spectrographs, and they are. The most
     important complication this causes is that they have different read-out times, leading to
     differently sampled time-series. The two red chips (redu and redl) are combined when reading in
-    the data.
+    the data, but the blue data cannot generally be combined. So it's as if you are dealing with
+    spectral time series from two unrelated observatories that happen to observe at the same time.
 
     When reading ESPRESSO data, the user may choose to read sky-subtracted spectra by setting
     the skysub keyword to True. If not, Tayph will read the BLAZE files by default. Note that sky
     subtracted files are also blaze-corrected, meaning that the CCFs will be weighed poorly in
     Tayph. (Therefore, consider reading of sky-subtracted files to be an incomplete functionality
-    at this time).
+    at this time and you are recommended not to use it).
+
+
+    When reading CRIRES+ data, read_e2ds assumes that the data is formatted analogous to when
+    using pycrires (github.com/thomasstolker/pycrires). This implies a file structure, naming and
+    also that the necessary header information is not preserved when evaluating nod combinations.
+    So when reading CRIRES data from pycrires (date June 2 2023), this will work out of the box.
+    But if using a different file structure, or if you find that pycrires doesn't produce the
+    expected file structure, you may need to set the rawpath variable to point at the location of
+    the raw files that were used by pycrires.
+    What file structure to expect, you ask?
+    Imagine that the data was placed in a folder called /home/user/crires_data
+    The raw fits files then have to be (per pycrires instructions) in: /home/user/crires_data/raw.
+    pycrires renames those files to a format like "CRIRES_SPEC_OBS059_xxxx.fits", numbering your
+    entire time-series.
+    When going through the pycrires pipeline, other folders will be added in /home/user/crires_data/
+    including the calib, config and product sub-folders. When running obs_nodding, your reduced
+    data will end up in /home/user/crires_data/product/obs_nodding, including files named as
+    cr2res_obs_nodding_extracted_A/B_xxx.fits. These are the files we need, and this is the folder
+    which' path we need to give to read_e2ds. Relative to this path, the original raw files are
+    located at ../../raw. This is the default location expected by read_e2ds.
+    If the raw files were located elsewhere, that's ok, but then you'd have to set the rawpath
+    keyword in read_e2ds explicitly.
+
     """
     import pkg_resources
     import os

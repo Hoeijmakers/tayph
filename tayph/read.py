@@ -1014,8 +1014,8 @@ def read_crires(inpath,filelist,rawpath=None,read_s1d=True):
             if reducedfile.is_file():
                 hdu = fits.open(reducedfile)
                 rawfile = hdu[0].header['HIERARCH ESO PRO REC1 RAW1 NAME']
-                if filelist[i].startswith('cr2res_obs_nodding_extractedB'):
-                    rawfile = hdu[0].header['HIERARCH ESO PRO REC1 RAW2 NAME']
+                # if filelist[i].startswith('cr2res_obs_nodding_extractedB'):
+                #     rawfile = hdu[0].header['HIERARCH ESO PRO REC1 RAW2 NAME']
                 rawfiles_infileidx[rawfile] = i
                 hdu.close()
                 hdu = fits.open(rawpath / rawfile)
@@ -1027,7 +1027,8 @@ def read_crires(inpath,filelist,rawpath=None,read_s1d=True):
     expno = -1
     for rawfile in rawfiles_sorted:
         expno=expno+1
-        print("exposure no: " + str(expno))
+        print(f"exposure no: {expno}")
+        print(filelist[rawfiles_infileidx[rawfile]])
         print(rawfile)
 
         # Read in headers from the RAW file as the headers in the extracted files are not for the individual nodding frames
@@ -1046,7 +1047,6 @@ def read_crires(inpath,filelist,rawpath=None,read_s1d=True):
         hdrraw['HIERARCH ESO QC BERV'] = barycorr.value
         hdrraw['HIERARCH ESO QC AIRMASS'] = airmass_calc
 
-        print(filelist[rawfiles_infileidx[rawfile]])
         framename.append(filelist[rawfiles_infileidx[rawfile]])
         header.append(hdrraw)
         obstype.append('SCIENCE')

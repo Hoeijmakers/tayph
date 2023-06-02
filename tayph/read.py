@@ -971,7 +971,7 @@ def read_gianob(inpath,filelist,read_s1d=True):
 
 
 
-def read_crires(inpath,filelist,rawpath=None,read_s1d=True):
+def read_crires(inpath,filelist,rawpath=None,read_s1d=True,nod='both'):
     import os
     import glob
     import copy
@@ -1009,19 +1009,25 @@ def read_crires(inpath,filelist,rawpath=None,read_s1d=True):
     rawfiles_infileidx = {}
     rawfiles_mjdobs = {}
     for i in range(len(filelist)):
-        if filelist[i].startswith('cr2res_obs_nodding_extractedA') or filelist[i].startswith('cr2res_obs_nodding_extractedB'):
-            reducedfile = inpath / filelist[i]
-            if reducedfile.is_file():
-                hdu = fits.open(reducedfile)
-                rawfile = hdu[0].header['HIERARCH ESO PRO REC1 RAW1 NAME']
-                # if filelist[i].startswith('cr2res_obs_nodding_extractedB'):
-                #     rawfile = hdu[0].header['HIERARCH ESO PRO REC1 RAW2 NAME']
-                rawfiles_infileidx[rawfile] = i
-                hdu.close()
-                hdu = fits.open(rawpath / rawfile)
-                mjdobs = hdu[0].header['MJD-OBS']
-                rawfiles_mjdobs[rawfile] = mjdobs
-                hdu.close()
+        nod_trigger = False#We skip this file unless this becomes true:
+        if nod =='A' or nod =='B':#If we only want one nod:
+            if filelist[i].startswith(f'cr2res_obs_nodding_extracted{nod}'):
+                nod_trigger = True
+        else:#If we want both nods at the same time:
+            if filelist[i].startswith('cr2res_obs_nodding_extractedA') or filelist[i].startswith('cr2res_obs_nodding_extractedB'):
+                nod_trigger = True
+        reducedfile = inpath / filelist[i]
+        if reducedfile.is_file() and nod_trigger:
+            hdu = fits.open(reducedfile)
+            rawfile = hdu[0].header['HIERARCH ESO PRO REC1 RAW1 NAME']
+            # if filelist[i].startswith('cr2res_obs_nodding_extractedB'):
+            #     rawfile = hdu[0].header['HIERARCH ESO PRO REC1 RAW2 NAME']
+            rawfiles_infileidx[rawfile] = i
+            hdu.close()
+            hdu = fits.open(rawpath / rawfile)
+            mjdobs = hdu[0].header['MJD-OBS']
+            rawfiles_mjdobs[rawfile] = mjdobs
+            hdu.close()
     rawfiles_sorted = dict(sorted(rawfiles_mjdobs.items(), key=lambda item: item[1])).keys()
 
     expno = -1

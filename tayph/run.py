@@ -1303,7 +1303,7 @@ def run_instance(p,parallel=True,xcor_parallel=False):
 
 
 def read_e2ds(inpath,outname,read_s1d=True,instrument='HARPS',star='solar',
-config=False,save_figure=True,skysub=False,rawpath=None):
+config=False,save_figure=True,skysub=False,rawpath=None,nod='both'):
     """This is the workhorse for reading in a time-series of archival 2D echelle
     spectra from a couple of instrument pipelines that produce a standard output,
     and formatting these into the order-wise FITS format that Tayph uses. These
@@ -1426,6 +1426,10 @@ config=False,save_figure=True,skysub=False,rawpath=None):
     If the raw files were located elsewhere, that's ok, but then you'd have to set the rawpath
     keyword in read_e2ds explicitly.
 
+    For CRIRES you can (and should probably) also set which nod you want to use. Because the two
+    nods get a wavelength shift and can generally behave quite differently, it may be best to
+    treat each nodding position as a separate time series. To do this, you run read_e2ds twice,
+    once with nod='A' and again with nod='B'.
     """
     import pkg_resources
     import os
@@ -1560,7 +1564,7 @@ config=False,save_figure=True,skysub=False,rawpath=None):
     elif mode == 'GIANO-B':
         DATA = read_gianob(inpath, filelist, read_s1d=read_s1d)
     elif mode == 'CRIRES':
-        DATA = read_crires(inpath, filelist, rawpath=rawpath, read_s1d=read_s1d)
+        DATA = read_crires(inpath, filelist, rawpath=rawpath, read_s1d=read_s1d, nod=nod)
     elif mode == 'HIRES-MAKEE':
         DATA = read_hires_makee(inpath, filelist, construct_s1d=read_s1d)
     elif mode == 'FIES':

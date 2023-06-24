@@ -1205,7 +1205,7 @@ def read_crires(inpath,filelist,read_s1d=True,nod='both'):
                                                 format='mjd'),location=observatory).to(u.km / u.s)
                 hdrraw['HIERARCH ESO QC BERV'] = barycorr.value
                 hdrraw['HIERARCH ESO QC AIRMASS'] = airmass_calc
-                framename.append(reducedfile)
+                framename.append(str(reducedfile))
                 header.append(hdrraw)
                 obstype.append('SCIENCE')
                 texp = np.append(texp, hdrraw['HIERARCH ESO DET SEQ1 EXPTIME'])

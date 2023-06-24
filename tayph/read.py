@@ -1209,7 +1209,7 @@ def read_crires(inpath,filelist,read_s1d=True,nod='both'):
                 framename.append(reducedfile)
                 header.append(hdrraw)
                 obstype.append('SCIENCE')
-                texp = np.append(texp, hdrraw['EXPTIME'])
+                texp = np.append(texp, hdrraw['HIERARCH ESO DET SEQ1 EXPTIME'])
                 date.append(hdrraw['DATE-OBS'])
                 mjd = np.append(mjd, hdrraw['MJD-OBS'])
                 s1dmjd = np.append(s1dmjd, hdrraw['MJD-OBS'])

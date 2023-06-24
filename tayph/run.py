@@ -1564,7 +1564,7 @@ config=False,save_figure=True,skysub=False,rawpath=None,nod='both'):
     elif mode == 'GIANO-B':
         DATA = read_gianob(inpath, filelist, read_s1d=read_s1d)
     elif mode == 'CRIRES':
-        DATA = read_crires(inpath, filelist, rawpath=rawpath, read_s1d=read_s1d, nod=nod)
+        DATA = read_crires(inpath, filelist, read_s1d=read_s1d, nod=nod)
     elif mode == 'HIRES-MAKEE':
         DATA = read_hires_makee(inpath, filelist, construct_s1d=read_s1d)
     elif mode == 'FIES':

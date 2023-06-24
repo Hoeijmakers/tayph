@@ -1181,14 +1181,15 @@ def read_crires(inpath,filelist,read_s1d=True,nod='both'):
     out_wave1d = []
     out_s1d = []
 
+    print(filelist)
 
     for i in range(len(filelist)):
         nod_trigger = False#We skip this file unless this becomes true:
         if nod =='A' or nod =='B':#If we only want one nod:
-            if filelist[i].startswith(f'cr2res_obs_nodding_extracted{nod}'):
+            if filelist[i].endswith(f'cr2res_obs_nodding_extracted{nod}.fits'):
                 nod_trigger = True
         else:#If we want both nods at the same time:
-            if filelist[i].startswith('cr2res_obs_nodding_extractedA') or filelist[i].startswith('cr2res_obs_nodding_extractedB'):
+            if filelist[i].endswith('cr2res_obs_nodding_extractedA.fits') or filelist[i].startswith('cr2res_obs_nodding_extractedB.fits'):
                 nod_trigger = True
         reducedfile = inpath / filelist[i]
         if reducedfile.is_file() and nod_trigger:

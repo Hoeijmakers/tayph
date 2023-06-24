@@ -1195,7 +1195,6 @@ def read_crires(inpath,filelist,read_s1d=True,nod='both'):
         if reducedfile.is_file() and nod_trigger:
             print(filelist[i])
             with fits.open(reducedfile) as hdu:
-                print(reducedfile)
                 hdrraw = hdu[0].header
                 airmass_calc = 0.5 * (float(hdrraw['HIERARCH ESO TEL AIRM START']) + float(hdrraw['HIERARCH ESO TEL AIRM END']))
                 observatory = EarthLocation.from_geodetic(lat=hdrraw['HIERARCH ESO TEL GEOLAT'] * u.deg,

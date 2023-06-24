@@ -1191,9 +1191,9 @@ def read_crires(inpath,filelist,read_s1d=True,nod='both'):
             if filelist[i].startswith('cr2res_obs_nodding_extractedA') or filelist[i].startswith('cr2res_obs_nodding_extractedB.fits'):
                 nod_trigger = True
         reducedfile = inpath / filelist[i]
-        print(filelist[i])
+
         if reducedfile.is_file() and nod_trigger:
-            print('   OHAI')
+            print(filelist[i])
             with fits.open(reducedfile) as hdu:
                 print(reducedfile)
                 hdrraw = hdu[0].header
@@ -1273,18 +1273,18 @@ def read_crires(inpath,filelist,read_s1d=True,nod='both'):
                 errs.append(np.array(looperrs))
                 waves.append(np.array(loopwave))
 
-        wavedata1d = []
-        fluxdata1d = []
-        for orderid in range(len(waves)):
-            for wave in waves[orderid]:
-                wavedata1d.append(wave)
-            for flux in fluxes[orderid]:
-                fluxdata1d.append(flux)
+            wavedata1d = []
+            fluxdata1d = []
+            for orderid in range(len(waves)):
+                for wave in waves[orderid]:
+                    wavedata1d.append(wave)
+                for flux in fluxes[orderid]:
+                    fluxdata1d.append(flux)
 
-        out_wave.append(np.array(waves))
-        out_e2ds.append(np.array(fluxes))
-        out_wave1d.append(np.array(wavedata1d)*10)#This needs to be angstroms for archaic reasons.
-        out_s1d.append(np.array(fluxdata1d))
+            out_wave.append(np.array(waves))
+            out_e2ds.append(np.array(fluxes))
+            out_wave1d.append(np.array(wavedata1d)*10)#This needs to be angstroms for archaic reasons.
+            out_s1d.append(np.array(fluxdata1d))
 
     output = {'wave': out_wave, 'e2ds': out_e2ds, 'header': header,'wave1d': out_wave1d,
                 's1d': out_s1d, 's1dhdr': header,'mjd': mjd, 'date': date, 'texp': texp,

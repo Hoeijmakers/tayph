@@ -46,9 +46,9 @@ def sel2D(arr,xrange,yrange,x=None,y=None):
     """
     import numpy as np
     import pdb
-    if x is not None:
+    if x is None:
         x=np.arange(arr.shape[1])
-    if y is not None:
+    if y is None:
         y=np.arange(arr.shape[0])
     if not len(xrange)==2:
         raise Exception("xrange should be a 2-element array")
@@ -57,7 +57,6 @@ def sel2D(arr,xrange,yrange,x=None,y=None):
 
     x_condition = np.logical_and(x >= xrange[0], x <= xrange[1])
     y_condition = np.logical_and(y >= yrange[0], y <= yrange[1])
-    pdb.set_trace()
     return(np.ix_(y_condition, x_condition))
 
 

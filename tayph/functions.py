@@ -29,12 +29,12 @@ __all__ = [
 def max2D(arr):
     """This returns the indices of the maximum of a 2D array, similar to np.argmax for 1D arrays."""
     import numpy as np
-    return(np.unravel_index(np.argmax(arr), arr.shape))
+    return(np.unravel_index(np.nanargmax(arr), arr.shape))
 
 def min2D(arr):
     """This returns the indices of the minimum of a 2D array, similar to np.argmin for 1D arrays."""
     import numpy as np
-    return(np.unravel_index(np.argmin(arr), arr.shape))
+    return(np.unravel_index(np.nanargmin(arr), arr.shape))
 
 def sel2D(arr,xrange,yrange,x=None,y=None):
     """This is used to make a sub-selection of a 2D numpy array based on conditions (limits) of the

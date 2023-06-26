@@ -56,6 +56,7 @@ def sel2D(arr,xrange,yrange,x=None,y=None):
 
     x_condition = np.logical_and(x >= xrange[0], x <= xrange[1])
     y_condition = np.logical_and(y >= yrange[0], y <= yrange[1])
+    pdb.set_trace()
     return(np.ix_(y_condition, x_condition))
 
 

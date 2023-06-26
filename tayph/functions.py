@@ -45,6 +45,7 @@ def sel2D(arr,xrange,yrange,x=None,y=None):
     A_sub = A[fun.sel2D(A,[10,15],[3,6],x=np.arange(20),y=np.arange(10))]
     """
     import numpy as np
+    import pdb
     if x is not None:
         x=np.arange(arr.shape[1])
     if y is not None:

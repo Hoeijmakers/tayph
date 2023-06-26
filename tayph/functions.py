@@ -1,4 +1,7 @@
 __all__ = [
+    'max2D',
+    'min2D',
+    'sel2D',
     'eval_poly',
     'ladfit',
     'box',
@@ -22,6 +25,38 @@ __all__ = [
     'polysinfit',
     'sysrem'
 ]
+
+def max2D(arr):
+    """This returns the indices of the maximum of a 2D array, similar to np.argmax for 1D arrays."""
+    import numpy as np
+    return(np.unravel_index(np.argmax(arr), arr.shape))
+
+def min2D(arr):
+    """This returns the indices of the minimum of a 2D array, similar to np.argmin for 1D arrays."""
+    import numpy as np
+    return(np.unravel_index(np.argmin(arr), arr.shape))
+
+def sel2D(arr,xrange,yrange,x=None,y=None):
+    """This is used to make a sub-selection of a 2D numpy array based on conditions (limits) of the
+    X and Y axes of the array. The intervals are inclusive.
+
+    Example:
+    A = np.ones((10,20)) #Remember: in numpy the y-axis is the first axis.
+    A_sub = A[fun.sel2D(A,[10,15],[3,6],x=np.arange(20),y=np.arange(10))]
+    """
+    import numpy as np
+    if x is not None:
+        x=np.arange(arr.shape[1])
+    if y is not None:
+        y=np.arange(arr.shape[0])
+    if not len(xrange)==2:
+        raise Exception("xrange should be a 2-element array")
+    if not len(yrange)==2:
+        raise Exception("yrange should be a 2-element array")
+
+    x_condition = np.logical_and(x >= xrange[0], x <= xrange[1])
+    y_condition = np.logical_and(y >= yrange[0], y <= yrange[1])
+    return(np.ix_(y_condition, x_condition))
 
 
 def eval_poly(x,f):

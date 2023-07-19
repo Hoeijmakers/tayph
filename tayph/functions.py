@@ -803,7 +803,7 @@ def gaussian(x,*args):
     >>> import numpy as np
     >>> x=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
     >>> p=[5,10,1.0,0.0,0.5]
-    >>> y=gaussian(x,p)
+    >>> y=gaussian(np.array(x),*p)
     """
     p=[i for i in args]
     if len(p) > 3:

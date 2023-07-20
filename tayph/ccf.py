@@ -888,7 +888,7 @@ def filter_ccf(rv,ccf,v_width):
         ccf_f[i] = ccf_row-wiggle
     return(ccf_f,wiggles)
 
-def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,transit=True):
+def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,transit=True,phase=[]):
     """The name says it all. Do good tests."""
     import tayph.functions as fun
     import tayph.operations as ops
@@ -907,9 +907,10 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,trans
     n_exp = np.shape(ccf)[0]
     KpVsys = np.zeros((len(Kp),len(rv)))
     KpVsys_e = np.zeros((len(Kp),len(rv)))
-    LC = sp.transit(dp)-1.0
     dv = rv[1]-rv[0]
     n_exp=len(ccf[:,0])#Number of exposures.
+
+    LC = sp.transit(dp,p=phase)-1.0
     if transit:
         LC /= np.nansum(LC)
         transitblock = fun.rebinreform(LC,len(rv)).T
@@ -918,12 +919,13 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,trans
 
 
 
+
     # pdb.set_trace()
     ccf_copy = copy.deepcopy(ccf)
     ccf_e_copy = copy.deepcopy(ccf_e)
 
     def Kp_parallel(i):
-        dRV = sp.RV(dp,vorb=i)*(-1.0)
+        dRV = sp.RV(dp,vorb=i,p=phase)*(-1.0)
         ccf_shifted = ccf_copy*0.0
         ccf_e_shifted = ccf_e_copy*0.0
         for i in range(n_exp):

@@ -380,7 +380,7 @@ def phase(dp,start=False,end=False):
         n+=1
 
     BJD = t.tdb + TimeDelta(ltt_bary,format="jd")
-    
+
     if start == True:
         diff = BJD-Tc_n
     elif end == True:
@@ -462,7 +462,7 @@ def RV_star(dp):
     rv=K*np.sin(2.0*np.pi*p) * (-1.0)
     return(rv)
 
-def RV(dp,vorb=None,vsys=False):
+def RV(dp,vorb=None,vsys=False,p=[]):
     """This program calculates the radial velocity in km/s for the planet in the
     data sequence provided in dp, the data-path. dp starts in the root folder,
     i.e. it starts with data/projectname/, and it ends with a slash.
@@ -474,7 +474,10 @@ def RV(dp,vorb=None,vsys=False):
     import numpy as np
     from tayph.vartests import typetest
     dp=ut.check_path(dp)
-    p=phase(dp)
+    if len(p)==0:
+        p=phase(dp)
+    else:
+        p=np.array(p)
     i=paramget('inclination',dp)
     typetest(i,float,'i')
     if vorb == None:

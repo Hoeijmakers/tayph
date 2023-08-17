@@ -165,7 +165,7 @@ def airmass(dp):
     try:
         airm = d['col4']#Needs to be in col 4.
     except:
-        raise Exception(f'Runtime error in sp.airmass(): col6 could not be indexed. '
+        raise Exception(f'Runtime error in sp.airmass(): col4 could not be indexed. '
         f'Check the integrity of your obst_times file located at {dp}.')
     return airm.data
 

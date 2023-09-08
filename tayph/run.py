@@ -3105,6 +3105,13 @@ plot_spec=False,time_average=False,guide_plot=False):
     are in air wavelengths by default. ERROR: THE INSTRUMENT PARFILE DECIDES WHETHER THE INPUT
     S1D SPECTRA ARE IN AIR OR IN VACCUUM. NO STANDARD IS NEEDED.
 
+    PROPOSED IMPROVEMENT OF THIS TEXT SEPTEMBER 2023:
+    Note that the s1d spectra onto which Molecfit will fit should be in air (unless set otherwise in
+    the molecfit configuration file and in the tayph configuration file) and in the observatory
+    rest-frame, as should be the e2ds spectra. This may mean that in read_e2ds, a BERV correction
+    has to be undone and this should be hardcoded for the various instruments.
+
+
     You can also set save_individual to a path to an existing folder to which the
     transmission spectra of the time-series can be written one by one.
 

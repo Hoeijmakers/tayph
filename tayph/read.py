@@ -1274,6 +1274,10 @@ def read_crires(inpath,filelist,read_s1d=True,nod='both'):
 
             wavedata1d = []
             fluxdata1d = []
+            gamma = (1.0-(barycorr.value*u.km/u.s/const.c).decompose().value)#BERV. PROBABLY NEEDS TO BE MULTIPLIED AGAINST WAVEDATA1D. MAYBE WITH A PLUS/MINUS SIGN.
+            print(barycorr.value)
+
+            pdb.set_trace()
             for orderid in range(len(waves)):
                 for wave in waves[orderid]:
                     wavedata1d.append(wave)

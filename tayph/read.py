@@ -1273,7 +1273,7 @@ def read_crires(inpath,filelist,read_s1d=True,nod='both'):
 
             wavedata1d = []
             fluxdata1d = []
-            gamma = (1.0+(barycorr.value*u.km/u.s/const.c).decompose().value)#BERV. PROBABLY NEEDS TO BE MULTIPLIED AGAINST WAVEDATA1D. MAYBE WITH A PLUS/MINUS SIGN.
+            # gamma = (1.0+(barycorr.value*u.km/u.s/const.c).decompose().value)#BERV. NOT NEEDED IT LOOKS LIKE. E2DS AND S1D SPECTRA ARE NOT BERV-CORRECTED
 
             hdrraw['TELALT']     = hdrraw[f'ESO TEL ALT']
             hdrraw['RHUM']       = hdrraw[f'ESO TEL AMBI RHUM']
@@ -1284,7 +1284,7 @@ def read_crires(inpath,filelist,read_s1d=True,nod='both'):
             header.append(hdrraw)
             for orderid in range(len(waves)):
                 for wave in waves[orderid]:
-                    wavedata1d.append(wave*gamma)
+                    wavedata1d.append(wave)
                 for flux in fluxes[orderid]:
                     fluxdata1d.append(flux)
 

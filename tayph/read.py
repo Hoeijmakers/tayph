@@ -1206,7 +1206,6 @@ def read_crires(inpath,filelist,read_s1d=True,nod='both'):
                 hdrraw['HIERARCH ESO QC BERV'] = barycorr.value
                 hdrraw['HIERARCH ESO QC AIRMASS'] = airmass_calc
                 framename.append(str(reducedfile))
-                header.append(hdrraw)
                 obstype.append('SCIENCE')
                 texp = np.append(texp, hdrraw['HIERARCH ESO DET SEQ1 EXPTIME'])
                 date.append(hdrraw['DATE-OBS'])
@@ -1276,12 +1275,13 @@ def read_crires(inpath,filelist,read_s1d=True,nod='both'):
             fluxdata1d = []
             gamma = (1.0-(barycorr.value*u.km/u.s/const.c).decompose().value)#BERV. PROBABLY NEEDS TO BE MULTIPLIED AGAINST WAVEDATA1D. MAYBE WITH A PLUS/MINUS SIGN.
 
-            header['TELALT']     = header[f'ESO TEL ALT']
-            header['RHUM']       = header[f'ESO TEL AMBI RHUM']
-            header['PRESSURE']   = (header[f'ESO TEL AMBI PRES START']+
-                                            header[f'ESO TEL AMBI PRES END'])/2.0
-            header['AMBITEMP']   = header[f'ESO TEL AMBI TEMP']
-            header['M1TEMP']     = header[f'ESO TEL TH M1 TEMP']
+            hdrraw['TELALT']     = hdrraw[f'ESO TEL ALT']
+            hdrraw['RHUM']       = hdrraw[f'ESO TEL AMBI RHUM']
+            hdrraw['PRESSURE']   = (hdrraw[f'ESO TEL AMBI PRES START']+
+                                            hdrraw[f'ESO TEL AMBI PRES END'])/2.0
+            hdrraw['AMBITEMP']   = hdrraw[f'ESO TEL AMBI TEMP']
+            hdrraw['M1TEMP']     = hdrraw[f'ESO TEL TH M1 TEMP']
+            header.append(hdrraw)
             for orderid in range(len(waves)):
                 for wave in waves[orderid]:
                     wavedata1d.append(wave)

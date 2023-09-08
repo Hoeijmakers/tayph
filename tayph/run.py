@@ -1358,6 +1358,9 @@ config=False,save_figure=True,skysub=False,rawpath=None,nod='both'):
     based on the instrument mode selected.
 
 
+
+    THE FOLLOWING PARAGRAPH IS DEFUNCT AS OF SEPTEMBER 2023:
+    ----------
     By setting the measure_RV keyword, the code will run a preliminary
     cross-correlation with a stellar (PHOENIX) and a telluric template at both vaccuum
     and air wavelengths to provide the user with information about the nature of the
@@ -1366,7 +1369,7 @@ config=False,save_figure=True,skysub=False,rawpath=None,nod='both'):
     a hot (9000K) or a cool (4000K) template are available, and accessed by setting the
     star keyword to 'solar', 'hot' or 'cool' respectively. Set the save_figure keyword to save the
     plot of the spectra and the CCF to the data folder as a PDF.
-
+    ----------
 
 
     About the different spectrographs:
@@ -2637,10 +2640,10 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
             self.ax[0].set_title(f'Time-averaged spectral orders and {star} PHOENIX model.')
             self.ax[0].set_xlabel('Wavelength (nm)')
             self.ax[0].set_ylabel('Normalised flux')
-            self.ax[0].legend(loc='upper right',fontsize=6)
-            self.ax[0].tick_params(labelsize=10)
             self.ax[0].plot(wlm,fxmn,color='green',linewidth=0.7,label='PHOENIX template (air)',alpha=0.5)#These two are globals and dont change.
             self.ax[0].plot(wlt,fxtn,color='blue',linewidth=0.7,label='Skycalc telluric model (air)',alpha=0.6)
+            self.ax[0].legend(loc='upper right',fontsize=6)
+            self.ax[0].tick_params(labelsize=10)
             self.ax[1].set_title(f'CCF between data with PHOENIX and telluric models',fontsize=9)
             self.ax[1].set_xlabel('Radial velocity (km/s)')
             self.ax[1].set_ylabel('Mean flux')
@@ -2767,7 +2770,7 @@ def measure_RV(dp,instrument='HARPS',star='solar',save_figure=True,air=True,air1
                 plt.close('all')
         def close(self,event):
             if self.fit_done > 0:
-                print(f'---Saving to {dp}')
+                print(f'---Saving to {dp} while overwriting old wave files.')
                 for i in range(len(self.list_of_waves)):
                     fits.writeto(dp/('wave_'+str(i)+'.fits'),self.list_of_waves[i],overwrite=True)
                 if read_s1d:
@@ -3099,7 +3102,8 @@ plot_spec=False,time_average=False,guide_plot=False):
     These can then be used to correct the s1d spectra or the e2ds spectra.
     Note that the s1d spectra are assumed to be in the barycentric frame in vaccuum,
     but that the output transmission spectrum is in the observers frame, and e2ds files
-    are in air wavelengths by default.
+    are in air wavelengths by default. ERROR: THE INSTRUMENT PARFILE DECIDES WHETHER THE INPUT
+    S1D SPECTRA ARE IN AIR OR IN VACCUUM. NO STANDARD IS NEEDED.
 
     You can also set save_individual to a path to an existing folder to which the
     transmission spectra of the time-series can be written one by one.

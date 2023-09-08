@@ -1276,12 +1276,12 @@ def read_crires(inpath,filelist,read_s1d=True,nod='both'):
             fluxdata1d = []
             gamma = (1.0-(barycorr.value*u.km/u.s/const.c).decompose().value)#BERV. PROBABLY NEEDS TO BE MULTIPLIED AGAINST WAVEDATA1D. MAYBE WITH A PLUS/MINUS SIGN.
 
-            header['TELALT']     = hdr1d[f'ESO TEL ALT']
-            header['RHUM']       = hdr1d[f'ESO TEL AMBI RHUM']
-            header['PRESSURE']   = (hdr1d[f'ESO TEL AMBI PRES START']+
-                                            hdr1d[f'ESO TEL AMBI PRES END'])/2.0
-            header['AMBITEMP']   = hdr1d[f'ESO TEL AMBI TEMP']
-            header['M1TEMP']     = hdr1d[f'ESO TEL TH M1 TEMP']
+            header['TELALT']     = header[f'ESO TEL ALT']
+            header['RHUM']       = header[f'ESO TEL AMBI RHUM']
+            header['PRESSURE']   = (header[f'ESO TEL AMBI PRES START']+
+                                            header[f'ESO TEL AMBI PRES END'])/2.0
+            header['AMBITEMP']   = header[f'ESO TEL AMBI TEMP']
+            header['M1TEMP']     = header[f'ESO TEL TH M1 TEMP']
             for orderid in range(len(waves)):
                 for wave in waves[orderid]:
                     wavedata1d.append(wave)

@@ -3183,6 +3183,8 @@ plot_spec=False,time_average=False,guide_plot=False):
 
 
 
+
+
     if mode.lower() not in ['gui','batch','both']:
         raise ValueError("Molecfit mode should be set to 'GUI', 'batch' or 'both.'")
 
@@ -3195,10 +3197,13 @@ plot_spec=False,time_average=False,guide_plot=False):
         f'{molecfit_config}.')
         tel.set_molecfit_config(molecfit_config)
     else:        #Otherwise we test its contents.
+        print(f'Reading molecfit input parameters from {molecfig_config}')
         tel.test_molecfit_config(molecfit_config)
     molecfit_input_folder = Path(sp.paramget('molecfit_input_folder',molecfit_config,
         full_path=True))
+    print(f'Molecfit input folder is {molecfit_input_folder}')
     molecfit_prog_folder = Path(sp.paramget('molecfit_prog_folder',molecfit_config,full_path=True))
+    print(f'Molecfit executable is located at {molecfit_input_folder}')
     python_alias = sp.paramget('python_alias',molecfit_config,full_path=True)
     #If this passes, the molecfit confugration file appears to be set correctly.
 
@@ -3261,6 +3266,7 @@ plot_spec=False,time_average=False,guide_plot=False):
         tel.guide_plot(dp)
 
     if mode.lower() == 'gui' or mode.lower()=='both':
+        print(f'Writing first spectrum to {molecfit_input_folder} to start GUI')
         tel.write_file_to_molecfit(molecfit_input_folder,instrument+'.fits',s1dhdr_sorted,
             wave1d_sorted,s1d_sorted,middle_i,plot=plot_spec,time_average=time_average)
         tel.execute_molecfit(molecfit_prog_folder,parfile,molecfit_input_folder,gui=True,

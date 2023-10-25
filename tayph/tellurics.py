@@ -147,10 +147,12 @@ def execute_molecfit(molecfit_prog_root,molecfit_input_file,molecfit_input_folde
     if gui == False:
         command = f'{Path(molecfit_prog_root)}/molecfit > {Path(molecfit_input_folder)}/log.txt'+' '+str(molecfit_input_file)
         command2 = f'{Path(molecfit_prog_root)}/calctrans > {Path(molecfit_input_folder)}/log.txt'+' '+str(molecfit_input_file)
+        print(f'Executing molecfit as {command}')
         os.system(command)
         os.system(command2)
     if gui == True:
         command = alias+' '+str(molecfit_prog_root/'molecfit_gui')+' '+str(molecfit_input_file)
+        print(f'Executing molecfit as {command}')
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             os.system(command)

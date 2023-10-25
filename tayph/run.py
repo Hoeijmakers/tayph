@@ -3197,7 +3197,7 @@ plot_spec=False,time_average=False,guide_plot=False):
         f'{molecfit_config}.')
         tel.set_molecfit_config(molecfit_config)
     else:        #Otherwise we test its contents.
-        print(f'Reading molecfit input parameters from {molecfig_config}')
+        print(f'Reading molecfit input parameters from {molecfit_config}')
         tel.test_molecfit_config(molecfit_config)
     molecfit_input_folder = Path(sp.paramget('molecfit_input_folder',molecfit_config,
         full_path=True))

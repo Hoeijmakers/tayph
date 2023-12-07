@@ -156,13 +156,16 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                     ut.check_path(s1d_path,exists=True)#Crash if the S1D doesn't exist.
         # if filelist[i].endswith('s1d_A.fits'):
                     hdul = fits.open(s1d_path)
-                    data_1d = copy.deepcopy(hdul[0].data)
+                    if mode == 'SOLAR':
+                        data_1d=np.array([i[2] for i in copy.deepcopy(hdul[1].data)])
+                    else:
+                        data_1d = copy.deepcopy(hdul[0].data)
                     hdr1d = hdul[0].header
                     hdul.close()
                     del hdul
             # if hdr[catkeyword] == 'SCIENCE':
                     s1d.append(data_1d)
-                    if mode == 'HARPSN':#In the case of HARPS-N we need to convert the units of the
+                    if mode in ['HARPSN','SOLAR']:#In the case of HARPS-N we need to convert the units of the
                         #elevation and provide a UTC keyword.
                         hdr1d['TELALT'] = np.degrees(float(hdr1d['EL']))
                         hdr1d['UTC'] = (float(hdr1d['MJD-OBS'])%1.0)*86400.0
@@ -174,7 +177,12 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                         f'equal to that of the e2ds file. {berv1d} vs {hdr[bervkeyword]}')
                         ut.tprint(wrn_msg)
                     gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)#Doppler factor BERV.
-                    wave1d.append((hdr1d['CDELT1']*np.arange(len(data_1d), dtype=float)+hdr1d['CRVAL1'])*gamma)
+                    if mode == 'SOLAR':
+                        hdul = fits.open(s1d_path)
+                        wave1d.append(np.array([i[1] for i in copy.deepcopy(hdul[1].data)]))
+                        hdul.close()
+                    else:
+                        wave1d.append((hdr1d['CDELT1']*np.arange(len(data_1d), dtype=float)+hdr1d['CRVAL1'])*gamma)
 
     #Check that all exposures have the same number of pixels, and clip s1ds if needed.
     # min_npx1d = int(np.min(np.array(npx1d)))

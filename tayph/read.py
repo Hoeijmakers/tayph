@@ -63,13 +63,26 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
         thfilekeyword = 'HIERARCH ESO DRS CAL TH FILE'
         Zstartkeyword = 'HIERARCH ESO TEL AIRM START'
         Zendkeyword = 'HIERARCH ESO TEL AIRM END'
+        extension = 'e2ds_A.fits'
+        extension1d='s1d_A.fits'
     elif mode=='HARPSN':
         catkeyword = 'OBS-TYPE'
         bervkeyword = 'HIERARCH TNG DRS BERV'
         thfilekeyword = 'HIERARCH TNG DRS CAL TH FILE'
         Zstartkeyword = 'AIRMASS'
         Zendkeyword = 'AIRMASS'#These are the same because HARPSN doesnt have start and end keywords.
+        extension = 'e2ds_A.fits'
+        extension1d='s1d_A.fits'
         #Down there, the airmass is averaged, so there is no problem in taking the average of the same number.
+    elif mode=='SOLAR':
+        catkeyword = 'OBS-TYPE'
+        bervkeyword = 'HIERARCH TNG DRS BERV'
+        thfilekeyword = 'HIERARCH TNG DRS CAL TH FILE'
+        Zstartkeyword = 'AIRMASS'
+        Zendkeyword = 'AIRMASS'#These are the same because HARPSN doesnt have start and end keywords.
+        #Down there, the airmass is averaged, so there is no problem in taking the average of the same number.
+        extension = 'S2D_BLAZE_A.fits'
+        extension1d='S1D_A.fits'
     else:
         raise ValueError(f"Error in read_harpslike: mode should be set to HARPS or HARPSN ({mode})")
 
@@ -92,7 +105,7 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
     wave=[]
     # wavefile_used = []
     for i in range(len(filelist)):
-        if filelist[i].endswith('e2ds_A.fits'):
+        if filelist[i].endswith(extension):
             print(f'------{filelist[i]}', end="\r")
             hdul = fits.open(inpath/filelist[i])
             data = copy.deepcopy(hdul[0].data)
@@ -126,7 +139,7 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                 #         wave.append(wavedata)
 
                 if read_s1d:
-                    s1d_path=inpath/Path(str(filelist[i]).replace('e2ds_A.fits','s1d_A.fits'))
+                    s1d_path=inpath/Path(str(filelist[i]).replace(extension,extension1d))
                     ut.check_path(s1d_path,exists=True)#Crash if the S1D doesn't exist.
         # if filelist[i].endswith('s1d_A.fits'):
                     hdul = fits.open(s1d_path)

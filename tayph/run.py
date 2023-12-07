@@ -1488,15 +1488,16 @@ config=False,save_figure=True,skysub=False,rawpath=None,nod='both'):
     typetest(read_s1d,bool,'read_s1d switch in read_e2ds()')
     typetest(mode,str,'mode in read_e2ds()')
 
-    if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue',
+    if mode not in ['HARPS','HARPSN','HARPS-N','ESPRESSO','UVES-red','UVES-blue','SOLAR',
         'CARMENES-VIS','CARMENES-NIR','SPIROU','GIANO-B','CRIRES','HIRES-MAKEE','FIES','NIRPS','FOCES']:
         raise ValueError("in read_e2ds: instrument needs to be set to HARPS, HARPSN, UVES-red, "
             "UVES-blue CARMENES-VIS, CARMENES-NIR, SPIROU, GIANO-B, CRIRES, HIRES-MAKEE, FIES, "
-            "NIRPS or ESPRESSO.")
+            "SOLAR","NIRPS or ESPRESSO.")
 
 
 
-    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B','CRIRES','HIRES-MAKEE','FIES','NIRPS','FOCES']:
+    if mode in ['HARPS','HARPSN','ESPRESSO','CARMENES-VIS','GIANO-B','CRIRES','HIRES-MAKEE','FIES',
+    'SOLAR','NIRPS','FOCES']:
         read_s1d = True
     else:
         read_s1d = False
@@ -1551,7 +1552,7 @@ config=False,save_figure=True,skysub=False,rawpath=None,nod='both'):
     if mode=='HARPS-N': mode='HARPSN'#Guard against various ways of referring to HARPS-N.
     print(f'---Read_e2ds is attempting to read a {mode} datafolder at {str(inpath)}.')
     print('---These are the files encountered:')
-    if mode in ['HARPS','HARPSN']:
+    if mode in ['HARPS','HARPSN','SOLAR']:
         DATA = read_harpslike(inpath,filelist,mode,read_s1d=read_s1d)#This is a dictionary
         #containing all the e2ds files, wavelengths, s1d spectra, etc.
     elif mode in ['UVES-red','UVES-blue']:

@@ -108,7 +108,10 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
         if filelist[i].endswith(extension):
             print(f'------{filelist[i]}', end="\r")
             hdul = fits.open(inpath/filelist[i])
-            data = copy.deepcopy(hdul[0].data)
+            if mode == 'SOLAR':
+                data = copy.deepcopy(hdul[1].data)
+            else:
+                data = copy.deepcopy(hdul[0].data)
             hdr = hdul[0].header
             hdul.close()
             del hdul[0].data
@@ -119,8 +122,12 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                 texp=np.append(texp,hdr['EXPTIME'])
                 date.append(hdr['DATE-OBS'])
                 mjd=np.append(mjd,hdr['MJD-OBS'])
-                npx=np.append(npx,hdr['NAXIS1'])
-                norders=np.append(norders,hdr['NAXIS2'])
+                if mode == 'SOLAR':
+                    npx = np.shape(data)[1]
+                    norders=np.shape(data)[0]
+                else:
+                    npx=np.append(npx,hdr['NAXIS1'])
+                    norders=np.append(norders,hdr['NAXIS2'])
                 e2ds.append(data)
                 berv=np.append(berv,hdr[bervkeyword])
                 airmass=np.append(airmass,0.5*(hdr[Zstartkeyword]+hdr[Zendkeyword]))#This is an approximation where we take the mean airmass.
@@ -128,8 +135,13 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                 # wavefile_used.append(hdr[thfilekeyword])
                 #Record which wavefile was used by the pipeline to
                 #create the wavelength solution.
-                wavedata=ut.read_wave_from_e2ds_header(hdr,mode=mode)/10.0#convert to nm.
-                wave.append(wavedata)
+                if mode == 'SOLAR':
+                    hdul = fits.open(inpath/filelist[i])
+                    wavedata = copy.deepcopy(hdul[4].data)/10.0#Convert to nm.
+                    hdul.close()
+                else:
+                    wavedata=ut.read_wave_from_e2ds_header(hdr,mode=mode)/10.0#convert to nm.
+                    wave.append(wavedata)
                 # if filelist[i].endswith('wave_A.fits'):
                 #     print(filelist[i]+' (wave)')
                 #     if nowave == True:

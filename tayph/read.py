@@ -183,7 +183,9 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                     gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)#Doppler factor BERV.
                     if mode == 'SOLAR':
                         hdul = fits.open(s1d_path)
-                        wave1d.append(np.array([i[1] for i in copy.deepcopy(hdul[1].data)]))
+                        wave_array = np.array([i[1] for i in copy.deepcopy(hdul[1].data)])
+                        print(np.shape(wave_array))
+                        wave1d.append(wave_array)
                         hdul.close()
                     else:
                         wave1d.append((hdr1d['CDELT1']*np.arange(len(data_1d), dtype=float)+hdr1d['CRVAL1'])*gamma)

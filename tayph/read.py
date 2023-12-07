@@ -104,10 +104,10 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
     berv=np.array([])
     wave=[]
     # wavefile_used = []
-    Print('---Files in the folder:')
+    print('---Files in the folder:')
     for f in filelist:
         Print(f'------{f}')
-    Print('---Files being read:')
+    print('---Files being read:')
     for i in range(len(filelist)):
         if filelist[i].endswith(extension):
             print(f'------{filelist[i]}', end="\r")

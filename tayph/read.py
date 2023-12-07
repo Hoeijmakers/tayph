@@ -104,6 +104,10 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
     berv=np.array([])
     wave=[]
     # wavefile_used = []
+    Print('---Files in the folder:')
+    for f in filelist:
+        Print(f'------{f}')
+    Print('---Files being read:')
     for i in range(len(filelist)):
         if filelist[i].endswith(extension):
             print(f'------{filelist[i]}', end="\r")
@@ -123,8 +127,8 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                 date.append(hdr['DATE-OBS'])
                 mjd=np.append(mjd,hdr['MJD-OBS'])
                 if mode == 'SOLAR':
-                    npx = np.shape(data)[1]
-                    norders=np.shape(data)[0]
+                    npx = np.append(npx,np.shape(data)[1])
+                    norders= np.append(norders,np.shape(data)[0])
                     berv=0.0
                 else:
                     npx=np.append(npx,hdr['NAXIS1'])

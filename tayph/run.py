@@ -1654,6 +1654,23 @@ config=False,save_figure=True,skysub=False,rawpath=None,nod='both'):
             f"not match ({len(wave)},{len(e2ds)}). Between reading and this test, one of them has "
             "become corrupted. This should not realisticly happen.")
 
+    if len(e2ds) != len(airmass):
+        raise ValueError(f"in read_e2ds: The number of e2ds frames and airmass values does "
+            f"not match ({len(e2ds)},{len(airmass)}). Between reading and this test, one of them has "
+            "become corrupted. This should not realisticly happen.")
+
+    if len(e2ds) != len(date):
+        raise ValueError(f"in read_e2ds: The number of e2ds frames and airmass values does "
+            f"not match ({len(e2ds)},{len(date)}). Between reading and this test, one of them has "
+            "become corrupted. This should not realisticly happen.")
+
+    if len(e2ds) != len(texp):
+        raise ValueError(f"in read_e2ds: The number of e2ds frames and airmass values does "
+            f"not match ({len(e2ds)},{len(texp)}). Between reading and this test, one of them has "
+            "become corrupted. This should not realisticly happen.")
+
+
+
     #Test 4 - and set norders to its constant value.
     if np.max(np.abs(norders-norders[0])) == 0:
         norders=int(norders[0])

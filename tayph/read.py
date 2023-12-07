@@ -129,12 +129,13 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                 if mode == 'SOLAR':
                     npx = np.append(npx,np.shape(data)[1])
                     norders= np.append(norders,np.shape(data)[0])
-                    berv=0.0
+
                 else:
                     npx=np.append(npx,hdr['NAXIS1'])
                     norders=np.append(norders,hdr['NAXIS2'])
-                e2ds.append(data)
                 berv=np.append(berv,hdr[bervkeyword])
+                e2ds.append(data)
+
                 airmass=np.append(airmass,0.5*(hdr[Zstartkeyword]+hdr[Zendkeyword]))#This is an approximation where we take the mean airmass.
                 # if nowave == True:
                 # wavefile_used.append(hdr[thfilekeyword])

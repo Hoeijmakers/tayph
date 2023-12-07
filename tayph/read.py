@@ -143,6 +143,7 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                 if mode == 'SOLAR':
                     hdul = fits.open(inpath/filelist[i])
                     wavedata = copy.deepcopy(hdul[4].data)/10.0#Convert to nm.
+                    wave.append(wavedata)
                     hdul.close()
                 else:
                     wavedata=ut.read_wave_from_e2ds_header(hdr,mode=mode)/10.0#convert to nm.
@@ -184,7 +185,6 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                     if mode == 'SOLAR':
                         hdul = fits.open(s1d_path)
                         wave_array = np.array([i[1] for i in copy.deepcopy(hdul[1].data)])
-                        print(np.shape(wave_array))
                         wave1d.append(wave_array)
                         hdul.close()
                     else:

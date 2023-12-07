@@ -76,7 +76,7 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
         #Down there, the airmass is averaged, so there is no problem in taking the average of the same number.
     elif mode=='SOLAR':
         catkeyword = 'OBS-TYPE'
-        bervkeyword = 'HIERARCH TNG DRS BERV'
+        bervkeyword = 'HIERARCH TNG QC BERV'
         thfilekeyword = 'HIERARCH TNG DRS CAL TH FILE'
         Zstartkeyword = 'AIRMASS'
         Zendkeyword = 'AIRMASS'#These are the same because HARPSN doesnt have start and end keywords.
@@ -125,6 +125,7 @@ def read_harpslike(inpath,filelist,mode,read_s1d=True):
                 if mode == 'SOLAR':
                     npx = np.shape(data)[1]
                     norders=np.shape(data)[0]
+                    berv=0.0
                 else:
                     npx=np.append(npx,hdr['NAXIS1'])
                     norders=np.append(norders,hdr['NAXIS2'])

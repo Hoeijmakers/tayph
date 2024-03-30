@@ -686,6 +686,112 @@ def read_espresso(inpath,filelist,read_s1d=True,skysub=False):
         'norders':norders,'berv':berv,'airmass':airmass,'snr550':SNR}
     return(output)
 
+
+def read_espresso4UT(inpath,filelist,read_s1d=True,skysub=True):
+    #The following variables define lists in which all the necessary data will be stored.
+    framename=[]
+    header=[]
+    s1dhdr=[]
+    obstype=[]
+    texp=np.array([])
+    date=[]
+    mjd=np.array([])
+    s1dmjd=np.array([])
+    npx=np.array([])
+    norders=np.array([])
+    e2ds=[]
+    s1d=[]
+    wave1d=[]
+    airmass=np.array([])
+    berv=np.array([])
+    wave=[]
+    catkeyword = 'EXTNAME'
+    bervkeyword = 'HIERARCH ESO QC BERV'
+    airmass_keyword1 = 'HIERARCH ESO TEL'
+    airmass_keyword2 = ' AIRM '
+    airmass_keyword3_start = 'START'
+    airmass_keyword3_end = 'END'
+    tel_list = ['1','2','3','4']
+
+    if skysub:
+        type_suffix = 'S2D_SKYSUB_A.fits'
+    else:
+        type_suffix = 'S2D_BLAZE_A.fits'
+
+    for i in range(len(filelist)):
+        if filelist[i].endswith(type_suffix):
+            hdul = fits.open(inpath/filelist[i])
+            data = copy.deepcopy(hdul[1].data)
+            hdr = hdul[0].header
+            hdr2 = hdul[1].header
+            wavedata=copy.deepcopy(hdul[5].data)
+            hdul.close()
+            del hdul
+
+            if hdr2[catkeyword] == 'SCIDATA':
+                # print('science keyword found')
+                print(f'------{filelist[i]}', end="\r")
+                framename.append(filelist[i])
+                header.append(hdr)
+                obstype.append('SCIENCE')
+                texp=np.append(texp,hdr['EXPTIME'])
+                date.append(hdr['DATE-OBS'])
+                mjd=np.append(mjd,hdr['MJD-OBS'])
+                npx=np.append(npx,hdr2['NAXIS1'])
+                norders=np.append(norders,hdr2['NAXIS2'])
+                e2ds.append(data)
+                berv=np.append(berv,hdr[bervkeyword])#in km.s.
+                telescope = hdr['TELESCOP']
+                airmass = np.append(airmass,0.5*(np.mean(np.array([hdr[airmass_keyword1+f'{t} AIRM START'] for t in tel_list]))+np.mean(np.array([hdr[airmass_keyword1+f'{t} AIRM END'] for t in tel_list]))))
+                wave.append(wavedata/10.0)#*(1.0-(hdr[bervkeyword]*u.km/u.s/const.c).decompose().value))
+                #Ok.! So unlike HARPS, ESPRESSO wavelengths are actually BERV corrected in the S2Ds.
+                #WHY!!!?. WELL SO BE IT. IN ORDER TO HAVE E2DSes THAT ARE ON THE SAME GRID, AS REQUIRED, WE UNDO THE BERV CORRECTION HERE.
+                #WHEN COMPARING WAVE[0] WITH WAVE[1], YOU SHOULD SEE THAT THE DIFFERENCE IS NILL.
+                #THATS WHY LATER WE CAN JUST USE WAVE[0] AS THE REPRESENTATIVE GRID FOR ALL.
+                #BUT THAT IS SILLY. JUST SAVE THE WAVELENGTHS!
+
+                if read_s1d:
+                    s1d_path=inpath/Path(str(filelist[i]).replace('_'+type_suffix,'_S1D_A.fits'))
+                    #Need the blazed files. Not the S2D_A's by themselves.
+                    ut.check_path(s1d_path,exists=True)#Crash if the S1D doesn't exist.
+                    hdul = fits.open(s1d_path)
+                    data_table = copy.deepcopy(hdul[1].data)
+                    hdr1d = hdul[0].header
+                    hdul.close()
+                    del hdul
+                    s1d.append(data_table.field(2))
+
+                    berv1d = hdr1d[bervkeyword]
+                    if berv1d != hdr[bervkeyword]:
+                        wrn_msg = ('WARNING in read_espresso(): BERV correction of S1D file is not'
+                        f'equal to that of the S2D file. {berv1d} vs {hdr[bervkeyword]}')
+                        ut.tprint(wrn_msg)
+                    gamma = (1.0-(berv1d*u.km/u.s/const.c).decompose().value)
+                    wave1d.append(data_table.field(1)*gamma)#This is in angstroms.
+                    print(telescope)
+                    if telescope not in ['ESO-VLT-U1234']:
+                        raise ValueError(f"in read_e2ds when reading ESPRESSO 4UT data. You do not seem to be using ESPRESSO's 4UT mode.")
+                    else:
+                    #Because ESO hates us, it doesn't give an average value, but just the info from all four UTs in the header
+                        
+                        hdr1d['TELALT']     = np.mean(np.asarray([hdr1d[f'ESO TEL{t} ALT'] for t in tel_list]))
+                        hdr1d['RHUM']       = np.mean(np.asarray([hdr1d[f'ESO TEL{t} AMBI RHUM'] for t in tel_list]))
+                        hdr1d['PRESSURE']   = 0.5*(np.mean(np.array([hdr1d[f'ESO TEL{t} AMBI PRES START'] for t in tel_list]))+np.mean(np.array([hdr1d[f'ESO TEL{t} AMBI PRES START'] for t in tel_list])))
+                        hdr1d['AMBITEMP']   = np.mean(np.asarray([hdr1d[f'ESO TEL{t} AMBI TEMP'] for t in tel_list]))
+                        hdr1d['M1TEMP']     = np.mean(np.asarray([hdr1d[f'ESO TEL{t} TH M1 TEMP'] for t in tel_list]))
+
+                    s1dhdr.append(hdr1d)
+                    s1dmjd=np.append(s1dmjd,hdr1d['MJD-OBS'])
+    if read_s1d:
+        output = {'wave':wave,'e2ds':e2ds,'header':header,'wave1d':wave1d,'s1d':s1d,'s1dhdr':s1dhdr,
+        'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+        'norders':norders,'berv':berv,'airmass':airmass,'s1dmjd':s1dmjd}
+    else:
+        output = {'wave':wave,'e2ds':e2ds,'header':header,
+        'mjd':mjd,'date':date,'texp':texp,'obstype':obstype,'framename':framename,'npx':npx,
+        'norders':norders,'berv':berv,'airmass':airmass}
+    return(output)
+
 def read_nirps(inpath,filelist,read_s1d=True,skysub=True):
     #The following variables define lists in which all the necessary data will be stored.
     framename=[]

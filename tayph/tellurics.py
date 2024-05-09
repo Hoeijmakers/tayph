@@ -228,7 +228,7 @@ time_average=False):
     prihdr = copy.deepcopy(headers[ii])
     prihdu = fits.PrimaryHDU(header=prihdr)
     thdulist = fits.HDUList([prihdu, tbhdu])
-    thdulist.writeto(molecfit_folder/name,overwrite=True)
+    thdulist.writeto(molecfit_folder/name,overwrite=True,output_verify='fix+warn')
     #ut.tprint(f'Spectrum {ii} written to {str(molecfit_folder/name)}')
     return(0)
 

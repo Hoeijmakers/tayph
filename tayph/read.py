@@ -1228,7 +1228,6 @@ def read_pycrires(inpath,filelist,rawpath=None,read_s1d=True,nod='both'):
         chip1orders = int(len(chip1data[0])/3)
         chip2orders = int(len(chip2data[0])/3)
         chip3orders = int(len(chip3data[0])/3)
-        norders = np.append(norders, chip1orders+chip2orders+chip3orders)
 
         # mapping starting wavelenghts to sort
         chiplookup = {}
@@ -1236,7 +1235,7 @@ def read_pycrires(inpath,filelist,rawpath=None,read_s1d=True,nod='both'):
         for idx in range(chip1orders):
             chiplookup["1_"+str(idx)] = chip1data[0][idx*3+2]
             chiplookup_end["1_" + str(idx)] = chip1data[2047][idx * 3 + 2]
-        for idx in range(chip3orders):
+        for idx in range(chip2orders):
             chiplookup["2_" + str(idx)] = chip2data[0][idx * 3 + 2]
             chiplookup_end["2_" + str(idx)] = chip2data[2047][idx * 3 + 2]
         for idx in range(chip3orders):
@@ -1269,9 +1268,11 @@ def read_pycrires(inpath,filelist,rawpath=None,read_s1d=True,nod='both'):
                     loopflux.append(chip3data[pixelidx][orderid * 3])
                     looperrs.append(chip3data[pixelidx][orderid * 3 + 1])
                     loopwave.append(ops.vactoair(chip3data[pixelidx][orderid * 3 + 2]))
-            fluxes.append(np.array(loopflux))
-            errs.append(np.array(looperrs))
-            waves.append(np.array(loopwave))
+            if not np.isnan(loopwave).all():
+                fluxes.append(np.array(loopflux))
+                errs.append(np.array(looperrs))
+                waves.append(np.array(loopwave))
+        norders = np.append(norders, len(waves))
 
         wavedata1d = []
         fluxdata1d = []

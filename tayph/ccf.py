@@ -904,6 +904,7 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,trans
     import scipy.ndimage.interpolation as scint
 
     Kp = np.arange(kprange[0], kprange[1]+dkp, dkp, dtype=float) #fun.findgen((kprange[1]-kprange[0])/dkp+1)*dkp+kprange[0]
+    sin_incl = np.sin(np.radians(sp.paramget('inclination', dp)) 
     n_exp = np.shape(ccf)[0]
     KpVsys = np.zeros((len(Kp),len(rv)))
     KpVsys_e = np.zeros((len(Kp),len(rv)))
@@ -925,7 +926,7 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,trans
     ccf_e_copy = copy.deepcopy(ccf_e)
 
     def Kp_parallel(i):
-        dRV = sp.RV(dp,vorb=i,p=phase)*(-1.0)
+        dRV = sp.RV(dp,vorb=i / sin_incl,p=phase)*(-1.0) # because sp.RV assumes Kp = vorb *sin(i), this makes sure we actually look at the proj. orbital velocity Kp
         ccf_shifted = ccf_copy*0.0
         ccf_e_shifted = ccf_e_copy*0.0
         for i in range(n_exp):

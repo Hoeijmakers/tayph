@@ -909,6 +909,7 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,trans
     KpVsys_e = np.zeros((len(Kp),len(rv)))
     dv = rv[1]-rv[0]
     n_exp=len(ccf[:,0])#Number of exposures.
+    phase = sp.phase(dp)
 
     LC = sp.transit(dp,p=phase)-1.0
     if transit:
@@ -925,7 +926,7 @@ def construct_KpVsys(rv,ccf,ccf_e,dp,kprange=[0,300],dkp=1.0,parallel=True,trans
     ccf_e_copy = copy.deepcopy(ccf_e)
 
     def Kp_parallel(i):
-        dRV = sp.RV(dp,vorb=i,p=phase)*(-1.0)
+        dRV = i*np.sin(2*np.pi*phase)*(-1.0)
         ccf_shifted = ccf_copy*0.0
         ccf_e_shifted = ccf_e_copy*0.0
         for i in range(n_exp):
